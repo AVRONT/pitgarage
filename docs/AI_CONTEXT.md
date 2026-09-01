@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1**, registrada como **v2 — Entrada na fase piloto**. Uma aplicação local, navegável e com dados fictícios foi construída para validar fluxo, experiência e necessidades com a oficina. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.1**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local com dados fictícios recebeu polimento de UX, clareza, responsividade e recursos de apoio à demonstração. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -39,6 +39,7 @@ O projeto está na fase **Piloto v0.1**, registrada como **v2 — Entrada na fas
 - [Roadmap proposto](09-roadmap.md)
 - [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
 - [Escopo e limitações do Piloto v0.1](piloto/piloto-v0.1.md)
+- [Auditoria e preparação do Piloto v0.1.1](piloto/piloto-v0.1.1.md)
 
 # Decisões atuais importantes
 
@@ -48,6 +49,7 @@ O projeto está na fase **Piloto v0.1**, registrada como **v2 — Entrada na fas
 - O controle quantitativo completo de estoque está proposto para a V1 pós-MVP, sujeito a validação.
 - O scaffold existente não confirma arquitetura ou stack para o produto.
 - O Piloto v0.1 usa dados mockados, estado React e `localStorage` apenas como decisões temporárias de demonstração.
+- O Piloto v0.1.1 preserva essa base temporária e adiciona restauração confirmada do cenário fictício para repetir demonstrações.
 - Os estados da ordem de serviço e a garantia padrão de 30 dias são representados no piloto, mas permanecem sujeitos a validação.
 
 # Pendências
@@ -56,7 +58,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1 aos responsáveis pela oficina usando o roteiro de validação em [`piloto/piloto-v0.1.md`](piloto/piloto-v0.1.md). Registrar separadamente o que funcionou, o que não funcionou, lacunas e mudanças solicitadas. Somente depois atualizar requisitos, MVP e próximos incrementos.
+Demonstrar o Piloto v0.1.1 aos responsáveis pela oficina usando o roteiro de validação em [`piloto/piloto-v0.1.1.md`](piloto/piloto-v0.1.1.md). Registrar separadamente o que funcionou, o que não funcionou, lacunas e mudanças solicitadas. Somente depois atualizar requisitos, MVP e próximos incrementos.
 
 # Histórico
 

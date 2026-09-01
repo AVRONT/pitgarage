@@ -24,6 +24,7 @@ import {
   Play,
   Plus,
   ReceiptText,
+  RotateCcw,
   Search,
   ShieldCheck,
   Sparkles,
@@ -128,6 +129,7 @@ export function PilotApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -173,14 +175,22 @@ export function PilotApp() {
   const globalResults = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
     if (!term) return [];
-    return vehicles
+    const customerResults = customers
+      .filter((customer) =>
+        `${customer.name} ${customer.phone} ${customer.email}`
+          .toLocaleLowerCase("pt-BR")
+          .includes(term),
+      )
+      .map((customer) => ({ type: "customer" as const, customer }));
+    const vehicleResults = vehicles
       .filter((vehicle) => {
         const owner = customers.find((customer) => customer.id === vehicle.customerId);
-        return `${vehicle.brand} ${vehicle.model} ${vehicle.plate} ${owner?.name}`
+        return `${vehicle.brand} ${vehicle.model} ${vehicle.plate} ${owner?.name} ${owner?.phone}`
           .toLocaleLowerCase("pt-BR")
           .includes(term);
       })
-      .slice(0, 5);
+      .map((vehicle) => ({ type: "vehicle" as const, vehicle }));
+    return [...customerResults, ...vehicleResults].slice(0, 6);
   }, [query, vehicles, customers]);
 
   return (
@@ -190,6 +200,7 @@ export function PilotApp() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         onNavigate={navigate}
+        onReset={() => setResetOpen(true)}
       />
       {menuOpen && (
         <button
@@ -218,11 +229,36 @@ export function PilotApp() {
             />
             {globalResults.length > 0 && (
               <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border bg-white shadow-xl">
-                {globalResults.map((vehicle) => {
+                {globalResults.map((result) => {
+                  if (result.type === "customer") {
+                    const customer = result.customer;
+                    return (
+                      <button
+                        key={`customer-${customer.id}`}
+                        onClick={() => {
+                          setQuery("");
+                          navigate("customer", customer.id);
+                        }}
+                        className="flex w-full items-center gap-3 border-b p-3 text-left last:border-0 hover:bg-orange-50"
+                      >
+                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-orange-100 text-orange-700">
+                          <UserRound className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-orange-600">
+                            Cliente
+                          </span>
+                          <strong className="block truncate text-sm">{customer.name}</strong>
+                          <span className="text-xs text-muted-foreground">{customer.phone}</span>
+                        </span>
+                      </button>
+                    );
+                  }
+                  const vehicle = result.vehicle;
                   const owner = customers.find((customer) => customer.id === vehicle.customerId);
                   return (
                     <button
-                      key={vehicle.id}
+                      key={`vehicle-${vehicle.id}`}
                       onClick={() => {
                         setQuery("");
                         navigate("vehicle", vehicle.id);
@@ -232,7 +268,10 @@ export function PilotApp() {
                       <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100">
                         <VehicleIcon kind={vehicle.kind} className="h-4 w-4" />
                       </span>
-                      <span>
+                      <span className="min-w-0">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          {vehicle.kind}
+                        </span>
                         <strong className="block text-sm">
                           {vehicle.brand} {vehicle.model} · {vehicle.plate}
                         </strong>
@@ -348,6 +387,7 @@ export function PilotApp() {
         onOpenChange={setNewOrderOpen}
         customers={customers}
         vehicles={vehicles}
+        orders={orders}
         onCreate={(order) => {
           setOrders((current) => [order, ...current]);
           setNewOrderOpen(false);
@@ -355,6 +395,37 @@ export function PilotApp() {
           navigate("order", order.id);
         }}
       />
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
+            <DialogDescription>
+              Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
+              Piloto v0.1.1.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setCustomers(initialCustomers);
+                setOrders(initialOrders);
+                setSelectedCustomerId("c1");
+                setSelectedVehicleId("v1");
+                setSelectedOrderId("OS-1048");
+                setResetOpen(false);
+                setNotice("Dados de demonstração restaurados");
+                navigate("dashboard");
+              }}
+            >
+              Restaurar cenário original
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -364,11 +435,13 @@ function Sidebar({
   open,
   onClose,
   onNavigate,
+  onReset,
 }: {
   active: Screen;
   open: boolean;
   onClose: () => void;
   onNavigate: (screen: Screen) => void;
+  onReset: () => void;
 }) {
   return (
     <aside
@@ -384,7 +457,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.1</span>
           </span>
         </button>
         <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose}>
@@ -420,6 +493,12 @@ function Sidebar({
           <p className="mt-1 text-xs leading-relaxed text-slate-400">
             Dados fictícios salvos apenas neste navegador.
           </p>
+          <button
+            onClick={onReset}
+            className="mt-3 flex items-center gap-2 text-xs font-semibold text-orange-300 hover:text-orange-200"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Restaurar dados
+          </button>
         </div>
       </div>
     </aside>
@@ -488,7 +567,7 @@ function Dashboard({
     },
     {
       label: "Em diagnóstico",
-      value: orders.filter((o) => o.status === "Em diagnóstico").length || 2,
+      value: orders.filter((o) => o.status === "Em diagnóstico").length,
       icon: Gauge,
       tone: "bg-sky-50 text-sky-700",
     },
@@ -510,6 +589,14 @@ function Dashboard({
       icon: Wrench,
       tone: "bg-emerald-50 text-emerald-700",
     },
+    {
+      label: "Prontos para retirada",
+      value: orders.filter(
+        (o) => o.status === "Serviço concluído" || o.status === "Aguardando retirada",
+      ).length,
+      icon: CheckCircle2,
+      tone: "bg-cyan-50 text-cyan-700",
+    },
   ];
   const pendingValue = orders
     .flatMap((o) => o.budget)
@@ -530,11 +617,12 @@ function Dashboard({
           </Button>
         }
       />
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {cards.map((item) => (
-          <Card
+          <button
             key={item.label}
-            className="border-0 bg-white shadow-[0_10px_30px_rgba(31,41,55,0.05)]"
+            onClick={() => onNavigate("orders")}
+            className="rounded-2xl bg-white text-left shadow-[0_10px_30px_rgba(31,41,55,0.05)] transition hover:-translate-y-0.5 hover:ring-2 hover:ring-orange-100"
           >
             <CardContent className="flex items-center gap-4 p-5">
               <div className={cn("grid h-11 w-11 place-items-center rounded-xl", item.tone)}>
@@ -545,7 +633,7 @@ function Dashboard({
                 <span className="text-xs text-muted-foreground">{item.label}</span>
               </div>
             </CardContent>
-          </Card>
+          </button>
         ))}
       </section>
       <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -564,6 +652,9 @@ function Dashboard({
             </Button>
           </div>
           <div className="divide-y">
+            {activeOrders.length === 0 && (
+              <EmptyState title="Nenhuma OS ativa" text="As novas entradas aparecerão aqui." />
+            )}
             {activeOrders.slice(0, 5).map((order) => {
               const vehicle = vehicles.find((v) => v.id === order.vehicleId)!;
               const customer = customers.find((c) => c.id === order.customerId)!;
@@ -637,11 +728,13 @@ function Dashboard({
 function CustomersScreen({
   customers,
   vehicles,
+  orders,
   onOpen,
   onNew,
 }: {
   customers: Customer[];
   vehicles: Vehicle[];
+  orders: ServiceOrder[];
   onOpen: (id: string) => void;
   onNew: () => void;
 }) {
@@ -670,6 +763,14 @@ function CustomersScreen({
         />
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visible.length === 0 && (
+          <div className="md:col-span-2 xl:col-span-3">
+            <EmptyState
+              title="Nenhum cliente encontrado"
+              text="Revise a busca ou crie um cadastro de demonstração."
+            />
+          </div>
+        )}
         {visible.map((customer) => {
           const related = vehicles.filter((v) => v.customerId === customer.id);
           return (
@@ -740,6 +841,14 @@ function VehiclesScreen({
         />
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visible.length === 0 && (
+          <div className="md:col-span-2 xl:col-span-3">
+            <EmptyState
+              title="Nenhum veículo encontrado"
+              text="Tente buscar por placa, modelo ou proprietário."
+            />
+          </div>
+        )}
         {visible.map((vehicle) => {
           const owner = customers.find((c) => c.id === vehicle.customerId)!;
           const current = orders.find((o) => o.vehicleId === vehicle.id && o.status !== "Entregue");
@@ -834,6 +943,12 @@ function OrdersScreen({
       </div>
       <Card className="overflow-hidden border-0 bg-white">
         <div className="divide-y">
+          {visible.length === 0 && (
+            <EmptyState
+              title="Nenhuma OS neste estado"
+              text="Escolha outro filtro ou crie uma nova ordem."
+            />
+          )}
           {visible.map((order) => {
             const vehicle = vehicles.find((v) => v.id === order.vehicleId)!;
             const customer = customers.find((c) => c.id === order.customerId)!;
@@ -1040,16 +1155,27 @@ function VehicleDetail({
               </div>
               <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <Wrench className="h-4 w-4" />
-                Responsáveis: {current.team.join(", ")}
+                Responsáveis: {current.team.join(", ") || "A definir"}
               </p>
             </button>
           )}
           <h2 className="mb-4 text-xl font-bold">Histórico do veículo</h2>
+          {orders.length === 0 && (
+            <EmptyState
+              title="Nenhum histórico encontrado"
+              text="A primeira ordem deste veículo aparecerá aqui."
+            />
+          )}
           <div className="relative ml-3 space-y-4 border-l-2 border-slate-200 pl-7">
             {orders.map((order) => {
               const total = order.budget
                 .filter((i) => i.approval === "Aprovado")
                 .reduce((sum, i) => sum + i.price, 0);
+              const warrantyEnd = order.completedAt
+                ? new Date(`${order.completedAt}T12:00:00Z`)
+                : null;
+              if (warrantyEnd) warrantyEnd.setUTCDate(warrantyEnd.getUTCDate() + 30);
+              const warrantyActive = warrantyEnd && warrantyEnd >= new Date("2026-09-01T12:00:00Z");
               return (
                 <button
                   key={order.id}
@@ -1069,10 +1195,16 @@ function VehicleDetail({
                     </div>
                     <StatusBadge status={order.status} />
                   </div>
-                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                  <div className="mt-4 grid gap-4 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Diagnóstico</span>
+                      <p className="line-clamp-2 font-medium">
+                        {order.diagnosis || "Ainda não registrado"}
+                      </p>
+                    </div>
                     <div>
                       <span className="text-xs text-muted-foreground">Serviços e peças</span>
-                      <p className="font-medium">
+                      <p className="line-clamp-2 font-medium">
                         {order.budget
                           .filter((i) => i.approval === "Aprovado")
                           .map((i) => i.name)
@@ -1081,11 +1213,23 @@ function VehicleDetail({
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground">Responsáveis</span>
-                      <p className="font-medium">{order.team.join(", ")}</p>
+                      <p className="font-medium">{order.team.join(", ") || "A definir"}</p>
                     </div>
                     <div>
-                      <span className="text-xs text-muted-foreground">Valor aprovado</span>
+                      <span className="text-xs text-muted-foreground">Valor e garantia</span>
                       <p className="font-bold">{money(total)}</p>
+                      <p
+                        className={cn(
+                          "mt-1 text-xs font-semibold",
+                          warrantyActive ? "text-emerald-700" : "text-muted-foreground",
+                        )}
+                      >
+                        {warrantyEnd
+                          ? warrantyActive
+                            ? "Garantia ativa"
+                            : "Garantia expirada"
+                          : "Garantia após conclusão"}
+                      </p>
                     </div>
                   </div>
                 </button>
@@ -1119,6 +1263,7 @@ function OrderDetail({
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
+  const statusIndex = orderStatuses.indexOf(order.status);
   const updateItem = (id: string, patch: Partial<ServiceOrder["budget"][number]>) =>
     onUpdate({
       ...order,
@@ -1164,12 +1309,51 @@ function OrderDetail({
       <div className="mb-5 flex flex-wrap gap-2">
         <StatusBadge status={order.status} />
         <Badge variant="outline" className="bg-white">
-          Responsáveis: {order.team.join(", ")}
+          Responsáveis: {order.team.join(", ") || "A definir"}
         </Badge>
         <Badge variant="outline" className="bg-white">
           Aberta em {formatDate(order.openedAt)}
         </Badge>
       </div>
+      <section
+        className="mb-5 rounded-2xl border bg-white p-4"
+        aria-label="Progresso provisório da ordem de serviço"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Fluxo da ordem
+            </p>
+            <p className="text-sm font-semibold">
+              Etapa {statusIndex + 1} de {orderStatuses.length}
+            </p>
+          </div>
+          <span className="text-xs text-muted-foreground">Estados ainda sujeitos à validação</span>
+        </div>
+        <div className="flex items-start overflow-x-auto pb-1">
+          {orderStatuses.map((status, index) => (
+            <div key={status} className="flex min-w-28 flex-1 items-start last:min-w-20">
+              <div className="min-w-0 flex-1">
+                <div
+                  className={cn(
+                    "h-1.5 rounded-full",
+                    index <= statusIndex ? "bg-orange-500" : "bg-slate-200",
+                  )}
+                />
+                <p
+                  className={cn(
+                    "mt-2 text-[10px] leading-tight",
+                    index === statusIndex ? "font-bold text-orange-700" : "text-muted-foreground",
+                  )}
+                >
+                  {status}
+                </p>
+              </div>
+              {index < orderStatuses.length - 1 && <span className="w-2" />}
+            </div>
+          ))}
+        </div>
+      </section>
       <Tabs defaultValue="overview">
         <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-white p-1.5">
           <TabsTrigger value="overview" className="gap-2 py-2">
@@ -1477,8 +1661,12 @@ function BudgetPanel({
   notify: (text: string) => void;
 }) {
   const [additionalOpen, setAdditionalOpen] = useState(false);
+  const [itemOpen, setItemOpen] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [itemName, setItemName] = useState("");
+  const [itemType, setItemType] = useState<"Serviço" | "Peça">("Serviço");
+  const [itemValue, setItemValue] = useState("");
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
   const approved = order.budget
     .filter((i) => i.approval === "Aprovado")
@@ -1509,6 +1697,29 @@ function BudgetPanel({
     setAdditionalOpen(false);
     notify("Problema adicional aguardando aprovação");
   };
+  const addBudgetItem = () => {
+    if (!itemName || !itemValue) return;
+    const value = Number(itemValue);
+    onUpdate({
+      ...order,
+      budget: [
+        ...order.budget,
+        {
+          id: `i-${Date.now()}`,
+          type: itemType,
+          name: itemName,
+          price: itemType === "Peça" ? Number((value * 1.3).toFixed(2)) : value,
+          approval: "Aguardando aprovação",
+          ...(itemType === "Peça" ? { cost: value, availability: "Disponível" as const } : {}),
+          executed: false,
+        },
+      ],
+    });
+    setItemName("");
+    setItemValue("");
+    setItemOpen(false);
+    notify("Item adicionado ao orçamento");
+  };
   return (
     <>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -1518,15 +1729,29 @@ function BudgetPanel({
               <h2 className="font-bold">Itens do orçamento</h2>
               <p className="text-sm text-muted-foreground">Cada item possui sua própria decisão.</p>
             </div>
-            <Button
-              onClick={() => setAdditionalOpen(true)}
-              variant="outline"
-              className="gap-2 rounded-xl"
-            >
-              <Plus className="h-4 w-4" /> Problema adicional
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => setItemOpen(true)}
+                className="gap-2 rounded-xl bg-slate-900 hover:bg-slate-800"
+              >
+                <Plus className="h-4 w-4" /> Adicionar item
+              </Button>
+              <Button
+                onClick={() => setAdditionalOpen(true)}
+                variant="outline"
+                className="gap-2 rounded-xl"
+              >
+                <Sparkles className="h-4 w-4" /> Problema adicional
+              </Button>
+            </div>
           </div>
           <div className="divide-y">
+            {order.budget.length === 0 && (
+              <EmptyState
+                title="Orçamento ainda vazio"
+                text="Adicione uma peça ou serviço para iniciar a proposta."
+              />
+            )}
             {order.budget.map((item) => (
               <div key={item.id} className={cn("p-5", item.additional && "bg-amber-50/60")}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
@@ -1640,6 +1865,66 @@ function BudgetPanel({
           </div>
         </aside>
       </div>
+      <Dialog open={itemOpen} onOpenChange={setItemOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar item ao orçamento</DialogTitle>
+            <DialogDescription>
+              O item será criado aguardando a decisão do cliente. Para peças, o piloto demonstra o
+              custo acrescido de 30%.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold">Tipo do item</label>
+              <select
+                value={itemType}
+                onChange={(e) => setItemType(e.target.value as "Serviço" | "Peça")}
+                className="mt-2 h-10 w-full rounded-lg border bg-white px-3 text-sm"
+              >
+                <option>Serviço</option>
+                <option>Peça</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Descrição</label>
+              <Input
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                className="mt-2"
+                placeholder={
+                  itemType === "Peça" ? "Ex.: Bobina de ignição" : "Ex.: Diagnóstico eletrônico"
+                }
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">
+                {itemType === "Peça" ? "Custo da peça" : "Valor da mão de obra"}
+              </label>
+              <Input
+                type="number"
+                value={itemValue}
+                onChange={(e) => setItemValue(e.target.value)}
+                className="mt-2"
+                placeholder="0,00"
+              />
+              {itemType === "Peça" && Number(itemValue) > 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Valor demonstrado ao cliente: <strong>{money(Number(itemValue) * 1.3)}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setItemOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={addBudgetItem} className="bg-orange-500 hover:bg-orange-600">
+              Adicionar ao orçamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={additionalOpen} onOpenChange={setAdditionalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1701,6 +1986,12 @@ function ExecutionPanel({
             Marque o que foi efetivamente executado.
           </p>
           <div className="mt-5 space-y-3">
+            {approved.length === 0 && (
+              <EmptyState
+                title="Nenhum item autorizado"
+                text="A execução ficará disponível depois da aprovação do cliente."
+              />
+            )}
             {approved.map((item) => (
               <button
                 key={item.id}
@@ -1744,6 +2035,9 @@ function ExecutionPanel({
             Não podem ser marcados como executados sem aprovação.
           </p>
           <div className="mt-4 space-y-2">
+            {blocked.length === 0 && (
+              <p className="text-sm text-rose-700">Nenhum item bloqueado.</p>
+            )}
             {blocked.map((item) => (
               <div key={item.id} className="rounded-xl bg-white/70 p-3">
                 <strong className="block text-sm">{item.name}</strong>
@@ -1949,12 +2243,14 @@ function NewOrderDialog({
   onOpenChange,
   customers,
   vehicles,
+  orders,
   onCreate,
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
   customers: Customer[];
   vehicles: Vehicle[];
+  orders: ServiceOrder[];
   onCreate: (order: ServiceOrder) => void;
 }) {
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "");
@@ -1964,8 +2260,10 @@ function NewOrderDialog({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!vehicle || !complaint) return;
+    const nextNumber =
+      Math.max(...orders.map((order) => Number(order.id.replace("OS-", "")) || 0)) + 1;
     onCreate({
-      id: `OS-${1049 + Math.floor(Math.random() * 100)}`,
+      id: `OS-${nextNumber}`,
       customerId: vehicle.customerId,
       vehicleId: vehicle.id,
       status: "Recebido",

@@ -2,6 +2,25 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.1] - 2026-09-01
+
+### Adicionado
+
+- Busca global por cliente, telefone, veículo e placa.
+- Linha visual provisória dos estados da ordem de serviço.
+- Inclusão de itens comuns no orçamento, além do fluxo separado de problema adicional.
+- Estados vazios orientativos, informações ampliadas no histórico do veículo e restauração confirmada dos dados fictícios.
+
+### Alterado
+
+- Indicadores do dashboard passaram a refletir estritamente os dados do cenário e ganharam acesso direto às listas filtradas.
+- Identificadores de novas ordens passaram a seguir sequência estável no cenário local.
+- Rótulos, responsáveis ausentes e comportamento responsivo foram refinados para demonstração.
+
+### Observação
+
+- Esta é uma evolução do piloto, não uma nova versão documental formal. Não valida estados, garantia, permissões, arquitetura ou escopo do MVP.
+
 ## [v2] - 2026-09-01
 
 ### Adicionado
