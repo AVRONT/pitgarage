@@ -4,14 +4,14 @@ Sistema de gestão para uma oficina real de carros e motos. O projeto busca cent
 
 ## Estado atual
 
-O projeto está na fase de levantamento e validação de requisitos. A documentação inicial do negócio foi organizada, mas o MVP, as decisões técnicas e a implementação ainda não foram aprovados.
+O projeto está na fase de **Piloto v0.1**. Existe agora uma aplicação local, navegável e baseada em dados fictícios para validar fluxos e experiência com a oficina. O piloto não representa aprovação do MVP, da arquitetura ou das decisões técnicas definitivas.
 
 Consulte o índice em [`docs/README.md`](docs/README.md).
 
 ## Próximos passos
 
-1. Validar o processo, as regras, as permissões e as questões pendentes com a oficina.
-2. Aprovar o escopo do MVP.
-3. Somente depois, tomar as decisões técnicas e iniciar a modelagem.
+1. Demonstrar o Piloto v0.1 aos responsáveis pela oficina.
+2. Registrar feedback sobre fluxo, informações e facilidade de uso.
+3. Atualizar requisitos e escopo com base apenas no que for validado.
 
 > O repositório já possui um scaffold gerado pelo Lovable. Sua presença não representa uma decisão técnica aprovada para o produto.

@@ -1,0 +1,421 @@
+export const orderStatuses = [
+  "Recebido",
+  "Em diagnóstico",
+  "Aguardando aprovação",
+  "Aguardando peça",
+  "Em manutenção",
+  "Serviço concluído",
+  "Aguardando retirada",
+  "Entregue",
+] as const;
+
+export type OrderStatus = (typeof orderStatuses)[number];
+export type ApprovalStatus = "Aprovado" | "Recusado" | "Aguardando aprovação";
+export type VehicleKind = "Carro" | "Moto";
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  since: string;
+}
+
+export interface Vehicle {
+  id: string;
+  customerId: string;
+  kind: VehicleKind;
+  brand: string;
+  model: string;
+  year: number;
+  plate: string;
+  mileage: number;
+  color: string;
+}
+
+export interface BudgetItem {
+  id: string;
+  type: "Serviço" | "Peça";
+  name: string;
+  cost?: number;
+  price: number;
+  approval: ApprovalStatus;
+  availability?: "Disponível" | "Solicitada" | "Aguardando peça";
+  additional?: boolean;
+  executed?: boolean;
+}
+
+export interface Evidence {
+  id: string;
+  kind: "Foto" | "Vídeo";
+  name: string;
+  caption: string;
+}
+
+export interface Payment {
+  amount: number;
+  method: "PIX" | "Cartão";
+  status: "Pendente" | "Pago";
+  date: string;
+}
+
+export interface ServiceOrder {
+  id: string;
+  customerId: string;
+  vehicleId: string;
+  status: OrderStatus;
+  openedAt: string;
+  completedAt?: string;
+  entryMileage: number;
+  complaint: string;
+  diagnosis: string;
+  findings: string;
+  notes: string;
+  team: string[];
+  budget: BudgetItem[];
+  evidence: Evidence[];
+  payment?: Payment;
+}
+
+export const initialCustomers: Customer[] = [
+  {
+    id: "c1",
+    name: "João da Silva",
+    phone: "(11) 99876-4321",
+    email: "joao@email.com",
+    since: "2023",
+  },
+  {
+    id: "c2",
+    name: "Mariana Costa",
+    phone: "(11) 98765-1122",
+    email: "mariana@email.com",
+    since: "2024",
+  },
+  {
+    id: "c3",
+    name: "Carlos Mendes",
+    phone: "(11) 97654-8899",
+    email: "carlos@email.com",
+    since: "2022",
+  },
+  {
+    id: "c4",
+    name: "Ana Paula Souza",
+    phone: "(11) 96543-7711",
+    email: "ana@email.com",
+    since: "2025",
+  },
+  {
+    id: "c5",
+    name: "Ricardo Nunes",
+    phone: "(11) 95432-6600",
+    email: "ricardo@email.com",
+    since: "2024",
+  },
+];
+
+export const initialVehicles: Vehicle[] = [
+  {
+    id: "v1",
+    customerId: "c1",
+    kind: "Carro",
+    brand: "Honda",
+    model: "Civic",
+    year: 2020,
+    plate: "ABC1D23",
+    mileage: 72000,
+    color: "Prata",
+  },
+  {
+    id: "v2",
+    customerId: "c2",
+    kind: "Moto",
+    brand: "Honda",
+    model: "CG 160",
+    year: 2022,
+    plate: "RTE4F56",
+    mileage: 28400,
+    color: "Vermelha",
+  },
+  {
+    id: "v3",
+    customerId: "c3",
+    kind: "Carro",
+    brand: "Toyota",
+    model: "Corolla",
+    year: 2018,
+    plate: "FGR8H91",
+    mileage: 96500,
+    color: "Preto",
+  },
+  {
+    id: "v4",
+    customerId: "c4",
+    kind: "Moto",
+    brand: "Yamaha",
+    model: "Fazer 250",
+    year: 2021,
+    plate: "QAZ7B12",
+    mileage: 36100,
+    color: "Azul",
+  },
+  {
+    id: "v5",
+    customerId: "c5",
+    kind: "Carro",
+    brand: "Volkswagen",
+    model: "T-Cross",
+    year: 2023,
+    plate: "DFG5J67",
+    mileage: 19800,
+    color: "Branco",
+  },
+  {
+    id: "v6",
+    customerId: "c1",
+    kind: "Moto",
+    brand: "Royal Enfield",
+    model: "Meteor 350",
+    year: 2022,
+    plate: "KLM2N34",
+    mileage: 12500,
+    color: "Verde",
+  },
+];
+
+export const initialOrders: ServiceOrder[] = [
+  {
+    id: "OS-1048",
+    customerId: "c1",
+    vehicleId: "v1",
+    status: "Aguardando aprovação",
+    openedAt: "2026-09-01",
+    entryMileage: 72000,
+    complaint: "Ruído forte ao frear e vibração no volante em velocidades acima de 80 km/h.",
+    diagnosis: "Desgaste acentuado das pastilhas dianteiras e discos com empenamento leve.",
+    findings: "Amortecedor dianteiro direito apresenta início de vazamento.",
+    notes: "Cliente utiliza o veículo diariamente para trabalho.",
+    team: ["Marcelo", "Diego"],
+    evidence: [
+      {
+        id: "e1",
+        kind: "Foto",
+        name: "pastilha-dianteira.jpg",
+        caption: "Desgaste da pastilha dianteira esquerda",
+      },
+      {
+        id: "e2",
+        kind: "Vídeo",
+        name: "ruido-freio.mp4",
+        caption: "Ruído durante teste de frenagem",
+      },
+    ],
+    budget: [
+      {
+        id: "i1",
+        type: "Peça",
+        name: "Jogo de pastilhas dianteiras",
+        cost: 420,
+        price: 546,
+        approval: "Aprovado",
+        availability: "Disponível",
+        executed: false,
+      },
+      {
+        id: "i2",
+        type: "Serviço",
+        name: "Troca das pastilhas e revisão dos freios",
+        price: 380,
+        approval: "Aprovado",
+        executed: false,
+      },
+      {
+        id: "i3",
+        type: "Peça",
+        name: "Par de discos dianteiros",
+        cost: 890,
+        price: 1157,
+        approval: "Aguardando aprovação",
+        availability: "Solicitada",
+        executed: false,
+      },
+      {
+        id: "i4",
+        type: "Serviço",
+        name: "Troca e assentamento dos discos",
+        price: 420,
+        approval: "Aguardando aprovação",
+        executed: false,
+      },
+      {
+        id: "i5",
+        type: "Peça",
+        name: "Amortecedor dianteiro direito",
+        cost: 610,
+        price: 793,
+        approval: "Recusado",
+        availability: "Aguardando peça",
+        additional: true,
+        executed: false,
+      },
+    ],
+  },
+  {
+    id: "OS-1047",
+    customerId: "c2",
+    vehicleId: "v2",
+    status: "Aguardando peça",
+    openedAt: "2026-09-01",
+    entryMileage: 28400,
+    complaint: "Moto falhando em baixa rotação e demora para ligar pela manhã.",
+    diagnosis: "Bateria com baixa capacidade e vela com desgaste.",
+    findings: "Sem outros problemas identificados.",
+    notes: "Aguardar chegada da bateria.",
+    team: ["Rafael"],
+    evidence: [
+      { id: "e3", kind: "Vídeo", name: "partida-fria.mp4", caption: "Teste de partida a frio" },
+    ],
+    budget: [
+      {
+        id: "i6",
+        type: "Peça",
+        name: "Bateria 6Ah",
+        cost: 240,
+        price: 312,
+        approval: "Aprovado",
+        availability: "Aguardando peça",
+        executed: false,
+      },
+      {
+        id: "i7",
+        type: "Serviço",
+        name: "Substituição de bateria e vela",
+        price: 160,
+        approval: "Aprovado",
+        executed: false,
+      },
+    ],
+  },
+  {
+    id: "OS-1046",
+    customerId: "c3",
+    vehicleId: "v3",
+    status: "Em manutenção",
+    openedAt: "2026-08-31",
+    entryMileage: 96500,
+    complaint: "Revisão dos 100 mil km antecipada e barulho na suspensão.",
+    diagnosis: "Bieletas com folga e óleo próximo do limite de troca.",
+    findings: "Filtros sujos.",
+    notes: "Cliente aprovou revisão completa.",
+    team: ["Marcelo", "Diego"],
+    evidence: [],
+    budget: [
+      {
+        id: "i8",
+        type: "Serviço",
+        name: "Revisão preventiva completa",
+        price: 740,
+        approval: "Aprovado",
+        executed: true,
+      },
+      {
+        id: "i9",
+        type: "Peça",
+        name: "Kit de filtros e óleo",
+        cost: 480,
+        price: 624,
+        approval: "Aprovado",
+        availability: "Disponível",
+        executed: true,
+      },
+      {
+        id: "i10",
+        type: "Peça",
+        name: "Par de bieletas",
+        cost: 310,
+        price: 403,
+        approval: "Aprovado",
+        availability: "Disponível",
+        executed: false,
+      },
+    ],
+  },
+  {
+    id: "OS-1045",
+    customerId: "c4",
+    vehicleId: "v4",
+    status: "Serviço concluído",
+    openedAt: "2026-08-28",
+    completedAt: "2026-08-31",
+    entryMileage: 36100,
+    complaint: "Troca de óleo e revisão antes de viagem.",
+    diagnosis: "Manutenção preventiva, sem falhas adicionais.",
+    findings: "Relação em boas condições.",
+    notes: "Veículo pronto para retirada.",
+    team: ["Rafael"],
+    evidence: [],
+    budget: [
+      {
+        id: "i11",
+        type: "Peça",
+        name: "Óleo e filtro",
+        cost: 135,
+        price: 175.5,
+        approval: "Aprovado",
+        availability: "Disponível",
+        executed: true,
+      },
+      {
+        id: "i12",
+        type: "Serviço",
+        name: "Troca de óleo e checklist",
+        price: 180,
+        approval: "Aprovado",
+        executed: true,
+      },
+    ],
+    payment: { amount: 355.5, method: "PIX", status: "Pago", date: "2026-08-31" },
+  },
+  {
+    id: "OS-1039",
+    customerId: "c1",
+    vehicleId: "v1",
+    status: "Entregue",
+    openedAt: "2026-03-12",
+    completedAt: "2026-03-13",
+    entryMileage: 64820,
+    complaint: "Ar-condicionado com baixa eficiência.",
+    diagnosis: "Carga de gás baixa, sem vazamento aparente.",
+    findings: "Filtro de cabine saturado.",
+    notes: "Serviço entregue.",
+    team: ["Diego"],
+    evidence: [],
+    budget: [
+      {
+        id: "i13",
+        type: "Serviço",
+        name: "Higienização e recarga do ar",
+        price: 450,
+        approval: "Aprovado",
+        executed: true,
+      },
+      {
+        id: "i14",
+        type: "Peça",
+        name: "Filtro de cabine",
+        cost: 70,
+        price: 91,
+        approval: "Aprovado",
+        availability: "Disponível",
+        executed: true,
+      },
+    ],
+    payment: { amount: 541, method: "Cartão", status: "Pago", date: "2026-03-13" },
+  },
+];
+
+export const money = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+export const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`));

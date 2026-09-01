@@ -21,4 +21,7 @@ Criar uma nova versão documental quando houver mudança relevante em requisitos
 
 ## Identificação
 
-As versões usam numeração sequencial (`v1`, `v2`, `v3`...) e um nome curto descritivo. A versão inicial está registrada em [`historico/v1-documentacao-inicial.md`](../historico/v1-documentacao-inicial.md).
+As versões usam numeração sequencial (`v1`, `v2`, `v3`...) e um nome curto descritivo.
+
+- [`v1 — Descoberta e documentação inicial`](../historico/v1-documentacao-inicial.md)
+- [`v2 — Entrada na fase Piloto v0.1`](../historico/v2-entrada-fase-piloto.md)

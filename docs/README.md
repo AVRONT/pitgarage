@@ -23,10 +23,15 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 11. [Decisões técnicas futuras](11-decisoes-tecnicas-futuras.md)
 12. [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
 
+## Piloto
+
+- [`piloto/piloto-v0.1.md`](piloto/piloto-v0.1.md): escopo implementado, decisões temporárias e limitações da primeira versão demonstrável.
+
 ## Histórico e versionamento
 
 - [`historico/README.md`](historico/README.md): política de preservação e índice dos registros históricos.
 - [`historico/v1-documentacao-inicial.md`](historico/v1-documentacao-inicial.md): composição da primeira versão formal.
+- [`historico/v2-entrada-fase-piloto.md`](historico/v2-entrada-fase-piloto.md): mudança de estratégia e entrada na fase Piloto v0.1.
 - [`versoes/README.md`](versoes/README.md): critérios para criar versões documentais futuras.
 
 Os documentos numerados acima representam o estado atual. Eles não devem ser apagados ou silenciosamente reescritos quando uma decisão mudar; a evolução deve ser registrada conforme a política de histórico e versionamento.

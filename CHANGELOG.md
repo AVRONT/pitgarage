@@ -2,6 +2,31 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [v2] - 2026-09-01
+
+### Adicionado
+
+- Piloto v0.1 navegável para demonstração e validação com a oficina.
+- Dashboard operacional, clientes, veículos, ordens de serviço e histórico do veículo.
+- Diagnóstico editável e evidências locais simuladas de foto e vídeo.
+- Orçamento com peças, serviços, cálculo demonstrativo de 30% e decisão individual por item.
+- Registro de problema adicional aguardando aprovação, execução de itens autorizados, pagamento e garantia.
+- Dados fictícios realistas para carros, motos e diferentes estados de atendimento.
+- Documentação do escopo, limitações e decisões temporárias do piloto.
+
+### Mudança de estratégia
+
+- **Decisão anterior:** responder as questões P0 antes de avançar significativamente para prototipação e implementação.
+- **Nova decisão:** construir um piloto visual e funcional antes de responder todas as pendências, usando-o como instrumento de validação com usuários reais.
+- **Motivo:** permitir feedback prático sobre fluxo, informações e facilidade de uso a partir de uma experiência interativa.
+- **Status da decisão anterior:** substituída como sequência obrigatória; as questões P0 foram mantidas e continuam pendentes.
+
+### Decisões temporárias
+
+- Dados mockados, estado local e `localStorage` foram usados somente para demonstração.
+- Não foram criados banco, integrações, autenticação definitiva ou infraestrutura de produção.
+- Estados de OS e garantia padrão de 30 dias continuam sujeitos a validação.
+
 ## [Não lançado]
 
 ### Adicionado

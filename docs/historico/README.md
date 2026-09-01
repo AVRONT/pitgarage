@@ -16,3 +16,4 @@ Registros históricos devem ser tratados como evidência da evolução. Correç�
 ## Versões registradas
 
 - [v1 — Descoberta e documentação inicial](v1-documentacao-inicial.md)
+- [v2 — Entrada na fase Piloto v0.1](v2-entrada-fase-piloto.md)

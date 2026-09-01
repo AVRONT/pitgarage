@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está em descoberta e validação de requisitos. A documentação inicial foi organizada como **v1 — Descoberta e documentação inicial**, mas o fluxo, as permissões e o escopo do MVP ainda dependem de validação. Modelagem, arquitetura e implementação não foram aprovadas.
+O projeto está na fase **Piloto v0.1**, registrada como **v2 — Entrada na fase piloto**. Uma aplicação local, navegável e com dados fictícios foi construída para validar fluxo, experiência e necessidades com a oficina. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -38,6 +38,7 @@ O projeto está em descoberta e validação de requisitos. A documentação inic
 - [Proposta de MVP](08-mvp.md)
 - [Roadmap proposto](09-roadmap.md)
 - [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
+- [Escopo e limitações do Piloto v0.1](piloto/piloto-v0.1.md)
 
 # Decisões atuais importantes
 
@@ -46,6 +47,8 @@ O projeto está em descoberta e validação de requisitos. A documentação inic
 - Fotos e vídeos de diagnóstico têm prioridade operacional.
 - O controle quantitativo completo de estoque está proposto para a V1 pós-MVP, sujeito a validação.
 - O scaffold existente não confirma arquitetura ou stack para o produto.
+- O Piloto v0.1 usa dados mockados, estado React e `localStorage` apenas como decisões temporárias de demonstração.
+- Os estados da ordem de serviço e a garantia padrão de 30 dias são representados no piloto, mas permanecem sujeitos a validação.
 
 # Pendências
 
@@ -53,7 +56,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Realizar uma conversa curta com os responsáveis pela oficina usando somente o roteiro P0 de [`12-priorizacao-questoes-pendentes.md`](12-priorizacao-questoes-pendentes.md). Depois, registrar as respostas validadas e reavaliar a prontidão do MVP. Não iniciar modelagem ou implementação antes dessa validação.
+Demonstrar o Piloto v0.1 aos responsáveis pela oficina usando o roteiro de validação em [`piloto/piloto-v0.1.md`](piloto/piloto-v0.1.md). Registrar separadamente o que funcionou, o que não funcionou, lacunas e mudanças solicitadas. Somente depois atualizar requisitos, MVP e próximos incrementos.
 
 # Histórico
 
