@@ -64,6 +64,16 @@ import {
   type ServiceOrder,
   type Vehicle,
 } from "./pilot-data";
+import {
+  isBasicCpfValid,
+  isBasicEmailValid,
+  nextOrderId,
+  normalizeCpf,
+  normalizeEmail,
+  normalizeName,
+  normalizePhone,
+  normalizePlate,
+} from "./pilot-validation";
 
 type Screen = "dashboard" | "customers" | "vehicles" | "orders" | "customer" | "vehicle" | "order";
 
@@ -123,21 +133,27 @@ export function PilotApp() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("v1");
   const [selectedOrderId, setSelectedOrderId] = useState("OS-1048");
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [vehicles] = useState<Vehicle[]>(initialVehicles);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [orders, setOrders] = useState<ServiceOrder[]>(initialOrders);
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [newVehicleOpen, setNewVehicleOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("pitgarage-pilot-v01");
+      const saved = window.localStorage.getItem("pitgarage-pilot-v012");
       if (saved) {
-        const parsed = JSON.parse(saved) as { customers?: Customer[]; orders?: ServiceOrder[] };
+        const parsed = JSON.parse(saved) as {
+          customers?: Customer[];
+          vehicles?: Vehicle[];
+          orders?: ServiceOrder[];
+        };
         if (parsed.customers) setCustomers(parsed.customers);
+        if (parsed.vehicles) setVehicles(parsed.vehicles);
         if (parsed.orders) setOrders(parsed.orders);
       }
     } catch {
@@ -147,11 +163,14 @@ export function PilotApp() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem("pitgarage-pilot-v01", JSON.stringify({ customers, orders }));
+      window.localStorage.setItem(
+        "pitgarage-pilot-v012",
+        JSON.stringify({ customers, vehicles, orders }),
+      );
     } catch {
       /* armazenamento local opcional */
     }
-  }, [customers, orders]);
+  }, [customers, vehicles, orders]);
 
   useEffect(() => {
     if (!notice) return;
@@ -174,20 +193,27 @@ export function PilotApp() {
 
   const globalResults = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
+    const phoneTerm = normalizePhone(query);
+    const plateTerm = normalizePlate(query);
     if (!term) return [];
     const customerResults = customers
-      .filter((customer) =>
-        `${customer.name} ${customer.phone} ${customer.email}`
-          .toLocaleLowerCase("pt-BR")
-          .includes(term),
+      .filter(
+        (customer) =>
+          `${customer.name} ${customer.email}`.toLocaleLowerCase("pt-BR").includes(term) ||
+          (phoneTerm.length >= 4 && normalizePhone(customer.phone).includes(phoneTerm)) ||
+          (customer.cpf && normalizeCpf(customer.cpf).includes(normalizeCpf(query))),
       )
       .map((customer) => ({ type: "customer" as const, customer }));
     const vehicleResults = vehicles
       .filter((vehicle) => {
         const owner = customers.find((customer) => customer.id === vehicle.customerId);
-        return `${vehicle.brand} ${vehicle.model} ${vehicle.plate} ${owner?.name} ${owner?.phone}`
-          .toLocaleLowerCase("pt-BR")
-          .includes(term);
+        return (
+          `${vehicle.brand} ${vehicle.model} ${owner?.name}`
+            .toLocaleLowerCase("pt-BR")
+            .includes(term) ||
+          (plateTerm.length >= 3 && normalizePlate(vehicle.plate).includes(plateTerm)) ||
+          (phoneTerm.length >= 4 && normalizePhone(owner?.phone ?? "").includes(phoneTerm))
+        );
       })
       .map((vehicle) => ({ type: "vehicle" as const, vehicle }));
     return [...customerResults, ...vehicleResults].slice(0, 6);
@@ -313,6 +339,7 @@ export function PilotApp() {
             <CustomersScreen
               customers={customers}
               vehicles={vehicles}
+              orders={orders}
               onOpen={(id) => navigate("customer", id)}
               onNew={() => setNewCustomerOpen(true)}
             />
@@ -323,6 +350,7 @@ export function PilotApp() {
               customers={customers}
               orders={orders}
               onOpen={(id) => navigate("vehicle", id)}
+              onNew={() => setNewVehicleOpen(true)}
             />
           )}
           {screen === "orders" && (
@@ -375,11 +403,32 @@ export function PilotApp() {
       <NewCustomerDialog
         open={newCustomerOpen}
         onOpenChange={setNewCustomerOpen}
+        customers={customers}
+        onExisting={(id) => {
+          setNewCustomerOpen(false);
+          navigate("customer", id);
+        }}
         onCreate={(customer) => {
           setCustomers((current) => [...current, customer]);
           setNewCustomerOpen(false);
           setNotice("Cliente criado para demonstração");
           navigate("customer", customer.id);
+        }}
+      />
+      <NewVehicleDialog
+        open={newVehicleOpen}
+        onOpenChange={setNewVehicleOpen}
+        customers={customers}
+        vehicles={vehicles}
+        onExisting={(id) => {
+          setNewVehicleOpen(false);
+          navigate("vehicle", id);
+        }}
+        onCreate={(vehicle) => {
+          setVehicles((current) => [...current, vehicle]);
+          setNewVehicleOpen(false);
+          setNotice("Veículo criado para demonstração");
+          navigate("vehicle", vehicle.id);
         }}
       />
       <NewOrderDialog
@@ -401,7 +450,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.1.
+              Piloto v0.1.2.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -412,6 +461,7 @@ export function PilotApp() {
               variant="destructive"
               onClick={() => {
                 setCustomers(initialCustomers);
+                setVehicles(initialVehicles);
                 setOrders(initialOrders);
                 setSelectedCustomerId("c1");
                 setSelectedVehicleId("v1");
@@ -457,7 +507,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.1</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.2</span>
           </span>
         </button>
         <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose}>
@@ -813,11 +863,13 @@ function VehiclesScreen({
   customers,
   orders,
   onOpen,
+  onNew,
 }: {
   vehicles: Vehicle[];
   customers: Customer[];
   orders: ServiceOrder[];
   onOpen: (id: string) => void;
+  onNew: () => void;
 }) {
   const [filter, setFilter] = useState("");
   const visible = vehicles.filter((v) =>
@@ -831,6 +883,11 @@ function VehiclesScreen({
         eyebrow="Histórico centralizado"
         title="Veículos"
         text="Carros e motos com informações, serviços atuais e histórico em um só lugar."
+        action={
+          <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
+            <Plus className="h-4 w-4" /> Novo veículo
+          </Button>
+        }
       />
       <div className="mb-5 max-w-md">
         <Input
@@ -1287,13 +1344,18 @@ function OrderDetail({
               value={order.status}
               onChange={(e) => {
                 const status = e.target.value as ServiceOrder["status"];
+                const completionRequired =
+                  orderStatuses.indexOf(status) >= orderStatuses.indexOf("Serviço concluído");
+                const completionDate = "2026-09-01";
+                if (completionRequired && completionDate < order.openedAt) {
+                  notify("A conclusão não pode ser anterior à entrada do veículo.");
+                  return;
+                }
                 onUpdate({
                   ...order,
                   status,
                   completedAt:
-                    status === "Serviço concluído" && !order.completedAt
-                      ? "2026-09-01"
-                      : order.completedAt,
+                    completionRequired && !order.completedAt ? completionDate : order.completedAt,
                 });
                 notify("Status da OS atualizado");
               }}
@@ -1394,7 +1456,7 @@ function OrderDetail({
           <BudgetPanel order={order} updateItem={updateItem} onUpdate={onUpdate} notify={notify} />
         </TabsContent>
         <TabsContent value="execution" className="mt-6">
-          <ExecutionPanel order={order} updateItem={updateItem} />
+          <ExecutionPanel order={order} updateItem={updateItem} notify={notify} />
         </TabsContent>
         <TabsContent value="payment" className="mt-6">
           <PaymentPanel
@@ -1667,6 +1729,7 @@ function BudgetPanel({
   const [itemName, setItemName] = useState("");
   const [itemType, setItemType] = useState<"Serviço" | "Peça">("Serviço");
   const [itemValue, setItemValue] = useState("");
+  const [budgetError, setBudgetError] = useState("");
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
   const approved = order.budget
     .filter((i) => i.approval === "Aprovado")
@@ -1676,7 +1739,11 @@ function BudgetPanel({
     notify(`Item marcado como ${approval.toLowerCase()}`);
   };
   const addAdditional = () => {
-    if (!name || !price) return;
+    const cleanName = name.trim();
+    const value = Number(price);
+    if (!cleanName) return setBudgetError("Informe a descrição do serviço adicional.");
+    if (!price || !Number.isFinite(value) || value < 0)
+      return setBudgetError("Informe um valor válido, igual ou maior que zero.");
     onUpdate({
       ...order,
       budget: [
@@ -1684,8 +1751,8 @@ function BudgetPanel({
         {
           id: `i-${Date.now()}`,
           type: "Serviço",
-          name,
-          price: Number(price),
+          name: cleanName,
+          price: value,
           approval: "Aguardando aprovação",
           additional: true,
           executed: false,
@@ -1694,12 +1761,16 @@ function BudgetPanel({
     });
     setName("");
     setPrice("");
+    setBudgetError("");
     setAdditionalOpen(false);
     notify("Problema adicional aguardando aprovação");
   };
   const addBudgetItem = () => {
-    if (!itemName || !itemValue) return;
+    const cleanName = itemName.trim();
     const value = Number(itemValue);
+    if (!cleanName) return setBudgetError("Informe a descrição do item.");
+    if (!itemValue || !Number.isFinite(value) || value < 0)
+      return setBudgetError("Informe um valor válido, igual ou maior que zero.");
     onUpdate({
       ...order,
       budget: [
@@ -1707,7 +1778,7 @@ function BudgetPanel({
         {
           id: `i-${Date.now()}`,
           type: itemType,
-          name: itemName,
+          name: cleanName,
           price: itemType === "Peça" ? Number((value * 1.3).toFixed(2)) : value,
           approval: "Aguardando aprovação",
           ...(itemType === "Peça" ? { cost: value, availability: "Disponível" as const } : {}),
@@ -1717,6 +1788,7 @@ function BudgetPanel({
     });
     setItemName("");
     setItemValue("");
+    setBudgetError("");
     setItemOpen(false);
     notify("Item adicionado ao orçamento");
   };
@@ -1903,6 +1975,8 @@ function BudgetPanel({
               </label>
               <Input
                 type="number"
+                min="0"
+                step="0.01"
                 value={itemValue}
                 onChange={(e) => setItemValue(e.target.value)}
                 className="mt-2"
@@ -1914,6 +1988,11 @@ function BudgetPanel({
                 </p>
               )}
             </div>
+            {budgetError && (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {budgetError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setItemOpen(false)}>
@@ -1947,12 +2026,19 @@ function BudgetPanel({
               <label className="text-sm font-semibold">Valor estimado</label>
               <Input
                 type="number"
+                min="0"
+                step="0.01"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 className="mt-2"
                 placeholder="0,00"
               />
             </div>
+            {budgetError && (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {budgetError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdditionalOpen(false)}>
@@ -1971,9 +2057,11 @@ function BudgetPanel({
 function ExecutionPanel({
   order,
   updateItem,
+  notify,
 }: {
   order: ServiceOrder;
   updateItem: (id: string, patch: Partial<ServiceOrder["budget"][number]>) => void;
+  notify: (text: string) => void;
 }) {
   const approved = order.budget.filter((item) => item.approval === "Aprovado");
   const blocked = order.budget.filter((item) => item.approval !== "Aprovado");
@@ -2039,10 +2127,20 @@ function ExecutionPanel({
               <p className="text-sm text-rose-700">Nenhum item bloqueado.</p>
             )}
             {blocked.map((item) => (
-              <div key={item.id} className="rounded-xl bg-white/70 p-3">
+              <button
+                key={item.id}
+                onClick={() =>
+                  notify(
+                    item.approval === "Recusado"
+                      ? "Este serviço foi recusado pelo cliente e não pode ser executado."
+                      : "Este serviço ainda não foi aprovado pelo cliente.",
+                  )
+                }
+                className="w-full rounded-xl bg-white/70 p-3 text-left hover:bg-white"
+              >
                 <strong className="block text-sm">{item.name}</strong>
                 <StatusBadge status={item.approval} />
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -2067,6 +2165,8 @@ function PaymentPanel({
     .reduce((sum, item) => sum + item.price, 0);
   const [method, setMethod] = useState<"PIX" | "Cartão">(order.payment?.method ?? "PIX");
   const [status, setStatus] = useState<"Pendente" | "Pago">(order.payment?.status ?? "Pendente");
+  const [amount, setAmount] = useState(order.payment?.amount.toString() ?? approved.toString());
+  const [paymentError, setPaymentError] = useState("");
   const today = new Date("2026-09-01T12:00:00Z");
   const warrantyStatus = warrantyEnd && warrantyEnd >= today ? "ATIVA" : "EXPIRADA";
   return (
@@ -2088,7 +2188,18 @@ function PaymentPanel({
             <span className="text-xs text-muted-foreground">Valor aprovado</span>
             <strong className="block text-2xl">{money(approved)}</strong>
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="text-sm font-semibold">Valor registrado</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="mt-2"
+              />
+            </div>
             <div>
               <label className="text-sm font-semibold">Forma</label>
               <select
@@ -2112,12 +2223,35 @@ function PaymentPanel({
               </select>
             </div>
           </div>
+          {paymentError && (
+            <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              {paymentError}
+            </p>
+          )}
           <Button
             onClick={() => {
+              const numericAmount = Number(amount);
+              if (
+                (status === "Pago" && amount.trim() === "") ||
+                !Number.isFinite(numericAmount) ||
+                numericAmount < 0
+              ) {
+                setPaymentError(
+                  status === "Pago" && amount.trim() === ""
+                    ? "Informe o valor antes de confirmar o pagamento."
+                    : "O valor do pagamento não pode ser negativo ou inválido.",
+                );
+                return;
+              }
+              if (!(["PIX", "Cartão"] as string[]).includes(method)) {
+                setPaymentError("Selecione PIX ou Cartão como forma de pagamento.");
+                return;
+              }
               onUpdate({
                 ...order,
-                payment: { amount: approved, method, status, date: "2026-09-01" },
+                payment: { amount: numericAmount, method, status, date: "2026-09-01" },
               });
+              setPaymentError("");
               notify("Pagamento registrado localmente");
             }}
             className="mt-5 w-full rounded-xl bg-orange-500 hover:bg-orange-600"
@@ -2183,27 +2317,66 @@ function PaymentPanel({
 function NewCustomerDialog({
   open,
   onOpenChange,
+  customers,
+  onExisting,
   onCreate,
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
+  customers: Customer[];
+  onExisting: (id: string) => void;
   onCreate: (customer: Customer) => void;
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [error, setError] = useState<{ field: string; message: string; existingId?: string }>();
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!name || !phone) return;
-    onCreate({ id: `c-${Date.now()}`, name, phone, email, since: "2026" });
+    const cleanName = normalizeName(name);
+    const cleanPhone = normalizePhone(phone);
+    const cleanEmail = normalizeEmail(email);
+    const cleanCpf = normalizeCpf(cpf);
+    if (!cleanName) return setError({ field: "name", message: "Informe o nome do cliente." });
+    if (cleanPhone.length < 10 || cleanPhone.length > 11)
+      return setError({ field: "phone", message: "Informe um telefone válido com DDD." });
+    if (cleanCpf && !isBasicCpfValid(cleanCpf))
+      return setError({ field: "cpf", message: "Informe um CPF com 11 dígitos válidos." });
+    if (!isBasicEmailValid(cleanEmail))
+      return setError({ field: "email", message: "Informe um e-mail válido." });
+    const duplicateCpf =
+      cleanCpf && customers.find((item) => normalizeCpf(item.cpf ?? "") === cleanCpf);
+    const duplicatePhone = customers.find((item) => normalizePhone(item.phone) === cleanPhone);
+    const duplicateEmail =
+      cleanEmail && customers.find((item) => normalizeEmail(item.email) === cleanEmail);
+    const duplicate = duplicateCpf || duplicatePhone || duplicateEmail;
+    if (duplicate) {
+      const field = duplicateCpf ? "CPF" : duplicatePhone ? "telefone" : "e-mail";
+      return setError({
+        field: field.toLowerCase(),
+        message: `Já existe um cliente cadastrado com este ${field}.`,
+        existingId: duplicate.id,
+      });
+    }
+    onCreate({
+      id: `c-${Date.now()}`,
+      name: cleanName,
+      phone: cleanPhone,
+      email: cleanEmail,
+      ...(cleanCpf ? { cpf: cleanCpf } : {}),
+      since: "2026",
+    });
     setName("");
     setPhone("");
     setEmail("");
+    setCpf("");
+    setError(undefined);
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <form onSubmit={submit}>
+        <form onSubmit={submit} noValidate>
           <DialogHeader>
             <DialogTitle>Novo cliente</DialogTitle>
             <DialogDescription>
@@ -2213,16 +2386,55 @@ function NewCustomerDialog({
           <div className="my-5 space-y-4">
             <div>
               <label className="text-sm font-semibold">Nome</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-2" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-2"
+                aria-invalid={error?.field === "name"}
+              />
+              {error?.field === "name" && (
+                <p className="mt-1 text-sm text-rose-600">{error.message}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-semibold">Telefone</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-2" />
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="mt-2"
+                aria-invalid={error?.field === "telefone" || error?.field === "phone"}
+              />
             </div>
             <div>
               <label className="text-sm font-semibold">E-mail</label>
               <Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-2" />
             </div>
+            <div>
+              <label className="text-sm font-semibold">
+                CPF <span className="font-normal text-muted-foreground">(opcional)</span>
+              </label>
+              <Input
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value)}
+                className="mt-2"
+                inputMode="numeric"
+              />
+            </div>
+            {error && error.field !== "name" && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                <p>{error.message}</p>
+                {error.existingId && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-rose-700"
+                    onClick={() => onExisting(error.existingId!)}
+                  >
+                    Abrir cliente existente
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -2230,6 +2442,173 @@ function NewCustomerDialog({
             </Button>
             <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
               Criar cliente
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewVehicleDialog({
+  open,
+  onOpenChange,
+  customers,
+  vehicles,
+  onExisting,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+  customers: Customer[];
+  vehicles: Vehicle[];
+  onExisting: (id: string) => void;
+  onCreate: (vehicle: Vehicle) => void;
+}) {
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
+  const [kind, setKind] = useState<Vehicle["kind"]>("Carro");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [plate, setPlate] = useState("");
+  const [year, setYear] = useState("");
+  const [mileage, setMileage] = useState("");
+  const [color, setColor] = useState("");
+  const [error, setError] = useState<{ message: string; existingId?: string }>();
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const cleanPlate = normalizePlate(plate);
+    const existing = vehicles.find((item) => normalizePlate(item.plate) === cleanPlate);
+    if (!customerId) return setError({ message: "Selecione o proprietário do veículo." });
+    if (!brand.trim() || !model.trim() || cleanPlate.length !== 7)
+      return setError({ message: "Informe marca, modelo e uma placa com 7 caracteres." });
+    if (existing)
+      return setError({
+        message: `A placa ${cleanPlate} já pertence a ${existing.brand} ${existing.model}.`,
+        existingId: existing.id,
+      });
+    const numericYear = Number(year);
+    const numericMileage = Number(mileage);
+    if (!Number.isInteger(numericYear) || numericYear < 1900 || numericYear > 2027)
+      return setError({ message: "Informe um ano válido para o veículo." });
+    if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
+      return setError({ message: "Informe uma quilometragem válida entre 0 e 2.000.000 km." });
+    onCreate({
+      id: `v-${Date.now()}`,
+      customerId,
+      kind,
+      brand: normalizeName(brand),
+      model: normalizeName(model),
+      year: numericYear,
+      plate: cleanPlate,
+      mileage: numericMileage,
+      color: normalizeName(color) || "Não informada",
+    });
+    setBrand("");
+    setModel("");
+    setPlate("");
+    setYear("");
+    setMileage("");
+    setColor("");
+    setError(undefined);
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form onSubmit={submit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Novo veículo</DialogTitle>
+            <DialogDescription>
+              Cadastre um carro ou moto e vincule ao proprietário.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-5 grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="text-sm font-semibold">Proprietário</label>
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+              >
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Tipo</label>
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as Vehicle["kind"])}
+                className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+              >
+                <option>Carro</option>
+                <option>Moto</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Placa</label>
+              <Input
+                value={plate}
+                onChange={(e) => setPlate(e.target.value)}
+                className="mt-2 uppercase"
+                placeholder="ABC1D23"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Marca</label>
+              <Input value={brand} onChange={(e) => setBrand(e.target.value)} className="mt-2" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Modelo</label>
+              <Input value={model} onChange={(e) => setModel(e.target.value)} className="mt-2" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Ano</label>
+              <Input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Quilometragem</label>
+              <Input
+                type="number"
+                min="0"
+                value={mileage}
+                onChange={(e) => setMileage(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-semibold">Cor</label>
+              <Input value={color} onChange={(e) => setColor(e.target.value)} className="mt-2" />
+            </div>
+            {error && (
+              <div className="sm:col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                <p>{error.message}</p>
+                {error.existingId && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-rose-700"
+                    onClick={() => onExisting(error.existingId!)}
+                  >
+                    Abrir veículo existente
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
+              Criar veículo
             </Button>
           </DialogFooter>
         </form>
@@ -2256,20 +2635,36 @@ function NewOrderDialog({
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "");
   const [mileage, setMileage] = useState("");
   const [complaint, setComplaint] = useState("");
+  const [error, setError] = useState("");
+  const [mileageWarningAccepted, setMileageWarningAccepted] = useState(false);
   const vehicle = vehicles.find((v) => v.id === vehicleId);
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!vehicle || !complaint) return;
-    const nextNumber =
-      Math.max(...orders.map((order) => Number(order.id.replace("OS-", "")) || 0)) + 1;
+    if (!vehicle) return setError("Selecione um veículo para criar a ordem.");
+    const cleanComplaint = complaint.trim();
+    if (!cleanComplaint) return setError("Informe o problema relatado pelo cliente.");
+    const numericMileage = mileage === "" ? vehicle.mileage : Number(mileage);
+    if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
+      return setError("Informe uma quilometragem válida entre 0 e 2.000.000 km.");
+    const lastMileage = Math.max(
+      vehicle.mileage,
+      ...orders.filter((item) => item.vehicleId === vehicle.id).map((item) => item.entryMileage),
+    );
+    if (numericMileage < lastMileage && !mileageWarningAccepted) {
+      setMileageWarningAccepted(true);
+      return setError(
+        `A quilometragem informada é menor que a última registrada (${lastMileage.toLocaleString("pt-BR")} km). Confira o valor e clique novamente para continuar.`,
+      );
+    }
+    const orderId = nextOrderId(orders.map((order) => order.id));
     onCreate({
-      id: `OS-${nextNumber}`,
+      id: orderId,
       customerId: vehicle.customerId,
       vehicleId: vehicle.id,
       status: "Recebido",
       openedAt: "2026-09-01",
-      entryMileage: Number(mileage) || vehicle.mileage,
-      complaint,
+      entryMileage: numericMileage,
+      complaint: cleanComplaint,
       diagnosis: "",
       findings: "",
       notes: "",
@@ -2279,11 +2674,13 @@ function NewOrderDialog({
     });
     setComplaint("");
     setMileage("");
+    setError("");
+    setMileageWarningAccepted(false);
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <form onSubmit={submit}>
+        <form onSubmit={submit} noValidate>
           <DialogHeader>
             <DialogTitle>Nova ordem de serviço</DialogTitle>
             <DialogDescription>
@@ -2311,11 +2708,21 @@ function NewOrderDialog({
               <Input
                 type="number"
                 value={mileage}
-                onChange={(e) => setMileage(e.target.value)}
+                onChange={(e) => {
+                  setMileage(e.target.value);
+                  setMileageWarningAccepted(false);
+                }}
+                min="0"
+                max="2000000"
                 className="mt-2"
                 placeholder={vehicle?.mileage.toString()}
               />
             </div>
+            {error && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                {error}
+              </p>
+            )}
             <div>
               <label className="text-sm font-semibold">Problema relatado</label>
               <Textarea

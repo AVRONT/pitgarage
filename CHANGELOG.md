@@ -2,6 +2,26 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.2] - 2026-09-01
+
+### Adicionado
+
+- Normalização de CPF, telefone, e-mail, nome e placa na camada local do piloto.
+- Cadastro de veículo com bloqueio de placa duplicada.
+- Mensagens próximas aos campos, acesso ao cadastro existente e preservação dos dados digitados após erro.
+- Validações de quilometragem, orçamento, execução, pagamento e datas simples.
+
+### Integridade
+
+- CPF informado, telefone, e-mail informado, placa e número de OS não podem se repetir no cenário local.
+- Itens aguardando aprovação ou recusados permanecem registrados e não podem ser executados.
+- Valores negativos e entradas numéricas evidentemente inválidas são rejeitados.
+- Quilometragem menor que a última conhecida gera aviso, sem bloqueio definitivo.
+
+### Observação
+
+- Telefone e e-mail únicos, obrigatoriedade exata dos campos, algumas validações de data e garantia padrão de 30 dias continuam provisórios. Esta evolução não cria uma nova versão documental formal nem altera a arquitetura.
+
 ## [Piloto v0.1.1] - 2026-09-01
 
 ### Adicionado

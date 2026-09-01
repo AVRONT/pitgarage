@@ -18,6 +18,7 @@ export interface Customer {
   name: string;
   phone: string;
   email: string;
+  cpf?: string;
   since: string;
 }
 
