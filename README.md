@@ -1,24 +1,17 @@
-# Blank Canvas
+# PITGARAGE
 
-Crie uma página web completamente em branco, sem texto, botões, imagens, componentes visíveis ou funcionalidades. Use a implementação mais simples possível para minimizar créditos.
+Sistema de gestão para uma oficina real de carros e motos. O projeto busca centralizar informações hoje distribuídas entre WhatsApp, papéis, planilhas, cadernos e a memória dos funcionários, tornando o atendimento e o acompanhamento dos serviços mais simples e rastreáveis.
 
-This project was built with [Lovable](https://lovable.dev).
+## Estado atual
 
-## Build with Lovable
+O projeto está na fase de levantamento e validação de requisitos. A documentação inicial do negócio foi organizada, mas o MVP, as decisões técnicas e a implementação ainda não foram aprovados.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/fe92942f-b6fb-4ce5-9870-695d51f91bf9).
+Consulte o índice em [`docs/README.md`](docs/README.md).
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## Próximos passos
 
-## Development
+1. Validar o processo, as regras, as permissões e as questões pendentes com a oficina.
+2. Aprovar o escopo do MVP.
+3. Somente depois, tomar as decisões técnicas e iniciar a modelagem.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+> O repositório já possui um scaffold gerado pelo Lovable. Sua presença não representa uma decisão técnica aprovada para o produto.
