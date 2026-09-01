@@ -31,6 +31,7 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 - [`piloto/piloto-v0.1.3.md`](piloto/piloto-v0.1.3.md): fluxo operacional sincronizado, atividades e visão rápida da ordem de serviço.
 - [`piloto/piloto-v0.1.4.md`](piloto/piloto-v0.1.4.md): progresso visual contínuo e visualização local do orçamento como cliente.
 - [`piloto/piloto-v0.1.5.md`](piloto/piloto-v0.1.5.md): workflow funcional orientado por ações, bloqueios e correção de inconsistências.
+- [`piloto/piloto-v0.1.6.md`](piloto/piloto-v0.1.6.md): identidade visual profissional, maior densidade e redesign global do piloto.
 
 ## Histórico e versionamento
 

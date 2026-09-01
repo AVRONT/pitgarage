@@ -2,6 +2,25 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.6] - 2026-09-01
+
+### Alterado
+
+- **Funcionamento anterior:** interface funcional, porém com excesso de cards arredondados, sombras, baixa densidade e aparência de dashboard genérico.
+- **Novo estado:** identidade grafite e laranja, raios reduzidos, superfícies apoiadas em bordas, tabs lineares e listagens operacionais estruturadas.
+- **Motivo:** aproximar o piloto de um software profissional de gestão de oficina sem alterar seu comportamento.
+- **Estado anterior:** preservado integralmente na documentação da v0.1.5; nenhuma regra ou funcionalidade foi substituída.
+
+### Redesign
+
+- Sidebar, header, busca, dashboard, clientes, veículos, ordens, detalhes, formulários, dialogs, alertas, timeline e estados vazios harmonizados.
+- Clientes, veículos, ordens e serviços em andamento convertidos para linhas/tabelas responsivas.
+- Sistema central de raios, foco, superfícies, botões, tabs e dialogs refinado sem dependências novas.
+
+### Observação
+
+- O workflow v0.1.5 permanece intacto. Imagens e APIs de veículos não fazem parte desta versão.
+
 ## [Piloto v0.1.5] - 2026-09-01
 
 ### Alterado

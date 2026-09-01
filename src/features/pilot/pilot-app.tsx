@@ -205,7 +205,7 @@ function OrderProgress({
 
   return (
     <section
-      className="mb-5 rounded-2xl border bg-white p-4 md:p-5"
+      className="mb-5 rounded-lg border bg-white p-4 md:p-5"
       aria-label="Progresso provisório da ordem de serviço"
     >
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -294,7 +294,7 @@ function VehicleIcon({ kind, className }: { kind: Vehicle["kind"]; className?: s
 
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed bg-white/50 p-10 text-center">
+    <div className="rounded-lg border border-dashed bg-white/50 p-6 text-center">
       <FileText className="mx-auto h-8 w-8 text-slate-300" />
       <h3 className="mt-3 font-semibold">{title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{text}</p>
@@ -398,7 +398,7 @@ export function PilotApp() {
   }, [query, vehicles, customers, orders]);
 
   return (
-    <div className="min-h-screen bg-[#f6f4ef]">
+    <div className="pilot-shell min-h-screen bg-[#f4f3ef]">
       <Sidebar
         active={screen}
         open={menuOpen}
@@ -413,13 +413,14 @@ export function PilotApp() {
           aria-label="Fechar menu"
         />
       )}
-      <main className="min-h-screen lg:pl-72">
-        <header className="sticky top-0 z-20 flex h-20 items-center gap-4 border-b border-black/5 bg-[#f6f4ef]/90 px-4 backdrop-blur md:px-8">
+      <main className="min-h-screen lg:pl-64">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-[#f4f3ef]/95 px-4 backdrop-blur-sm md:px-8">
           <Button
             className="lg:hidden"
             size="icon"
             variant="outline"
             onClick={() => setMenuOpen(true)}
+            aria-label="Abrir menu"
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -428,11 +429,11 @@ export function PilotApp() {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="h-11 rounded-xl border-black/5 bg-white pl-10 shadow-none"
+              className="h-10 border-slate-300 bg-white pl-10 shadow-none"
               placeholder="Buscar cliente, placa, veículo ou OS..."
             />
             {globalResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border bg-white shadow-xl">
+              <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden border bg-white shadow-lg">
                 {globalResults.map((result) => {
                   if (result.type === "order") {
                     const order = result.order;
@@ -532,7 +533,7 @@ export function PilotApp() {
             {notice}
           </div>
         )}
-        <div className="mx-auto max-w-[1500px] p-4 md:p-8">
+        <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
           {screen === "dashboard" && (
             <Dashboard
               orders={orders}
@@ -657,7 +658,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.5.
+              Piloto v0.1.6.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -703,25 +704,31 @@ function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 w-72 border-r border-white/10 bg-[#1f2937] text-white transition-transform lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 bg-[#17202d] text-white transition-transform lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full",
       )}
     >
-      <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
+      <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
         <button className="flex items-center gap-3" onClick={() => onNavigate("dashboard")}>
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-500 shadow-lg shadow-orange-950/20">
+          <span className="grid h-9 w-9 place-items-center rounded-md bg-orange-600">
             <Wrench className="h-5 w-5" />
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.5</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.6</span>
           </span>
         </button>
-        <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose}>
+        <Button
+          className="lg:hidden"
+          size="icon"
+          variant="ghost"
+          onClick={onClose}
+          aria-label="Fechar menu"
+        >
           <X className="h-5 w-5" />
         </Button>
       </div>
-      <nav className="space-y-1 p-4" aria-label="Navegação principal">
+      <nav className="space-y-1 px-3 py-4" aria-label="Navegação principal">
         <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           Operação
         </p>
@@ -730,22 +737,27 @@ function Sidebar({
             key={item.id}
             onClick={() => onNavigate(item.id)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors",
+              "relative flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm font-medium transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:bg-transparent",
               active === item.id ||
                 (item.id === "customers" && active === "customer") ||
                 (item.id === "vehicles" && active === "vehicle") ||
                 (item.id === "orders" && active === "order")
-                ? "bg-white/10 text-white"
+                ? "bg-white/8 text-white before:bg-orange-500"
                 : "text-slate-400 hover:bg-white/5 hover:text-white",
             )}
           >
-            <item.icon className="h-5 w-5 text-orange-400" />
+            <item.icon
+              className={cn(
+                "h-4.5 w-4.5",
+                active === item.id ? "text-orange-400" : "text-slate-500",
+              )}
+            />
             {item.label}
           </button>
         ))}
       </nav>
       <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 p-4">
-        <div className="rounded-xl bg-white/5 p-3">
+        <div className="border-l-2 border-orange-500/70 bg-white/[.035] p-3">
           <p className="text-sm font-medium">Ambiente de demonstração</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-400">
             Dados fictícios salvos apenas neste navegador.
@@ -776,7 +788,7 @@ function PageTitle({
   back?: () => void;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div>
         {back && (
           <button
@@ -791,7 +803,7 @@ function PageTitle({
             {eyebrow}
           </p>
         )}
-        <h1 className="text-balance text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+        <h1 className="text-balance text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
           {title}
         </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">{text}</p>
@@ -866,34 +878,36 @@ function Dashboard({
         action={
           <Button
             onClick={onNewOrder}
-            className="h-11 gap-2 rounded-xl bg-orange-500 px-5 shadow-lg shadow-orange-200 hover:bg-orange-600"
+            className="h-10 gap-2 bg-orange-600 px-5 hover:bg-orange-700"
           >
             <Plus className="h-4 w-4" /> Nova ordem de serviço
           </Button>
         }
       />
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid grid-cols-2 gap-2 xl:grid-cols-3 2xl:grid-cols-6">
         {cards.map((item) => (
           <button
             key={item.label}
             onClick={() => onNavigate("orders")}
-            className="rounded-2xl bg-white text-left shadow-[0_10px_30px_rgba(31,41,55,0.05)] transition hover:-translate-y-0.5 hover:ring-2 hover:ring-orange-100"
+            className="border border-slate-200 bg-white text-left transition-colors hover:border-orange-300 hover:bg-orange-50/30"
           >
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className={cn("grid h-11 w-11 place-items-center rounded-xl", item.tone)}>
+            <CardContent className="flex min-w-0 items-center gap-3 p-3.5 sm:p-4">
+              <div className={cn("grid h-9 w-9 place-items-center rounded-md", item.tone)}>
                 <item.icon className="h-5 w-5" />
               </div>
               <div>
-                <strong className="block text-2xl tracking-tight">{item.value}</strong>
-                <span className="text-xs text-muted-foreground">{item.label}</span>
+                <strong className="block text-xl tracking-tight">{item.value}</strong>
+                <span className="block text-[11px] leading-tight text-muted-foreground sm:text-xs">
+                  {item.label}
+                </span>
               </div>
             </CardContent>
           </button>
         ))}
       </section>
       <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="overflow-hidden border-0 bg-white shadow-[0_10px_30px_rgba(31,41,55,0.05)]">
-          <div className="flex items-center justify-between border-b p-5 md:p-6">
+        <Card className="overflow-hidden bg-white">
+          <div className="flex items-center justify-between border-b p-4 md:px-5">
             <div>
               <h2 className="text-lg font-bold">Serviços em andamento</h2>
               <p className="text-sm text-muted-foreground">Prioridades e últimas movimentações</p>
@@ -906,7 +920,14 @@ function Dashboard({
               Ver todas <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="divide-y">
+          <div>
+            <div className="pilot-table-header hidden grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_150px_24px] px-5 md:grid">
+              <span>Veículo</span>
+              <span>Placa</span>
+              <span>Cliente</span>
+              <span>Status</span>
+              <span />
+            </div>
             {activeOrders.length === 0 && (
               <EmptyState title="Nenhuma OS ativa" text="As novas entradas aparecerão aqui." />
             )}
@@ -917,20 +938,24 @@ function Dashboard({
                 <button
                   key={order.id}
                   onClick={() => onNavigate("order", order.id)}
-                  className="flex w-full items-center gap-4 p-4 text-left hover:bg-orange-50/50 md:px-6"
+                  className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_150px_24px] md:px-5"
                 >
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                    <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-600">
+                      <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <strong className="block truncate text-sm">
+                        {vehicle.brand} {vehicle.model} {vehicle.year}
+                      </strong>
+                      <p className="truncate text-xs text-muted-foreground">{order.id}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <strong className="block truncate text-sm">
-                      {vehicle.brand} {vehicle.model} {vehicle.year}
-                    </strong>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {vehicle.plate} · {customer.name} · {order.id}
-                    </p>
-                  </div>
-                  <div className="hidden sm:block">
+                  <span className="hidden font-mono text-xs font-semibold md:block">
+                    {vehicle.plate}
+                  </span>
+                  <span className="hidden truncate text-sm md:block">{customer.name}</span>
+                  <div className="hidden md:block">
                     <StatusBadge status={order.status} />
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -939,7 +964,7 @@ function Dashboard({
             })}
           </div>
         </Card>
-        <Card className="border-0 bg-slate-900 text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)]">
+        <Card className="border-slate-800 bg-slate-900 text-white">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>
@@ -963,7 +988,7 @@ function Dashboard({
                     <button
                       key={order.id}
                       onClick={() => onNavigate("order", order.id)}
-                      className="w-full rounded-xl bg-white/7 p-4 text-left hover:bg-white/10"
+                      className="w-full border-l-2 border-orange-500 bg-white/[.055] p-3 text-left hover:bg-white/10"
                     >
                       <p className="text-sm font-semibold">
                         {vehicle.brand} {vehicle.model} · {vehicle.plate}
@@ -1017,9 +1042,16 @@ function CustomersScreen({
           placeholder="Pesquisar por nome ou telefone"
         />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="pilot-table">
+        <div className="pilot-table-header grid-cols-[minmax(0,1.4fr)_190px_160px_120px_28px] px-4 md:grid">
+          <span>Cliente</span>
+          <span>Contato</span>
+          <span>Relacionamento</span>
+          <span>Veículos</span>
+          <span />
+        </div>
         {visible.length === 0 && (
-          <div className="md:col-span-2 xl:col-span-3">
+          <div>
             <EmptyState
               title="Nenhum cliente encontrado"
               text="Revise a busca ou crie um cadastro de demonstração."
@@ -1032,29 +1064,29 @@ function CustomersScreen({
             <button
               key={customer.id}
               onClick={() => onOpen(customer.id)}
-              className="rounded-2xl border bg-white p-5 text-left shadow-[0_8px_24px_rgba(31,41,55,.04)] transition hover:-translate-y-0.5 hover:border-orange-200"
+              className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_190px_160px_120px_28px] md:px-4"
             >
-              <div className="flex items-start justify-between">
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-orange-100 font-bold text-orange-700">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-orange-100 text-sm font-bold text-orange-700">
                   {customer.name
                     .split(" ")
                     .slice(0, 2)
                     .map((word) => word[0])
                     .join("")}
                 </div>
-                <ChevronRight className="h-5 w-5 text-slate-300" />
+                <h2 className="truncate font-bold">{customer.name}</h2>
               </div>
-              <h2 className="mt-5 font-bold">{customer.name}</h2>
-              <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+              <p className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
                 <Phone className="h-3.5 w-3.5" />
                 {customer.phone}
               </p>
-              <div className="mt-4 flex items-center justify-between border-t pt-4 text-xs">
-                <span className="text-muted-foreground">Cliente desde {customer.since}</span>
-                <span className="font-semibold">
-                  {related.length} veículo{related.length !== 1 && "s"}
-                </span>
-              </div>
+              <span className="hidden text-sm text-muted-foreground md:block">
+                Desde {customer.since}
+              </span>
+              <span className="hidden text-sm font-semibold md:block">
+                {related.length} veículo{related.length !== 1 && "s"}
+              </span>
+              <ChevronRight className="h-4 w-4 text-slate-400" />
             </button>
           );
         })}
@@ -1102,9 +1134,17 @@ function VehiclesScreen({
           placeholder="Pesquisar placa, modelo ou proprietário"
         />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="pilot-table">
+        <div className="pilot-table-header grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_160px_28px] px-4 md:grid">
+          <span>Veículo</span>
+          <span>Placa</span>
+          <span>Proprietário</span>
+          <span>Tipo</span>
+          <span>Status</span>
+          <span />
+        </div>
         {visible.length === 0 && (
-          <div className="md:col-span-2 xl:col-span-3">
+          <div>
             <EmptyState
               title="Nenhum veículo encontrado"
               text="Tente buscar por placa, modelo ou proprietário."
@@ -1118,40 +1158,34 @@ function VehiclesScreen({
             <button
               key={vehicle.id}
               onClick={() => onOpen(vehicle.id)}
-              className="rounded-2xl border bg-white p-5 text-left shadow-[0_8px_24px_rgba(31,41,55,.04)] transition hover:-translate-y-0.5 hover:border-orange-200"
+              className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_160px_28px] md:px-4"
             >
-              <div className="flex items-start justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-slate-900 text-white">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-900 text-white">
                   <VehicleIcon kind={vehicle.kind} className="h-6 w-6" />
                 </div>
+                <span className="min-w-0">
+                  <strong className="block truncate">
+                    {vehicle.brand} {vehicle.model}
+                  </strong>
+                  <span className="text-xs text-muted-foreground">
+                    {vehicle.year} · {vehicle.color} · {vehicle.mileage.toLocaleString("pt-BR")} km
+                  </span>
+                </span>
+              </div>
+              <span className="hidden font-mono text-xs font-semibold md:block">
+                {vehicle.plate}
+              </span>
+              <span className="hidden truncate text-sm md:block">{owner.name}</span>
+              <span className="hidden text-sm md:block">{vehicle.kind}</span>
+              <span className="hidden md:block">
                 {current ? (
                   <StatusBadge status={current.status} />
                 ) : (
                   <Badge variant="outline">Sem OS atual</Badge>
                 )}
-              </div>
-              <h2 className="mt-5 text-lg font-bold">
-                {vehicle.brand} {vehicle.model}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {vehicle.year} · {vehicle.color}
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-xs">
-                <div>
-                  <span className="text-muted-foreground">Placa</span>
-                  <strong className="block font-mono text-sm">{vehicle.plate}</strong>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Quilometragem</span>
-                  <strong className="block text-sm">
-                    {vehicle.mileage.toLocaleString("pt-BR")} km
-                  </strong>
-                </div>
-              </div>
-              <p className="mt-4 flex items-center gap-2 text-sm">
-                <UserRound className="h-4 w-4 text-muted-foreground" />
-                {owner.name}
-              </p>
+              </span>
+              <ChevronRight className="h-4 w-4 text-slate-400" />
             </button>
           );
         })}
@@ -1187,24 +1221,32 @@ function OrdersScreen({
           </Button>
         }
       />
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
+      <div className="mb-5 flex gap-1 overflow-x-auto border-b pb-0">
         {["Todas", ...orderStatuses].map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
             className={cn(
-              "whitespace-nowrap rounded-full border px-4 py-2 text-xs font-semibold",
+              "whitespace-nowrap border-b-2 border-x-0 border-t-0 px-3 py-2.5 text-xs font-semibold",
               filter === status
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "bg-white text-muted-foreground",
+                ? "border-orange-600 bg-orange-50/60 text-orange-800"
+                : "border-transparent bg-transparent text-muted-foreground hover:text-slate-900",
             )}
           >
             {status}
           </button>
         ))}
       </div>
-      <Card className="overflow-hidden border-0 bg-white">
-        <div className="divide-y">
+      <Card className="overflow-hidden bg-white">
+        <div>
+          <div className="pilot-table-header hidden grid-cols-[90px_1.2fr_1fr_160px_120px_24px] px-6 md:grid">
+            <span>OS</span>
+            <span>Veículo</span>
+            <span>Cliente</span>
+            <span>Status</span>
+            <span>Valor</span>
+            <span />
+          </div>
           {visible.length === 0 && (
             <EmptyState
               title="Nenhuma OS neste estado"
@@ -1219,7 +1261,7 @@ function OrdersScreen({
               <button
                 key={order.id}
                 onClick={() => onOpen(order.id)}
-                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 p-4 text-left hover:bg-orange-50/40 md:grid-cols-[90px_1.2fr_1fr_160px_120px_auto] md:px-6"
+                className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 p-3 text-left md:grid-cols-[90px_1.2fr_1fr_160px_120px_24px] md:px-6"
               >
                 <strong className="hidden text-sm md:block">{order.id}</strong>
                 <div className="flex min-w-0 items-center gap-3">
@@ -1671,7 +1713,7 @@ function OrderDetail({
           </p>
         </div>
       )}
-      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border bg-white p-4">
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border-l-4 border-l-orange-500 bg-white p-4">
         <div className="mr-auto">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Próxima ação sugerida
@@ -1686,7 +1728,7 @@ function OrderDetail({
         </Button>
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-white p-1.5">
+        <TabsList className="h-auto w-full justify-start overflow-x-auto bg-white px-1">
           <TabsTrigger value="overview" className="gap-2 py-2">
             <ClipboardList className="h-4 w-4" />
             Resumo
