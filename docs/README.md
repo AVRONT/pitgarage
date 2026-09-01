@@ -28,6 +28,7 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 - [`piloto/piloto-v0.1.md`](piloto/piloto-v0.1.md): escopo implementado, decisões temporárias e limitações da primeira versão demonstrável.
 - [`piloto/piloto-v0.1.1.md`](piloto/piloto-v0.1.1.md): auditoria, polimento e roteiro da versão preparada para demonstração.
 - [`piloto/piloto-v0.1.2.md`](piloto/piloto-v0.1.2.md): validações locais, normalização e regras de integridade adicionadas ao piloto.
+- [`piloto/piloto-v0.1.3.md`](piloto/piloto-v0.1.3.md): fluxo operacional sincronizado, atividades e visão rápida da ordem de serviço.
 
 ## Histórico e versionamento
 

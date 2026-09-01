@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.2**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local com dados fictícios possui validações amigáveis e regras básicas de integridade para evitar inconsistências evidentes durante a demonstração. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.3**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local com dados fictícios possui validações amigáveis, fluxo visual sincronizado e rastreabilidade básica das atividades da OS. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -41,6 +41,7 @@ O projeto está na fase **Piloto v0.1.2**, ainda vinculada à **v2 — Entrada n
 - [Escopo e limitações do Piloto v0.1](piloto/piloto-v0.1.md)
 - [Auditoria e preparação do Piloto v0.1.1](piloto/piloto-v0.1.1.md)
 - [Validações e integridade do Piloto v0.1.2](piloto/piloto-v0.1.2.md)
+- [Fluxo operacional e rastreabilidade do Piloto v0.1.3](piloto/piloto-v0.1.3.md)
 
 # Decisões atuais importantes
 
@@ -52,6 +53,7 @@ O projeto está na fase **Piloto v0.1.2**, ainda vinculada à **v2 — Entrada n
 - O Piloto v0.1 usa dados mockados, estado React e `localStorage` apenas como decisões temporárias de demonstração.
 - O Piloto v0.1.1 preserva essa base temporária e adiciona restauração confirmada do cenário fictício para repetir demonstrações.
 - O Piloto v0.1.2 normaliza identificadores e impede duplicidades e valores inválidos apenas na camada local. Telefone e e-mail únicos são regras provisórias do piloto.
+- O Piloto v0.1.3 registra histórico de status e atividades no armazenamento local, sem transformar os oito estados em fluxo definitivo.
 - Os estados da ordem de serviço e a garantia padrão de 30 dias são representados no piloto, mas permanecem sujeitos a validação.
 
 # Pendências
@@ -60,7 +62,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1.2 aos responsáveis pela oficina usando os roteiros em [`piloto/piloto-v0.1.1.md`](piloto/piloto-v0.1.1.md) e [`piloto/piloto-v0.1.2.md`](piloto/piloto-v0.1.2.md). Registrar separadamente o que funcionou, o que não funcionou, lacunas e mudanças solicitadas. Somente depois atualizar requisitos, MVP e próximos incrementos.
+Demonstrar o Piloto v0.1.3 aos responsáveis pela oficina usando os roteiros da fase piloto. Registrar separadamente o que funcionou, o que não funcionou, lacunas e mudanças solicitadas. Somente depois atualizar requisitos, MVP e próximos incrementos.
 
 # Histórico
 

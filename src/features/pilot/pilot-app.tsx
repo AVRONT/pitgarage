@@ -61,6 +61,7 @@ import {
   orderStatuses,
   type ApprovalStatus,
   type Customer,
+  type OrderActivity,
   type ServiceOrder,
   type Vehicle,
 } from "./pilot-data";
@@ -75,6 +76,40 @@ import {
   normalizePlate,
 } from "./pilot-validation";
 
+type OrderUpdater = (current: ServiceOrder) => ServiceOrder;
+
+const orderTimestamp = () => new Date().toISOString();
+
+const migrateOrder = (order: ServiceOrder): ServiceOrder => {
+  const createdAt = `${order.openedAt}T12:00:00-03:00`;
+  return {
+    ...order,
+    statusHistory: order.statusHistory ?? [],
+    activities: order.activities ?? [
+      { id: `a-${order.id}-created`, type: "created", description: "OS criada", at: createdAt },
+    ],
+    updatedAt: order.updatedAt ?? createdAt,
+  };
+};
+
+const withActivity = (
+  order: ServiceOrder,
+  type: OrderActivity["type"],
+  description: string,
+  patch: Partial<ServiceOrder> = {},
+) => {
+  const at = orderTimestamp();
+  return {
+    ...order,
+    ...patch,
+    activities: [
+      ...(order.activities ?? []),
+      { id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, type, description, at },
+    ],
+    updatedAt: at,
+  };
+};
+
 type Screen = "dashboard" | "customers" | "vehicles" | "orders" | "customer" | "vehicle" | "order";
 
 const navItems = [
@@ -83,6 +118,43 @@ const navItems = [
   { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
 ];
+
+const nextActionByStatus: Record<ServiceOrder["status"], string> = {
+  Recebido: "Iniciar diagnóstico",
+  "Em diagnóstico": "Revisar diagnóstico e preparar orçamento",
+  "Aguardando aprovação": "Conferir itens aguardando resposta",
+  "Aguardando peça": "Conferir chegada das peças",
+  "Em manutenção": "Conferir execução dos serviços aprovados",
+  "Serviço concluído": "Registrar pagamento / preparar retirada",
+  "Aguardando retirada": "Confirmar retirada do veículo",
+  Entregue: "Consultar histórico",
+};
+
+const formatActivityDate = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+
+const getOrderPendingItems = (order: ServiceOrder) => {
+  const pending: string[] = [];
+  if (!order.diagnosis.trim()) pending.push("Diagnóstico ainda não registrado.");
+  const waiting = order.budget.filter((item) => item.approval === "Aguardando aprovação").length;
+  const refused = order.budget.filter((item) => item.approval === "Recusado").length;
+  if (waiting)
+    pending.push(`${waiting} ${waiting === 1 ? "item aguardando" : "itens aguardando"} aprovação.`);
+  if (refused) pending.push(`${refused} ${refused === 1 ? "item recusado" : "itens recusados"}.`);
+  if (!order.team.length) pending.push("Responsável ainda não definido.");
+  if (order.status === "Aguardando peça") pending.push("Veículo aguardando peça.");
+  if (!order.payment || order.payment.status !== "Pago") pending.push("Pagamento pendente.");
+  return pending;
+};
+
+const countOrdersByStatus = (orders: ServiceOrder[], statuses: ServiceOrder["status"][]) =>
+  orders.filter((order) => statuses.includes(order.status)).length;
 
 const statusStyles: Record<string, string> = {
   Recebido: "bg-slate-100 text-slate-700 border-slate-200",
@@ -134,7 +206,7 @@ export function PilotApp() {
   const [selectedOrderId, setSelectedOrderId] = useState("OS-1048");
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-  const [orders, setOrders] = useState<ServiceOrder[]>(initialOrders);
+  const [orders, setOrders] = useState<ServiceOrder[]>(initialOrders.map(migrateOrder));
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
@@ -154,7 +226,7 @@ export function PilotApp() {
         };
         if (parsed.customers) setCustomers(parsed.customers);
         if (parsed.vehicles) setVehicles(parsed.vehicles);
-        if (parsed.orders) setOrders(parsed.orders);
+        if (parsed.orders) setOrders(parsed.orders.map(migrateOrder));
       }
     } catch {
       /* demonstração continua com dados iniciais */
@@ -188,8 +260,8 @@ export function PilotApp() {
   };
 
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? orders[0];
-  const updateOrder = (updated: ServiceOrder) =>
-    setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)));
+  const updateOrder = (id: string, updater: OrderUpdater) =>
+    setOrders((current) => current.map((order) => (order.id === id ? updater(order) : order)));
 
   const globalResults = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
@@ -216,8 +288,11 @@ export function PilotApp() {
         );
       })
       .map((vehicle) => ({ type: "vehicle" as const, vehicle }));
-    return [...customerResults, ...vehicleResults].slice(0, 6);
-  }, [query, vehicles, customers]);
+    const orderResults = orders
+      .filter((order) => order.id.toLocaleLowerCase("pt-BR").includes(term))
+      .map((order) => ({ type: "order" as const, order }));
+    return [...orderResults, ...customerResults, ...vehicleResults].slice(0, 6);
+  }, [query, vehicles, customers, orders]);
 
   return (
     <div className="min-h-screen bg-[#f6f4ef]">
@@ -251,11 +326,40 @@ export function PilotApp() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className="h-11 rounded-xl border-black/5 bg-white pl-10 shadow-none"
-              placeholder="Buscar cliente, placa ou veículo..."
+              placeholder="Buscar cliente, placa, veículo ou OS..."
             />
             {globalResults.length > 0 && (
               <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border bg-white shadow-xl">
                 {globalResults.map((result) => {
+                  if (result.type === "order") {
+                    const order = result.order;
+                    const vehicle = vehicles.find((item) => item.id === order.vehicleId);
+                    return (
+                      <button
+                        key={`order-${order.id}`}
+                        onClick={() => {
+                          setQuery("");
+                          navigate("order", order.id);
+                        }}
+                        className="flex w-full items-center gap-3 border-b p-3 text-left last:border-0 hover:bg-orange-50"
+                      >
+                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white">
+                          <ClipboardList className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                            Ordem de serviço
+                          </span>
+                          <strong className="block text-sm">{order.id}</strong>
+                          <span className="text-xs text-muted-foreground">
+                            {vehicle
+                              ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
+                              : order.status}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  }
                   if (result.type === "customer") {
                     const customer = result.customer;
                     return (
@@ -394,7 +498,7 @@ export function PilotApp() {
               customer={customers.find((item) => item.id === selectedOrder.customerId)!}
               onBack={() => navigate("orders")}
               onVehicle={(id) => navigate("vehicle", id)}
-              onUpdate={updateOrder}
+              onUpdate={(updater) => updateOrder(selectedOrder.id, updater)}
               notify={setNotice}
             />
           )}
@@ -438,7 +542,7 @@ export function PilotApp() {
         vehicles={vehicles}
         orders={orders}
         onCreate={(order) => {
-          setOrders((current) => [order, ...current]);
+          setOrders((current) => [migrateOrder(order), ...current]);
           setNewOrderOpen(false);
           setNotice("Ordem de serviço criada");
           navigate("order", order.id);
@@ -450,7 +554,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.2.
+              Piloto v0.1.3.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -462,7 +566,7 @@ export function PilotApp() {
               onClick={() => {
                 setCustomers(initialCustomers);
                 setVehicles(initialVehicles);
-                setOrders(initialOrders);
+                setOrders(initialOrders.map(migrateOrder));
                 setSelectedCustomerId("c1");
                 setSelectedVehicleId("v1");
                 setSelectedOrderId("OS-1048");
@@ -507,7 +611,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.2</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.3</span>
           </span>
         </button>
         <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose}>
@@ -617,33 +721,31 @@ function Dashboard({
     },
     {
       label: "Em diagnóstico",
-      value: orders.filter((o) => o.status === "Em diagnóstico").length,
+      value: countOrdersByStatus(orders, ["Em diagnóstico"]),
       icon: Gauge,
       tone: "bg-sky-50 text-sky-700",
     },
     {
       label: "Aguardando aprovação",
-      value: orders.filter((o) => o.status === "Aguardando aprovação").length,
+      value: countOrdersByStatus(orders, ["Aguardando aprovação"]),
       icon: Clock3,
       tone: "bg-amber-50 text-amber-700",
     },
     {
       label: "Aguardando peça",
-      value: orders.filter((o) => o.status === "Aguardando peça").length,
+      value: countOrdersByStatus(orders, ["Aguardando peça"]),
       icon: PackageCheck,
       tone: "bg-violet-50 text-violet-700",
     },
     {
       label: "Em manutenção",
-      value: orders.filter((o) => o.status === "Em manutenção").length,
+      value: countOrdersByStatus(orders, ["Em manutenção"]),
       icon: Wrench,
       tone: "bg-emerald-50 text-emerald-700",
     },
     {
       label: "Prontos para retirada",
-      value: orders.filter(
-        (o) => o.status === "Serviço concluído" || o.status === "Aguardando retirada",
-      ).length,
+      value: countOrdersByStatus(orders, ["Serviço concluído", "Aguardando retirada"]),
       icon: CheckCircle2,
       tone: "bg-cyan-50 text-cyan-700",
     },
@@ -1313,18 +1415,30 @@ function OrderDetail({
   customer: Customer;
   onBack: () => void;
   onVehicle: (id: string) => void;
-  onUpdate: (order: ServiceOrder) => void;
+  onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
 }) {
+  const [activeTab, setActiveTab] = useState("overview");
   const approved = order.budget
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
   const statusIndex = orderStatuses.indexOf(order.status);
   const updateItem = (id: string, patch: Partial<ServiceOrder["budget"][number]>) =>
-    onUpdate({
-      ...order,
-      budget: order.budget.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    onUpdate((current) => {
+      const item = current.budget.find((entry) => entry.id === id);
+      const budget = current.budget.map((entry) =>
+        entry.id === id ? { ...entry, ...patch } : entry,
+      );
+      if (typeof patch.executed === "boolean") {
+        return withActivity(
+          current,
+          "execution",
+          `${item?.name ?? "Serviço"} marcado como ${patch.executed ? "executado" : "pendente"}`,
+          { budget },
+        );
+      }
+      return { ...current, budget };
     });
   const warrantyEnd = order.completedAt ? new Date(`${order.completedAt}T12:00:00Z`) : null;
   if (warrantyEnd) warrantyEnd.setUTCDate(warrantyEnd.getUTCDate() + 30);
@@ -1351,11 +1465,32 @@ function OrderDetail({
                   notify("A conclusão não pode ser anterior à entrada do veículo.");
                   return;
                 }
-                onUpdate({
-                  ...order,
-                  status,
-                  completedAt:
-                    completionRequired && !order.completedAt ? completionDate : order.completedAt,
+                onUpdate((current) => {
+                  if (current.status === status) return current;
+                  const at = orderTimestamp();
+                  return {
+                    ...withActivity(
+                      current,
+                      "status",
+                      `Status alterado de ${current.status} para ${status}`,
+                      {
+                        status,
+                        completedAt:
+                          completionRequired && !current.completedAt
+                            ? completionDate
+                            : current.completedAt,
+                      },
+                    ),
+                    statusHistory: [
+                      ...(current.statusHistory ?? []),
+                      {
+                        id: `s-${Date.now()}`,
+                        from: current.status,
+                        to: status,
+                        at,
+                      },
+                    ],
+                  };
                 });
                 notify("Status da OS atualizado");
               }}
@@ -1375,6 +1510,10 @@ function OrderDetail({
         </Badge>
         <Badge variant="outline" className="bg-white">
           Aberta em {formatDate(order.openedAt)}
+        </Badge>
+        <Badge variant="outline" className="bg-white">
+          Última atualização:{" "}
+          {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
       <section
@@ -1399,13 +1538,21 @@ function OrderDetail({
                 <div
                   className={cn(
                     "h-1.5 rounded-full",
-                    index <= statusIndex ? "bg-orange-500" : "bg-slate-200",
+                    index < statusIndex
+                      ? "bg-emerald-500"
+                      : index === statusIndex
+                        ? "bg-orange-500"
+                        : "bg-slate-200",
                   )}
                 />
                 <p
                   className={cn(
                     "mt-2 text-[10px] leading-tight",
-                    index === statusIndex ? "font-bold text-orange-700" : "text-muted-foreground",
+                    index < statusIndex
+                      ? "font-semibold text-emerald-700"
+                      : index === statusIndex
+                        ? "font-bold text-orange-700"
+                        : "text-muted-foreground",
                   )}
                 >
                   {status}
@@ -1416,7 +1563,30 @@ function OrderDetail({
           ))}
         </div>
       </section>
-      <Tabs defaultValue="overview">
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border bg-white p-4">
+        <div className="mr-auto">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Próxima ação sugerida
+          </p>
+          <p className="font-semibold">{nextActionByStatus[order.status]}</p>
+        </div>
+        {(order.status === "Recebido" || order.status === "Em diagnóstico") && (
+          <Button variant="outline" onClick={() => setActiveTab("diagnosis")}>
+            Registrar diagnóstico
+          </Button>
+        )}
+        {(order.status === "Em diagnóstico" || order.status === "Aguardando aprovação") && (
+          <Button variant="outline" onClick={() => setActiveTab("budget")}>
+            Ver orçamento
+          </Button>
+        )}
+        {(order.status === "Serviço concluído" || order.status === "Aguardando retirada") && (
+          <Button variant="outline" onClick={() => setActiveTab("payment")}>
+            Registrar pagamento
+          </Button>
+        )}
+      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-white p-1.5">
           <TabsTrigger value="overview" className="gap-2 py-2">
             <ClipboardList className="h-4 w-4" />
@@ -1447,6 +1617,7 @@ function OrderDetail({
             onVehicle={onVehicle}
             approved={approved}
             total={total}
+            onQuickAction={setActiveTab}
           />
         </TabsContent>
         <TabsContent value="diagnosis" className="mt-6">
@@ -1478,6 +1649,7 @@ function OrderOverview({
   onVehicle,
   approved,
   total,
+  onQuickAction,
 }: {
   order: ServiceOrder;
   vehicle: Vehicle;
@@ -1485,7 +1657,14 @@ function OrderOverview({
   onVehicle: (id: string) => void;
   approved: number;
   total: number;
+  onQuickAction: (tab: string) => void;
 }) {
+  const pending = getOrderPendingItems(order);
+  const refused = order.budget
+    .filter((item) => item.approval === "Recusado")
+    .reduce((sum, item) => sum + item.price, 0);
+  const paid = order.payment?.status === "Pago" ? order.payment.amount : 0;
+  const paymentPending = Math.max(approved - paid, 0);
   const sections = [
     { icon: MessageCircle, label: "Problema relatado", text: order.complaint },
     {
@@ -1502,6 +1681,28 @@ function OrderOverview({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_350px]">
       <div className="space-y-4">
+        <Card className="border-0 bg-white">
+          <CardContent className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <span className="text-xs text-muted-foreground">Cliente</span>
+              <p className="font-semibold">{customer.name}</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Veículo</span>
+              <p className="font-semibold">
+                {vehicle.brand} {vehicle.model} · {vehicle.plate}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Quilometragem</span>
+              <p className="font-semibold">{order.entryMileage.toLocaleString("pt-BR")} km</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Responsável</span>
+              <p className="font-semibold">{order.team.join(", ") || "A definir"}</p>
+            </div>
+          </CardContent>
+        </Card>
         {sections.map((section) => (
           <Card key={section.label} className="border-0 bg-white">
             <CardContent className="p-6">
@@ -1549,6 +1750,25 @@ function OrderOverview({
             </div>
           </CardContent>
         </Card>
+        <Card className="border-0 bg-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-bold">Atividades</h2>
+              <span className="text-xs text-muted-foreground">
+                Última: {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
+              </span>
+            </div>
+            <div className="mt-5 space-y-4 border-l-2 border-slate-200 pl-5">
+              {[...(order.activities ?? [])].reverse().map((activity) => (
+                <div key={activity.id} className="relative">
+                  <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-white bg-orange-500" />
+                  <p className="text-xs text-muted-foreground">{formatActivityDate(activity.at)}</p>
+                  <p className="mt-1 text-sm font-medium">{activity.description}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <aside className="space-y-4">
         <button
@@ -1579,14 +1799,28 @@ function OrderOverview({
         </button>
         <Card className="border-0 bg-white">
           <CardContent className="p-5">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Orçamento</p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              Resumo financeiro
+            </p>
             <div className="mt-3 flex justify-between">
-              <span>Total apresentado</span>
+              <span>Orçado</span>
               <strong>{money(total)}</strong>
             </div>
             <div className="mt-2 flex justify-between text-emerald-700">
-              <span>Total aprovado</span>
+              <span>Aprovado</span>
               <strong>{money(approved)}</strong>
+            </div>
+            <div className="mt-2 flex justify-between text-rose-700">
+              <span>Recusado</span>
+              <strong>{money(refused)}</strong>
+            </div>
+            <div className="mt-2 flex justify-between text-sky-700">
+              <span>Pago</span>
+              <strong>{money(paid)}</strong>
+            </div>
+            <div className="mt-2 flex justify-between text-amber-700">
+              <span>Pendente</span>
+              <strong>{money(paymentPending)}</strong>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
@@ -1594,6 +1828,38 @@ function OrderOverview({
                 style={{ width: `${total ? (approved / total) * 100 : 0}%` }}
               />
             </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-white">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Pendências</p>
+            <div className="mt-3 space-y-2">
+              {pending.length ? (
+                pending.map((item) => (
+                  <p key={item} className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+                    {item}
+                  </p>
+                ))
+              ) : (
+                <p className="text-sm text-emerald-700">
+                  Nenhuma pendência operacional identificada.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-slate-900 text-white">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase text-orange-400">Próxima ação sugerida</p>
+            <p className="mt-2 font-semibold">{nextActionByStatus[order.status]}</p>
+            {order.status === "Recebido" && (
+              <Button
+                onClick={() => onQuickAction("diagnosis")}
+                className="mt-4 w-full bg-orange-500 hover:bg-orange-600"
+              >
+                Registrar diagnóstico
+              </Button>
+            )}
           </CardContent>
         </Card>
       </aside>
@@ -1607,7 +1873,7 @@ function DiagnosisPanel({
   notify,
 }: {
   order: ServiceOrder;
-  onUpdate: (order: ServiceOrder) => void;
+  onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
 }) {
   const [diagnosis, setDiagnosis] = useState(order.diagnosis);
@@ -1620,7 +1886,11 @@ function DiagnosisPanel({
       name: kind === "Foto" ? "evidencia-local.jpg" : "video-diagnostico.mp4",
       caption: kind === "Foto" ? "Nova foto do diagnóstico" : "Novo vídeo do diagnóstico",
     };
-    onUpdate({ ...order, evidence: [...order.evidence, evidence] });
+    onUpdate((current) =>
+      withActivity(current, "diagnosis", `${kind} adicionada ao diagnóstico`, {
+        evidence: [...current.evidence, evidence],
+      }),
+    );
     notify(`${kind} adicionada em modo demonstração`);
   };
   return (
@@ -1657,7 +1927,13 @@ function DiagnosisPanel({
           </div>
           <Button
             onClick={() => {
-              onUpdate({ ...order, diagnosis, findings, notes });
+              onUpdate((current) =>
+                withActivity(current, "diagnosis", "Diagnóstico atualizado", {
+                  diagnosis,
+                  findings,
+                  notes,
+                }),
+              );
               notify("Diagnóstico salvo localmente");
             }}
             className="rounded-xl bg-orange-500 hover:bg-orange-600"
@@ -1719,7 +1995,7 @@ function BudgetPanel({
 }: {
   order: ServiceOrder;
   updateItem: (id: string, patch: Partial<ServiceOrder["budget"][number]>) => void;
-  onUpdate: (order: ServiceOrder) => void;
+  onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
 }) {
   const [additionalOpen, setAdditionalOpen] = useState(false);
@@ -1735,7 +2011,17 @@ function BudgetPanel({
     .filter((i) => i.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
   const setApproval = (id: string, approval: ApprovalStatus) => {
-    updateItem(id, { approval });
+    onUpdate((current) => {
+      const item = current.budget.find((entry) => entry.id === id);
+      return withActivity(
+        current,
+        "budget",
+        `${item?.name ?? "Item"} marcado como ${approval.toLowerCase()}`,
+        {
+          budget: current.budget.map((entry) => (entry.id === id ? { ...entry, approval } : entry)),
+        },
+      );
+    });
     notify(`Item marcado como ${approval.toLowerCase()}`);
   };
   const addAdditional = () => {
@@ -1744,21 +2030,22 @@ function BudgetPanel({
     if (!cleanName) return setBudgetError("Informe a descrição do serviço adicional.");
     if (!price || !Number.isFinite(value) || value < 0)
       return setBudgetError("Informe um valor válido, igual ou maior que zero.");
-    onUpdate({
-      ...order,
-      budget: [
-        ...order.budget,
-        {
-          id: `i-${Date.now()}`,
-          type: "Serviço",
-          name: cleanName,
-          price: value,
-          approval: "Aguardando aprovação",
-          additional: true,
-          executed: false,
-        },
-      ],
-    });
+    onUpdate((current) =>
+      withActivity(current, "budget", `Problema adicional incluído: ${cleanName}`, {
+        budget: [
+          ...current.budget,
+          {
+            id: `i-${Date.now()}`,
+            type: "Serviço",
+            name: cleanName,
+            price: value,
+            approval: "Aguardando aprovação",
+            additional: true,
+            executed: false,
+          },
+        ],
+      }),
+    );
     setName("");
     setPrice("");
     setBudgetError("");
@@ -1771,21 +2058,22 @@ function BudgetPanel({
     if (!cleanName) return setBudgetError("Informe a descrição do item.");
     if (!itemValue || !Number.isFinite(value) || value < 0)
       return setBudgetError("Informe um valor válido, igual ou maior que zero.");
-    onUpdate({
-      ...order,
-      budget: [
-        ...order.budget,
-        {
-          id: `i-${Date.now()}`,
-          type: itemType,
-          name: cleanName,
-          price: itemType === "Peça" ? Number((value * 1.3).toFixed(2)) : value,
-          approval: "Aguardando aprovação",
-          ...(itemType === "Peça" ? { cost: value, availability: "Disponível" as const } : {}),
-          executed: false,
-        },
-      ],
-    });
+    onUpdate((current) =>
+      withActivity(current, "budget", `Item incluído no orçamento: ${cleanName}`, {
+        budget: [
+          ...current.budget,
+          {
+            id: `i-${Date.now()}`,
+            type: itemType,
+            name: cleanName,
+            price: itemType === "Peça" ? Number((value * 1.3).toFixed(2)) : value,
+            approval: "Aguardando aprovação",
+            ...(itemType === "Peça" ? { cost: value, availability: "Disponível" as const } : {}),
+            executed: false,
+          },
+        ],
+      }),
+    );
     setItemName("");
     setItemValue("");
     setBudgetError("");
@@ -2156,7 +2444,7 @@ function PaymentPanel({
   notify,
 }: {
   order: ServiceOrder;
-  onUpdate: (order: ServiceOrder) => void;
+  onUpdate: (updater: OrderUpdater) => void;
   warrantyEnd: Date | null;
   notify: (text: string) => void;
 }) {
@@ -2247,10 +2535,16 @@ function PaymentPanel({
                 setPaymentError("Selecione PIX ou Cartão como forma de pagamento.");
                 return;
               }
-              onUpdate({
-                ...order,
-                payment: { amount: numericAmount, method, status, date: "2026-09-01" },
-              });
+              onUpdate((current) =>
+                withActivity(
+                  current,
+                  "payment",
+                  `Pagamento ${status.toLowerCase()} registrado por ${method}`,
+                  {
+                    payment: { amount: numericAmount, method, status, date: "2026-09-01" },
+                  },
+                ),
+              );
               setPaymentError("");
               notify("Pagamento registrado localmente");
             }}

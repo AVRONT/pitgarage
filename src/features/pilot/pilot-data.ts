@@ -60,6 +60,20 @@ export interface Payment {
   date: string;
 }
 
+export interface OrderActivity {
+  id: string;
+  type: "created" | "status" | "diagnosis" | "budget" | "execution" | "payment";
+  description: string;
+  at: string;
+}
+
+export interface StatusHistoryEntry {
+  id: string;
+  from: OrderStatus;
+  to: OrderStatus;
+  at: string;
+}
+
 export interface ServiceOrder {
   id: string;
   customerId: string;
@@ -76,6 +90,9 @@ export interface ServiceOrder {
   budget: BudgetItem[];
   evidence: Evidence[];
   payment?: Payment;
+  statusHistory?: StatusHistoryEntry[];
+  activities?: OrderActivity[];
+  updatedAt?: string;
 }
 
 export const initialCustomers: Customer[] = [
@@ -187,6 +204,31 @@ export const initialVehicles: Vehicle[] = [
 
 export const initialOrders: ServiceOrder[] = [
   {
+    id: "OS-1049",
+    customerId: "c5",
+    vehicleId: "v5",
+    status: "Recebido",
+    openedAt: "2026-09-01",
+    entryMileage: 19840,
+    complaint: "Luz de revisão acesa e ruído leve ao passar em lombadas.",
+    diagnosis: "",
+    findings: "",
+    notes: "Entrada recente para demonstração do fluxo.",
+    team: [],
+    budget: [],
+    evidence: [],
+    statusHistory: [],
+    activities: [
+      {
+        id: "a-1049-1",
+        type: "created",
+        description: "OS criada",
+        at: "2026-09-01T14:20:00-03:00",
+      },
+    ],
+    updatedAt: "2026-09-01T14:20:00-03:00",
+  },
+  {
     id: "OS-1048",
     customerId: "c1",
     vehicleId: "v1",
@@ -198,6 +240,36 @@ export const initialOrders: ServiceOrder[] = [
     findings: "Amortecedor dianteiro direito apresenta início de vazamento.",
     notes: "Cliente utiliza o veículo diariamente para trabalho.",
     team: ["Marcelo", "Diego"],
+    statusHistory: [
+      { id: "s-1048-1", from: "Recebido", to: "Em diagnóstico", at: "2026-09-01T14:45:00-03:00" },
+      {
+        id: "s-1048-2",
+        from: "Em diagnóstico",
+        to: "Aguardando aprovação",
+        at: "2026-09-01T15:32:00-03:00",
+      },
+    ],
+    activities: [
+      {
+        id: "a-1048-1",
+        type: "created",
+        description: "OS criada",
+        at: "2026-09-01T14:20:00-03:00",
+      },
+      {
+        id: "a-1048-2",
+        type: "diagnosis",
+        description: "Diagnóstico registrado",
+        at: "2026-09-01T14:45:00-03:00",
+      },
+      {
+        id: "a-1048-3",
+        type: "status",
+        description: "Status alterado de Em diagnóstico para Aguardando aprovação",
+        at: "2026-09-01T15:32:00-03:00",
+      },
+    ],
+    updatedAt: "2026-09-01T15:32:00-03:00",
     evidence: [
       {
         id: "e1",
@@ -421,6 +493,72 @@ export const initialOrders: ServiceOrder[] = [
       },
     ],
     payment: { amount: 541, method: "Cartão", status: "Pago", date: "2026-03-13" },
+    statusHistory: [
+      { id: "s-1039-1", from: "Recebido", to: "Em diagnóstico", at: "2026-03-12T09:20:00-03:00" },
+      {
+        id: "s-1039-2",
+        from: "Em diagnóstico",
+        to: "Em manutenção",
+        at: "2026-03-12T13:10:00-03:00",
+      },
+      {
+        id: "s-1039-3",
+        from: "Em manutenção",
+        to: "Serviço concluído",
+        at: "2026-03-13T11:30:00-03:00",
+      },
+      {
+        id: "s-1039-4",
+        from: "Serviço concluído",
+        to: "Aguardando retirada",
+        at: "2026-03-13T12:00:00-03:00",
+      },
+      {
+        id: "s-1039-5",
+        from: "Aguardando retirada",
+        to: "Entregue",
+        at: "2026-03-13T17:10:00-03:00",
+      },
+    ],
+    activities: [
+      {
+        id: "a-1039-1",
+        type: "created",
+        description: "OS criada",
+        at: "2026-03-12T08:55:00-03:00",
+      },
+      {
+        id: "a-1039-2",
+        type: "diagnosis",
+        description: "Diagnóstico registrado",
+        at: "2026-03-12T09:20:00-03:00",
+      },
+      {
+        id: "a-1039-3",
+        type: "budget",
+        description: "Itens do orçamento aprovados",
+        at: "2026-03-12T11:05:00-03:00",
+      },
+      {
+        id: "a-1039-4",
+        type: "execution",
+        description: "Serviços marcados como executados",
+        at: "2026-03-13T11:20:00-03:00",
+      },
+      {
+        id: "a-1039-5",
+        type: "payment",
+        description: "Pagamento registrado por Cartão",
+        at: "2026-03-13T16:50:00-03:00",
+      },
+      {
+        id: "a-1039-6",
+        type: "status",
+        description: "Status alterado para Entregue",
+        at: "2026-03-13T17:10:00-03:00",
+      },
+    ],
+    updatedAt: "2026-03-13T17:10:00-03:00",
   },
 ];
 

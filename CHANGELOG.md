@@ -2,6 +2,25 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.3] - 2026-09-01
+
+### Corrigido
+
+- Sincronização entre o status persistido da OS, dropdown, contador e barra do fluxo por meio de atualizações funcionais sobre uma única fonte de verdade.
+
+### Adicionado
+
+- Histórico local de mudanças de status e timeline de atividades relevantes.
+- Última atualização, pendências calculadas e próxima ação sugerida na OS.
+- Ações rápidas contextuais e resumo operacional e financeiro.
+- Busca global por número da ordem de serviço.
+- Adaptação não destrutiva de registros do Piloto v0.1.2 sem os novos campos.
+- Cenários fictícios para OS recebida e históricos com vários estados.
+
+### Observação
+
+- Os oito estados, sugestões de próxima ação e cálculo financeiro resumido continuam demonstrativos. A visualização do orçamento como cliente permanece uma possibilidade futura para evitar ampliar esta entrega.
+
 ## [Piloto v0.1.2] - 2026-09-01
 
 ### Adicionado
