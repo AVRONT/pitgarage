@@ -43,6 +43,12 @@ export interface WorkflowEvaluation {
   inconsistency?: string;
 }
 
+export interface WorkflowReversalPlan {
+  from: OrderStatus;
+  to: OrderStatus;
+  losses: string[];
+}
+
 const statusIndex = (status: OrderStatus) => orderStatuses.indexOf(status);
 const isPartBlocked = (item: ServiceOrder["budget"][number]) =>
   item.type === "Peça" && item.approval === "Aprovado" && item.availability !== "Disponível";
@@ -108,6 +114,8 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
       label: "Iniciar diagnóstico",
       tab: "diagnosis",
       targetStatus: "Em diagnóstico",
+      confirmation:
+        "Confirmar início do diagnóstico? A OS passará de Recebido para Em diagnóstico.",
     };
   } else if (!order.diagnosis.trim()) {
     nextAction = { id: "record-diagnosis", label: "Registrar diagnóstico", tab: "diagnosis" };
@@ -120,7 +128,7 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
       tab: "budget",
       targetStatus: "Aguardando aprovação",
       confirmation:
-        "Confirmar que o orçamento foi colocado em aprovação? Não há envio real pelo sistema.",
+        "Confirmar envio do orçamento para aprovação? A OS passará de Em diagnóstico para Aguardando aprovação. Não há envio real pelo sistema.",
     };
   } else if (waitingApprovalCount) {
     nextAction = { id: "record-decisions", label: "Registrar decisões do cliente", tab: "budget" };
@@ -132,6 +140,8 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
       label: "Atualizar disponibilidade das peças",
       tab: "budget",
       targetStatus: "Aguardando peça",
+      confirmation:
+        "Confirmar espera pelas peças? A OS passará para Aguardando peça até que todas as peças aprovadas estejam disponíveis.",
     };
   } else if (order.status === "Aguardando aprovação" || order.status === "Aguardando peça") {
     nextAction = {
@@ -139,6 +149,8 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
       label: "Iniciar manutenção",
       tab: "execution",
       targetStatus: "Em manutenção",
+      confirmation:
+        "Confirmar início da manutenção? A OS passará para Em manutenção e os itens aprovados poderão ser executados.",
     };
   } else if (executedCount < approved.length) {
     nextAction = { id: "execute-services", label: "Executar serviços aprovados", tab: "execution" };
@@ -204,5 +216,141 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
     inconsistency: recommendedStatus
       ? `Esta OS está em “${order.status}”, mas seus dados indicam “${recommendedStatus}”.`
       : undefined,
+  };
+}
+
+export function getWorkflowReversal(order: ServiceOrder): WorkflowReversalPlan | undefined {
+  const resetApprovalLosses = [
+    ...(order.budget.some((item) => item.approval !== "Aguardando aprovação")
+      ? ["decisões de aprovação ou recusa dos itens"]
+      : []),
+    ...(order.budget.some((item) => item.executed) ? ["marcações de itens executados"] : []),
+    ...(order.payment ? ["pagamento registrado"] : []),
+    ...(order.completedAt ? ["data de conclusão"] : []),
+  ];
+  const executionLosses = [
+    ...(order.budget.some((item) => item.executed) ? ["marcações de itens executados"] : []),
+    ...(order.payment ? ["pagamento registrado"] : []),
+    ...(order.completedAt ? ["data de conclusão"] : []),
+  ];
+
+  switch (order.status) {
+    case "Recebido":
+      return undefined;
+    case "Em diagnóstico":
+      return {
+        from: order.status,
+        to: "Recebido",
+        losses: [
+          ...(order.diagnosis || order.findings || order.notes
+            ? ["diagnóstico, constatações e observações"]
+            : []),
+          ...(order.evidence.length ? ["evidências anexadas"] : []),
+          ...(order.budget.length ? ["itens do orçamento"] : []),
+          ...(order.payment ? ["pagamento registrado"] : []),
+          ...(order.completedAt ? ["data de conclusão"] : []),
+        ],
+      };
+    case "Aguardando aprovação":
+      return { from: order.status, to: "Em diagnóstico", losses: resetApprovalLosses };
+    case "Aguardando peça":
+      return { from: order.status, to: "Aguardando aprovação", losses: resetApprovalLosses };
+    case "Em manutenção": {
+      const hasBlockedApprovedPart = order.budget.some(isPartBlocked);
+      return hasBlockedApprovedPart
+        ? {
+            from: order.status,
+            to: "Aguardando peça",
+            losses: executionLosses,
+          }
+        : { from: order.status, to: "Aguardando aprovação", losses: resetApprovalLosses };
+    }
+    case "Serviço concluído":
+      return {
+        from: order.status,
+        to: "Em manutenção",
+        losses: [
+          ...(order.payment ? ["pagamento registrado"] : []),
+          ...(order.completedAt ? ["data de conclusão"] : []),
+        ],
+      };
+    case "Aguardando retirada":
+      return { from: order.status, to: "Serviço concluído", losses: [] };
+    case "Entregue":
+      return { from: order.status, to: "Aguardando retirada", losses: [] };
+  }
+}
+
+export function reverseOrderWorkflow(
+  order: ServiceOrder,
+  at = new Date().toISOString(),
+): ServiceOrder {
+  const plan = getWorkflowReversal(order);
+  if (!plan) return order;
+
+  let reversed: ServiceOrder = {
+    ...order,
+    status: plan.to,
+    updatedAt: at,
+  };
+
+  if (plan.from === "Em diagnóstico") {
+    reversed = {
+      ...reversed,
+      diagnosis: "",
+      findings: "",
+      notes: "",
+      evidence: [],
+      budget: [],
+      payment: undefined,
+      completedAt: undefined,
+    };
+  } else if (
+    plan.from === "Aguardando aprovação" ||
+    plan.from === "Aguardando peça" ||
+    (plan.from === "Em manutenção" && plan.to === "Aguardando aprovação")
+  ) {
+    reversed = {
+      ...reversed,
+      budget: order.budget.map((item) => ({
+        ...item,
+        approval: "Aguardando aprovação",
+        executed: false,
+      })),
+      payment: undefined,
+      completedAt: undefined,
+    };
+  } else if (plan.from === "Em manutenção") {
+    reversed = {
+      ...reversed,
+      budget: order.budget.map((item) => ({ ...item, executed: false })),
+      payment: undefined,
+      completedAt: undefined,
+    };
+  } else if (plan.from === "Serviço concluído") {
+    reversed = { ...reversed, payment: undefined, completedAt: undefined };
+  }
+
+  const description = `Fluxo revertido: ${plan.from} → ${plan.to}`;
+  return {
+    ...reversed,
+    statusHistory: [
+      ...(order.statusHistory ?? []),
+      {
+        id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        from: plan.from,
+        to: plan.to,
+        at,
+      },
+    ],
+    activities: [
+      ...(order.activities ?? []),
+      {
+        id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: "status",
+        description,
+        at,
+      },
+    ],
   };
 }

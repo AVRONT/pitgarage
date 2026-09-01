@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.6**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local com dados fictícios preserva o workflow da v0.1.5 e adota identidade visual profissional, compacta e operacional em todas as telas. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.7**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local com dados fictícios preserva o redesign da v0.1.6 e adiciona confirmação contextual e reversão segura ao workflow da OS. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -45,6 +45,7 @@ O projeto está na fase **Piloto v0.1.6**, ainda vinculada à **v2 — Entrada n
 - [Progresso visual e visão do cliente do Piloto v0.1.4](piloto/piloto-v0.1.4.md)
 - [Workflow funcional da ordem de serviço do Piloto v0.1.5](piloto/piloto-v0.1.5.md)
 - [Identidade visual profissional e redesign global do Piloto v0.1.6](piloto/piloto-v0.1.6.md)
+- [Confirmação e reversão segura do workflow do Piloto v0.1.7](piloto/piloto-v0.1.7.md)
 
 # Decisões atuais importantes
 
@@ -60,6 +61,7 @@ O projeto está na fase **Piloto v0.1.6**, ainda vinculada à **v2 — Entrada n
 - O Piloto v0.1.4 mantém `order.status` como fonte única do progresso e adiciona uma visão do cliente somente para demonstração local, sem aprovação ou compartilhamento real.
 - O Piloto v0.1.5 centraliza a avaliação do workflow e torna a próxima ação o caminho normal; transições, pagamento como bloqueio e estados continuam provisórios.
 - O Piloto v0.1.6 altera somente a linguagem visual e preserva integralmente o comportamento funcional da v0.1.5; imagens de veículos continuam adiadas para estudo separado.
+- O Piloto v0.1.7 preserva o redesign da v0.1.6, exige confirmação contextual nas ações do workflow e centraliza a reversão coerente de etapa com rastreabilidade e reset explícito dos dados dependentes.
 - Os estados da ordem de serviço e a garantia padrão de 30 dias são representados no piloto, mas permanecem sujeitos a validação.
 
 # Pendências
@@ -68,7 +70,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1.6 aos responsáveis pela oficina. Validar a identidade visual, densidade, leitura das tabelas e uso responsivo, além das regras provisórias do workflow já previstas na v0.1.5.
+Demonstrar o Piloto v0.1.7 aos responsáveis pela oficina. Validar a identidade visual, as confirmações, os dados removidos em cada retorno e as regras provisórias do workflow.
 
 # Histórico
 

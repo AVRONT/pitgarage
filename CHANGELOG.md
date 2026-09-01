@@ -2,6 +2,23 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.7] - 2026-09-01
+
+### Alterado
+
+- Removida somente a linha horizontal do indicador do fluxo; marcadores, estados, labels, interação e responsividade foram preservados.
+- Transições e alterações operacionais do workflow passam por confirmações contextuais antes da execução.
+
+### Adicionado
+
+- Ação discreta para retornar à etapa anterior coerente, com aviso dos dados afetados.
+- Regra central de reversão com resets por estágio, atualização temporal e registros em histórico e atividades.
+- Bloqueio de regressões manuais arbitrárias que poderiam deixar a OS inconsistente.
+
+### Preservação
+
+- O redesign v0.1.6, cálculos, busca, persistência local e histórico existente permanecem preservados.
+
 ## [Piloto v0.1.6] - 2026-09-01
 
 ### Alterado

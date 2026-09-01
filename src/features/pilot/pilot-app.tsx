@@ -81,11 +81,19 @@ import {
 } from "./pilot-validation";
 import {
   evaluateOrderWorkflow,
+  getWorkflowReversal,
   getStatusPrerequisites,
+  reverseOrderWorkflow,
   type WorkflowAction,
+  type WorkflowReversalPlan,
 } from "./pilot-workflow";
 
 type OrderUpdater = (current: ServiceOrder) => ServiceOrder;
+type PendingWorkflowConfirmation = {
+  title: string;
+  description: string;
+  onConfirm: () => void;
+};
 
 const orderTimestamp = () => new Date().toISOString();
 
@@ -200,9 +208,6 @@ function OrderProgress({
 }) {
   const status = order.status;
   const currentStepIndex = orderStatuses.indexOf(status);
-  const progressPercentage =
-    currentStepIndex < 0 ? 0 : (currentStepIndex / (orderStatuses.length - 1)) * 100;
-
   return (
     <section
       className="mb-5 rounded-lg border bg-white p-4 md:p-5"
@@ -228,35 +233,29 @@ function OrderProgress({
             aria-valuemin={1}
             aria-valuemax={orderStatuses.length}
             aria-valuenow={currentStepIndex + 1}
-            className="relative h-1.5 rounded-full bg-slate-200"
+            className="flex items-center justify-between"
           >
-            <div
-              className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            />
-            <div className="absolute inset-0 flex items-center justify-between">
-              {orderStatuses.map((step, index) => {
-                const completed = index < currentStepIndex;
-                const current = index === currentStepIndex;
-                return (
-                  <button
-                    key={step}
-                    type="button"
-                    onClick={() => onStep(index)}
-                    aria-label={`${step}: ${completed ? "concluída" : current ? "atual" : "futura"}`}
-                    className={cn(
-                      "grid h-6 w-6 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors",
-                      completed && "border-emerald-600 bg-emerald-600 text-white",
-                      current &&
-                        "h-7 w-7 border-orange-500 bg-white text-orange-700 ring-4 ring-orange-100",
-                      !completed && !current && "border-slate-300 bg-white text-slate-400",
-                    )}
-                  >
-                    {completed ? <Check className="h-3.5 w-3.5" /> : index + 1}
-                  </button>
-                );
-              })}
-            </div>
+            {orderStatuses.map((step, index) => {
+              const completed = index < currentStepIndex;
+              const current = index === currentStepIndex;
+              return (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => onStep(index)}
+                  aria-label={`${step}: ${completed ? "concluída" : current ? "atual" : "futura"}`}
+                  className={cn(
+                    "grid h-6 w-6 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors",
+                    completed && "border-emerald-600 bg-emerald-600 text-white",
+                    current &&
+                      "h-7 w-7 border-orange-500 bg-white text-orange-700 ring-4 ring-orange-100",
+                    !completed && !current && "border-slate-300 bg-white text-slate-400",
+                  )}
+                >
+                  {completed ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                </button>
+              );
+            })}
           </div>
           <div className="mt-4 grid grid-cols-8 gap-2">
             {orderStatuses.map((step, index) => (
@@ -1566,9 +1565,11 @@ function OrderDetail({
   const [activeTab, setActiveTab] = useState("overview");
   const [manualStatusOpen, setManualStatusOpen] = useState(false);
   const [manualStatus, setManualStatus] = useState<ServiceOrder["status"]>(order.status);
-  const [confirmAction, setConfirmAction] = useState<WorkflowAction>();
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingWorkflowConfirmation>();
+  const [reversalPlan, setReversalPlan] = useState<WorkflowReversalPlan>();
   const [futureMessage, setFutureMessage] = useState("");
   const workflow = evaluateOrderWorkflow(order);
+  const availableReversal = getWorkflowReversal(order);
   const approved = order.budget
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
@@ -1619,8 +1620,12 @@ function OrderDetail({
     notify(action.label);
   };
   const requestAction = (action: WorkflowAction) => {
-    if (action.confirmation) setConfirmAction(action);
-    else executeAction(action);
+    if (!action.confirmation) return executeAction(action);
+    setPendingConfirmation({
+      title: action.label,
+      description: action.confirmation,
+      onConfirm: () => executeAction(action),
+    });
   };
   return (
     <>
@@ -1690,12 +1695,18 @@ function OrderDetail({
               <Button
                 size="sm"
                 className="mt-3 bg-rose-700 hover:bg-rose-800"
-                onClick={() =>
-                  transitionStatus(
-                    workflow.recommendedStatus!,
-                    `Correção de consistência: ${order.status} → ${workflow.recommendedStatus}`,
-                  )
-                }
+                onClick={() => {
+                  const target = workflow.recommendedStatus!;
+                  setPendingConfirmation({
+                    title: `Corrigir status para ${target}?`,
+                    description: `A OS passará de ${order.status} para ${target}. A correção será registrada no histórico.`,
+                    onConfirm: () =>
+                      transitionStatus(
+                        target,
+                        `Correção de consistência: ${order.status} → ${target}`,
+                      ),
+                  });
+                }}
               >
                 Corrigir para {workflow.recommendedStatus}
               </Button>
@@ -1726,6 +1737,15 @@ function OrderDetail({
         >
           {workflow.nextAction.label}
         </Button>
+        {availableReversal && (
+          <Button
+            variant="ghost"
+            className="gap-2 text-muted-foreground"
+            onClick={() => setReversalPlan(availableReversal)}
+          >
+            <RotateCcw className="h-4 w-4" /> Voltar etapa
+          </Button>
+        )}
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-auto w-full justify-start overflow-x-auto bg-white px-1">
@@ -1788,26 +1808,71 @@ function OrderDetail({
         </TabsContent>
       </Tabs>
       <Dialog
-        open={Boolean(confirmAction)}
-        onOpenChange={(open) => !open && setConfirmAction(undefined)}
+        open={Boolean(pendingConfirmation)}
+        onOpenChange={(open) => !open && setPendingConfirmation(undefined)}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{confirmAction?.label}</DialogTitle>
-            <DialogDescription>{confirmAction?.confirmation}</DialogDescription>
+            <DialogTitle>{pendingConfirmation?.title}</DialogTitle>
+            <DialogDescription>{pendingConfirmation?.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmAction(undefined)}>
+            <Button variant="outline" onClick={() => setPendingConfirmation(undefined)}>
               Cancelar
             </Button>
             <Button
               className="bg-orange-500 hover:bg-orange-600"
               onClick={() => {
-                if (confirmAction) executeAction(confirmAction);
-                setConfirmAction(undefined);
+                pendingConfirmation?.onConfirm();
+                setPendingConfirmation(undefined);
               }}
             >
               Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(reversalPlan)}
+        onOpenChange={(open) => !open && setReversalPlan(undefined)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Voltar para {reversalPlan?.to}?</DialogTitle>
+            <DialogDescription>
+              A OS voltará de {reversalPlan?.from} para {reversalPlan?.to}. Esta ação não poderá ser
+              desfeita automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          {reversalPlan && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              {reversalPlan.losses.length > 0 ? (
+                <>
+                  <strong>Dados que serão removidos ou resetados:</strong>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {reversalPlan.losses.map((loss) => (
+                      <li key={loss}>{loss}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <strong>Nenhum registro operacional será removido.</strong>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReversalPlan(undefined)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onUpdate((current) => reverseOrderWorkflow(current));
+                setReversalPlan(undefined);
+                notify("Etapa anterior restaurada e registrada no histórico");
+              }}
+            >
+              Confirmar retorno
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1828,8 +1893,8 @@ function OrderDetail({
           <DialogHeader>
             <DialogTitle>Ajustar status manualmente</DialogTitle>
             <DialogDescription>
-              Use somente para correção ou exceção operacional. A alteração será registrada no
-              histórico.
+              Confirme a mudança de {order.status} para {manualStatus}. A alteração será registrada
+              no histórico.
             </DialogDescription>
           </DialogHeader>
           <select
@@ -1838,7 +1903,15 @@ function OrderDetail({
             className="h-11 w-full rounded-xl border bg-white px-3"
           >
             {orderStatuses.map((status) => (
-              <option key={status}>{status}</option>
+              <option
+                key={status}
+                disabled={
+                  orderStatuses.indexOf(status) < orderStatuses.indexOf(order.status) &&
+                  status !== availableReversal?.to
+                }
+              >
+                {status}
+              </option>
             ))}
           </select>
           {getStatusPrerequisites(order, manualStatus).length > 0 && (
@@ -1853,6 +1926,14 @@ function OrderDetail({
             </Button>
             <Button
               onClick={() => {
+                if (
+                  orderStatuses.indexOf(manualStatus) < orderStatuses.indexOf(order.status) &&
+                  manualStatus === availableReversal?.to
+                ) {
+                  setManualStatusOpen(false);
+                  setReversalPlan(availableReversal);
+                  return;
+                }
                 transitionStatus(
                   manualStatus,
                   `Correção manual de fluxo: ${order.status} → ${manualStatus}`,
@@ -2114,6 +2195,8 @@ function DiagnosisPanel({
   const [diagnosis, setDiagnosis] = useState(order.diagnosis);
   const [findings, setFindings] = useState(order.findings);
   const [notes, setNotes] = useState(order.notes);
+  const [pendingDiagnosisChange, setPendingDiagnosisChange] =
+    useState<PendingWorkflowConfirmation>();
   const addEvidence = (kind: "Foto" | "Vídeo") => {
     const evidence = {
       id: `e-${Date.now()}`,
@@ -2127,6 +2210,16 @@ function DiagnosisPanel({
       }),
     );
     notify(`${kind} adicionada em modo demonstração`);
+  };
+  const saveDiagnosis = () => {
+    onUpdate((current) =>
+      withActivity(current, "diagnosis", "Diagnóstico atualizado", {
+        diagnosis,
+        findings,
+        notes,
+      }),
+    );
+    notify("Diagnóstico salvo localmente");
   };
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -2162,14 +2255,12 @@ function DiagnosisPanel({
           </div>
           <Button
             onClick={() => {
-              onUpdate((current) =>
-                withActivity(current, "diagnosis", "Diagnóstico atualizado", {
-                  diagnosis,
-                  findings,
-                  notes,
-                }),
-              );
-              notify("Diagnóstico salvo localmente");
+              setPendingDiagnosisChange({
+                title: "Confirmar atualização do diagnóstico?",
+                description:
+                  "O diagnóstico, as constatações e as observações atuais serão salvos na OS.",
+                onConfirm: saveDiagnosis,
+              });
             }}
             className="rounded-xl bg-orange-500 hover:bg-orange-600"
           >
@@ -2185,14 +2276,26 @@ function DiagnosisPanel({
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <Button
-              onClick={() => addEvidence("Foto")}
+              onClick={() =>
+                setPendingDiagnosisChange({
+                  title: "Confirmar inclusão da foto?",
+                  description: "Uma evidência fotográfica demonstrativa será adicionada à OS.",
+                  onConfirm: () => addEvidence("Foto"),
+                })
+              }
               className="h-24 flex-col gap-2 bg-white/10 hover:bg-white/15"
             >
               <ImagePlus className="h-6 w-6 text-orange-400" />
               Adicionar foto
             </Button>
             <Button
-              onClick={() => addEvidence("Vídeo")}
+              onClick={() =>
+                setPendingDiagnosisChange({
+                  title: "Confirmar inclusão do vídeo?",
+                  description: "Uma evidência em vídeo demonstrativa será adicionada à OS.",
+                  onConfirm: () => addEvidence("Vídeo"),
+                })
+              }
               className="h-24 flex-col gap-2 bg-white/10 hover:bg-white/15"
             >
               <Video className="h-6 w-6 text-orange-400" />
@@ -2218,6 +2321,31 @@ function DiagnosisPanel({
           </div>
         </CardContent>
       </Card>
+      <Dialog
+        open={Boolean(pendingDiagnosisChange)}
+        onOpenChange={(open) => !open && setPendingDiagnosisChange(undefined)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{pendingDiagnosisChange?.title}</DialogTitle>
+            <DialogDescription>{pendingDiagnosisChange?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDiagnosisChange(undefined)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={() => {
+                pendingDiagnosisChange?.onConfirm();
+                setPendingDiagnosisChange(undefined);
+              }}
+            >
+              Confirmar alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2421,6 +2549,7 @@ function BudgetPanel({
   const [itemType, setItemType] = useState<"Serviço" | "Peça">("Serviço");
   const [itemValue, setItemValue] = useState("");
   const [budgetError, setBudgetError] = useState("");
+  const [pendingBudgetChange, setPendingBudgetChange] = useState<PendingWorkflowConfirmation>();
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
   const approved = order.budget
     .filter((i) => i.approval === "Aprovado")
@@ -2482,6 +2611,54 @@ function BudgetPanel({
       return updated;
     });
     notify("Disponibilidade da peça atualizada");
+  };
+  const requestApproval = (id: string, approval: ApprovalStatus) => {
+    const item = order.budget.find((entry) => entry.id === id);
+    if (!item || item.approval === approval) return;
+    const projected = evaluateOrderWorkflow({
+      ...order,
+      budget: order.budget.map((entry) => (entry.id === id ? { ...entry, approval } : entry)),
+    });
+    const nextStatus =
+      order.status === "Aguardando aprovação" &&
+      projected.waitingApprovalCount === 0 &&
+      projected.approvedCount > 0
+        ? projected.blockingPartCount > 0
+          ? "Aguardando peça"
+          : "Em manutenção"
+        : undefined;
+    const action =
+      approval === "Aprovado"
+        ? "aprovação"
+        : approval === "Recusado"
+          ? "recusa"
+          : "retorno para aguardando aprovação";
+    setPendingBudgetChange({
+      title: `Confirmar ${action} de ${item.name}?`,
+      description: nextStatus
+        ? `A decisão será registrada e, por concluir as decisões pendentes, a OS passará de ${order.status} para ${nextStatus}.`
+        : `A decisão do item será alterada de ${item.approval} para ${approval}.`,
+      onConfirm: () => setApproval(id, approval),
+    });
+  };
+  const requestAvailability = (
+    id: string,
+    availability: NonNullable<ServiceOrder["budget"][number]["availability"]>,
+  ) => {
+    const item = order.budget.find((entry) => entry.id === id);
+    if (!item || item.availability === availability) return;
+    const projected = evaluateOrderWorkflow({
+      ...order,
+      budget: order.budget.map((entry) => (entry.id === id ? { ...entry, availability } : entry)),
+    });
+    const advances = order.status === "Aguardando peça" && projected.blockingPartCount === 0;
+    setPendingBudgetChange({
+      title: `Confirmar disponibilidade de ${item.name}?`,
+      description: advances
+        ? `A peça será marcada como ${availability} e a OS passará de Aguardando peça para Em manutenção.`
+        : `A disponibilidade da peça será alterada de ${item.availability ?? "não informada"} para ${availability}.`,
+      onConfirm: () => setAvailability(id, availability),
+    });
   };
   const addAdditional = () => {
     const cleanName = name.trim();
@@ -2630,7 +2807,7 @@ function BudgetPanel({
                       <select
                         value={item.availability ?? "Disponível"}
                         onChange={(event) =>
-                          setAvailability(
+                          requestAvailability(
                             item.id,
                             event.target.value as NonNullable<typeof item.availability>,
                           )
@@ -2650,7 +2827,7 @@ function BudgetPanel({
                       "gap-1",
                       item.approval === "Aprovado" && "bg-emerald-600 hover:bg-emerald-700",
                     )}
-                    onClick={() => setApproval(item.id, "Aprovado")}
+                    onClick={() => requestApproval(item.id, "Aprovado")}
                   >
                     <Check className="h-3.5 w-3.5" /> Aprovar
                   </Button>
@@ -2658,14 +2835,14 @@ function BudgetPanel({
                     size="sm"
                     variant={item.approval === "Recusado" ? "destructive" : "outline"}
                     className="gap-1"
-                    onClick={() => setApproval(item.id, "Recusado")}
+                    onClick={() => requestApproval(item.id, "Recusado")}
                   >
                     <X className="h-3.5 w-3.5" /> Recusar
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => setApproval(item.id, "Aguardando aprovação")}
+                    onClick={() => requestApproval(item.id, "Aguardando aprovação")}
                   >
                     Aguardar
                   </Button>
@@ -2842,6 +3019,31 @@ function BudgetPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={Boolean(pendingBudgetChange)}
+        onOpenChange={(open) => !open && setPendingBudgetChange(undefined)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{pendingBudgetChange?.title}</DialogTitle>
+            <DialogDescription>{pendingBudgetChange?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingBudgetChange(undefined)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={() => {
+                pendingBudgetChange?.onConfirm();
+                setPendingBudgetChange(undefined);
+              }}
+            >
+              Confirmar alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -2857,6 +3059,7 @@ function ExecutionPanel({
 }) {
   const approved = order.budget.filter((item) => item.approval === "Aprovado");
   const blocked = order.budget.filter((item) => item.approval !== "Aprovado");
+  const [pendingExecution, setPendingExecution] = useState<ServiceOrder["budget"][number]>();
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_350px]">
       <Card className="border-0 bg-white">
@@ -2879,7 +3082,7 @@ function ExecutionPanel({
             {approved.map((item) => (
               <button
                 key={item.id}
-                onClick={() => updateItem(item.id, { executed: !item.executed })}
+                onClick={() => setPendingExecution(item)}
                 className={cn(
                   "flex w-full items-center gap-4 rounded-xl border p-4 text-left",
                   item.executed ? "border-emerald-200 bg-emerald-50" : "bg-white",
@@ -2941,6 +3144,38 @@ function ExecutionPanel({
           </div>
         </div>
       </aside>
+      <Dialog
+        open={Boolean(pendingExecution)}
+        onOpenChange={(open) => !open && setPendingExecution(undefined)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pendingExecution?.executed ? "Reabrir item executado?" : "Confirmar execução?"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingExecution?.executed
+                ? `${pendingExecution.name} voltará a ficar pendente e impedirá a conclusão do serviço.`
+                : `${pendingExecution?.name ?? "O item"} será registrado como executado nesta OS.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingExecution(undefined)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={() => {
+                if (pendingExecution)
+                  updateItem(pendingExecution.id, { executed: !pendingExecution.executed });
+                setPendingExecution(undefined);
+              }}
+            >
+              Confirmar alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2963,8 +3198,22 @@ function PaymentPanel({
   const [status, setStatus] = useState<"Pendente" | "Pago">(order.payment?.status ?? "Pendente");
   const [amount, setAmount] = useState(order.payment?.amount.toString() ?? approved.toString());
   const [paymentError, setPaymentError] = useState("");
+  const [paymentConfirmationOpen, setPaymentConfirmationOpen] = useState(false);
   const today = new Date("2026-09-01T12:00:00Z");
   const warrantyStatus = warrantyEnd && warrantyEnd >= today ? "ATIVA" : "EXPIRADA";
+  const registerPayment = () => {
+    const numericAmount = Number(amount);
+    onUpdate((current) =>
+      withActivity(
+        current,
+        "payment",
+        `Pagamento ${status.toLowerCase()} registrado por ${method}`,
+        { payment: { amount: numericAmount, method, status, date: "2026-09-01" } },
+      ),
+    );
+    setPaymentError("");
+    notify("Pagamento registrado localmente");
+  };
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card className="border-0 bg-white">
@@ -3043,18 +3292,8 @@ function PaymentPanel({
                 setPaymentError("Selecione PIX ou Cartão como forma de pagamento.");
                 return;
               }
-              onUpdate((current) =>
-                withActivity(
-                  current,
-                  "payment",
-                  `Pagamento ${status.toLowerCase()} registrado por ${method}`,
-                  {
-                    payment: { amount: numericAmount, method, status, date: "2026-09-01" },
-                  },
-                ),
-              );
               setPaymentError("");
-              notify("Pagamento registrado localmente");
+              setPaymentConfirmationOpen(true);
             }}
             className="mt-5 w-full rounded-xl bg-orange-500 hover:bg-orange-600"
           >
@@ -3112,6 +3351,30 @@ function PaymentPanel({
           </p>
         </CardContent>
       </Card>
+      <Dialog open={paymentConfirmationOpen} onOpenChange={setPaymentConfirmationOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar registro do pagamento?</DialogTitle>
+            <DialogDescription>
+              Será registrado {money(Number(amount))} por {method}, com status {status}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentConfirmationOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={() => {
+                registerPayment();
+                setPaymentConfirmationOpen(false);
+              }}
+            >
+              Confirmar pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
