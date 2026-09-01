@@ -2,6 +2,27 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.5] - 2026-09-01
+
+### Alterado
+
+- **Funcionamento anterior:** status era alterado livremente pelo seletor e a próxima ação era texto fixo por status.
+- **Novo funcionamento:** uma camada central deriva próxima ação, pré-requisitos, bloqueios, avisos e inconsistências dos dados reais da OS.
+- **Motivo:** impedir avanços incompatíveis e conduzir o funcionário pelas ações operacionais da própria ordem.
+- **Status anterior:** preservado no histórico como comportamento da v0.1.4; o ajuste manual permanece apenas como exceção registrada.
+
+### Adicionado
+
+- Ações guiadas para diagnóstico, aprovação, peças, execução, conclusão, retirada e entrega.
+- Atualização mínima da disponibilidade de peças dentro do orçamento.
+- Confirmação para transições semanticamente importantes e aviso de pagamento pendente na entrega.
+- Detecção e correção explícita de registros antigos inconsistentes, sem alteração silenciosa.
+- Barra com trilho neutro, conclusão verde, etapa atual laranja e explicação ao selecionar etapas futuras.
+
+### Observação
+
+- Estados, transições, garantia, pagamento como bloqueio e encerramento sem itens aprovados continuam provisórios e sujeitos à validação da oficina.
+
 ## [Piloto v0.1.4] - 2026-09-01
 
 ### Corrigido

@@ -35,6 +35,8 @@ import {
   Video,
   WalletCards,
   Wrench,
+  AlertTriangle,
+  Settings2,
   X,
   XCircle,
 } from "lucide-react";
@@ -77,6 +79,11 @@ import {
   normalizePhone,
   normalizePlate,
 } from "./pilot-validation";
+import {
+  evaluateOrderWorkflow,
+  getStatusPrerequisites,
+  type WorkflowAction,
+} from "./pilot-workflow";
 
 type OrderUpdater = (current: ServiceOrder) => ServiceOrder;
 
@@ -112,6 +119,29 @@ const withActivity = (
   };
 };
 
+const withStatusTransition = (
+  order: ServiceOrder,
+  status: ServiceOrder["status"],
+  description: string,
+  completion = false,
+) => {
+  if (order.status === status) return order;
+  const at = orderTimestamp();
+  return {
+    ...withActivity(order, "status", description, {
+      status,
+      completedAt:
+        completion && !order.completedAt
+          ? new Date().toISOString().slice(0, 10)
+          : order.completedAt,
+    }),
+    statusHistory: [
+      ...(order.statusHistory ?? []),
+      { id: `s-${Date.now()}`, from: order.status, to: status, at },
+    ],
+  };
+};
+
 type Screen = "dashboard" | "customers" | "vehicles" | "orders" | "customer" | "vehicle" | "order";
 
 const navItems = [
@@ -121,17 +151,6 @@ const navItems = [
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
 ];
 
-const nextActionByStatus: Record<ServiceOrder["status"], string> = {
-  Recebido: "Iniciar diagnóstico",
-  "Em diagnóstico": "Revisar diagnóstico e preparar orçamento",
-  "Aguardando aprovação": "Conferir itens aguardando resposta",
-  "Aguardando peça": "Conferir chegada das peças",
-  "Em manutenção": "Conferir execução dos serviços aprovados",
-  "Serviço concluído": "Registrar pagamento / preparar retirada",
-  "Aguardando retirada": "Confirmar retirada do veículo",
-  Entregue: "Consultar histórico",
-};
-
 const formatActivityDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -140,20 +159,6 @@ const formatActivityDate = (value: string) =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-
-const getOrderPendingItems = (order: ServiceOrder) => {
-  const pending: string[] = [];
-  if (!order.diagnosis.trim()) pending.push("Diagnóstico ainda não registrado.");
-  const waiting = order.budget.filter((item) => item.approval === "Aguardando aprovação").length;
-  const refused = order.budget.filter((item) => item.approval === "Recusado").length;
-  if (waiting)
-    pending.push(`${waiting} ${waiting === 1 ? "item aguardando" : "itens aguardando"} aprovação.`);
-  if (refused) pending.push(`${refused} ${refused === 1 ? "item recusado" : "itens recusados"}.`);
-  if (!order.team.length) pending.push("Responsável ainda não definido.");
-  if (order.status === "Aguardando peça") pending.push("Veículo aguardando peça.");
-  if (!order.payment || order.payment.status !== "Pago") pending.push("Pagamento pendente.");
-  return pending;
-};
 
 const countOrdersByStatus = (orders: ServiceOrder[], statuses: ServiceOrder["status"][]) =>
   orders.filter((order) => statuses.includes(order.status)).length;
@@ -186,7 +191,14 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function OrderProgress({ status }: { status: ServiceOrder["status"] }) {
+function OrderProgress({
+  order,
+  onStep,
+}: {
+  order: ServiceOrder;
+  onStep: (index: number) => void;
+}) {
+  const status = order.status;
   const currentStepIndex = orderStatuses.indexOf(status);
   const progressPercentage =
     currentStepIndex < 0 ? 0 : (currentStepIndex / (orderStatuses.length - 1)) * 100;
@@ -216,10 +228,10 @@ function OrderProgress({ status }: { status: ServiceOrder["status"] }) {
             aria-valuemin={1}
             aria-valuemax={orderStatuses.length}
             aria-valuenow={currentStepIndex + 1}
-            className="relative h-3 rounded-full bg-slate-200 shadow-inner"
+            className="relative h-1.5 rounded-full bg-slate-200"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-orange-500 transition-[width] duration-500 ease-out"
+              className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
               style={{ width: `${progressPercentage}%` }}
             />
             <div className="absolute inset-0 flex items-center justify-between">
@@ -227,9 +239,11 @@ function OrderProgress({ status }: { status: ServiceOrder["status"] }) {
                 const completed = index < currentStepIndex;
                 const current = index === currentStepIndex;
                 return (
-                  <span
+                  <button
                     key={step}
-                    aria-hidden="true"
+                    type="button"
+                    onClick={() => onStep(index)}
+                    aria-label={`${step}: ${completed ? "concluída" : current ? "atual" : "futura"}`}
                     className={cn(
                       "grid h-6 w-6 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors",
                       completed && "border-emerald-600 bg-emerald-600 text-white",
@@ -239,7 +253,7 @@ function OrderProgress({ status }: { status: ServiceOrder["status"] }) {
                     )}
                   >
                     {completed ? <Check className="h-3.5 w-3.5" /> : index + 1}
-                  </span>
+                  </button>
                 );
               })}
             </div>
@@ -643,7 +657,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.4.
+              Piloto v0.1.5.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -700,7 +714,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.4</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.5</span>
           </span>
         </button>
         <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose}>
@@ -1508,6 +1522,11 @@ function OrderDetail({
   notify: (text: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [manualStatusOpen, setManualStatusOpen] = useState(false);
+  const [manualStatus, setManualStatus] = useState<ServiceOrder["status"]>(order.status);
+  const [confirmAction, setConfirmAction] = useState<WorkflowAction>();
+  const [futureMessage, setFutureMessage] = useState("");
+  const workflow = evaluateOrderWorkflow(order);
   const approved = order.budget
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
@@ -1533,6 +1552,34 @@ function OrderDetail({
     });
   const warrantyEnd = order.completedAt ? new Date(`${order.completedAt}T12:00:00Z`) : null;
   if (warrantyEnd) warrantyEnd.setUTCDate(warrantyEnd.getUTCDate() + 30);
+  const transitionStatus = (
+    status: ServiceOrder["status"],
+    description: string,
+    completion = false,
+  ) => onUpdate((current) => withStatusTransition(current, status, description, completion));
+  const executeAction = (action: WorkflowAction) => {
+    setActiveTab(action.tab);
+    if (!action.targetStatus) return;
+    const descriptions: Partial<Record<WorkflowAction["id"], string>> = {
+      "start-diagnosis": `Fluxo iniciado: ${order.status} → ${action.targetStatus}`,
+      "submit-approval": `Orçamento colocado em aprovação: ${order.status} → ${action.targetStatus}`,
+      "resolve-parts": `Peça pendente identificada: ${order.status} → ${action.targetStatus}`,
+      "start-maintenance": `Peças necessárias disponíveis: ${order.status} → ${action.targetStatus}`,
+      "complete-service": `Serviço concluído: ${order.status} → ${action.targetStatus}`,
+      "prepare-pickup": `Veículo preparado para retirada: ${order.status} → ${action.targetStatus}`,
+      "confirm-delivery": `Entrega confirmada: ${order.status} → ${action.targetStatus}`,
+    };
+    transitionStatus(
+      action.targetStatus,
+      descriptions[action.id] ?? `Fluxo atualizado: ${order.status} → ${action.targetStatus}`,
+      action.id === "complete-service",
+    );
+    notify(action.label);
+  };
+  const requestAction = (action: WorkflowAction) => {
+    if (action.confirmation) setConfirmAction(action);
+    else executeAction(action);
+  };
   return (
     <>
       <PageTitle
@@ -1541,56 +1588,22 @@ function OrderDetail({
         title={`${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`}
         text={`${customer.name} · entrada com ${order.entryMileage.toLocaleString("pt-BR")} km`}
         action={
-          <div className="min-w-52">
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-              STATUS DA OS · PROVISÓRIO
-            </label>
-            <select
-              value={order.status}
-              onChange={(e) => {
-                const status = e.target.value as ServiceOrder["status"];
-                const completionRequired =
-                  orderStatuses.indexOf(status) >= orderStatuses.indexOf("Serviço concluído");
-                const completionDate = "2026-09-01";
-                if (completionRequired && completionDate < order.openedAt) {
-                  notify("A conclusão não pode ser anterior à entrada do veículo.");
-                  return;
-                }
-                onUpdate((current) => {
-                  if (current.status === status) return current;
-                  const at = orderTimestamp();
-                  return {
-                    ...withActivity(
-                      current,
-                      "status",
-                      `Status alterado de ${current.status} para ${status}`,
-                      {
-                        status,
-                        completedAt:
-                          completionRequired && !current.completedAt
-                            ? completionDate
-                            : current.completedAt,
-                      },
-                    ),
-                    statusHistory: [
-                      ...(current.statusHistory ?? []),
-                      {
-                        id: `s-${Date.now()}`,
-                        from: current.status,
-                        to: status,
-                        at,
-                      },
-                    ],
-                  };
-                });
-                notify("Status da OS atualizado");
+          <div className="flex min-w-52 flex-col items-end gap-2">
+            <span className="text-xs font-semibold uppercase text-muted-foreground">
+              Status atual · provisório
+            </span>
+            <StatusBadge status={order.status} />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-2 text-muted-foreground"
+              onClick={() => {
+                setManualStatus(order.status);
+                setManualStatusOpen(true);
               }}
-              className="h-11 w-full rounded-xl border bg-white px-3 text-sm font-semibold"
             >
-              {orderStatuses.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
+              <Settings2 className="h-4 w-4" /> Ajustar status manualmente
+            </Button>
           </div>
         }
       />
@@ -1607,7 +1620,47 @@ function OrderDetail({
           {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
-      <OrderProgress status={order.status} />
+      <OrderProgress
+        order={order}
+        onStep={(index) => {
+          if (index === workflow.currentIndex) {
+            requestAction(workflow.nextAction);
+            return;
+          }
+          if (index > workflow.currentIndex) {
+            const target = orderStatuses[index];
+            const missing = getStatusPrerequisites(order, target);
+            setFutureMessage(
+              missing.length
+                ? `Antes de chegar a “${target}”, é necessário ${missing.join(", ")}.`
+                : `A etapa “${target}” deve ser alcançada pelas ações da OS.`,
+            );
+          }
+        }}
+      />
+      {workflow.inconsistency && workflow.recommendedStatus && (
+        <div className="mb-5 rounded-2xl border border-rose-300 bg-rose-50 p-4 text-rose-950">
+          <div className="flex gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <div className="flex-1">
+              <p className="font-bold">Inconsistência no fluxo</p>
+              <p className="mt-1 text-sm">{workflow.inconsistency}</p>
+              <Button
+                size="sm"
+                className="mt-3 bg-rose-700 hover:bg-rose-800"
+                onClick={() =>
+                  transitionStatus(
+                    workflow.recommendedStatus!,
+                    `Correção de consistência: ${order.status} → ${workflow.recommendedStatus}`,
+                  )
+                }
+              >
+                Corrigir para {workflow.recommendedStatus}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {waitingApprovalCount > 0 && (
         <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
           <Clock3 className="h-5 w-5 shrink-0 text-amber-600" />
@@ -1623,23 +1676,14 @@ function OrderDetail({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Próxima ação sugerida
           </p>
-          <p className="font-semibold">{nextActionByStatus[order.status]}</p>
+          <p className="font-semibold">{workflow.nextAction.label}</p>
         </div>
-        {(order.status === "Recebido" || order.status === "Em diagnóstico") && (
-          <Button variant="outline" onClick={() => setActiveTab("diagnosis")}>
-            Registrar diagnóstico
-          </Button>
-        )}
-        {(order.status === "Em diagnóstico" || order.status === "Aguardando aprovação") && (
-          <Button variant="outline" onClick={() => setActiveTab("budget")}>
-            Ver orçamento
-          </Button>
-        )}
-        {(order.status === "Serviço concluído" || order.status === "Aguardando retirada") && (
-          <Button variant="outline" onClick={() => setActiveTab("payment")}>
-            Registrar pagamento
-          </Button>
-        )}
+        <Button
+          className="bg-orange-500 hover:bg-orange-600"
+          onClick={() => requestAction(workflow.nextAction)}
+        >
+          {workflow.nextAction.label}
+        </Button>
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-white p-1.5">
@@ -1673,6 +1717,7 @@ function OrderDetail({
             approved={approved}
             total={total}
             onQuickAction={setActiveTab}
+            workflow={workflow}
           />
         </TabsContent>
         <TabsContent value="diagnosis" className="mt-6">
@@ -1700,6 +1745,86 @@ function OrderDetail({
           />
         </TabsContent>
       </Tabs>
+      <Dialog
+        open={Boolean(confirmAction)}
+        onOpenChange={(open) => !open && setConfirmAction(undefined)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmAction?.label}</DialogTitle>
+            <DialogDescription>{confirmAction?.confirmation}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(undefined)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={() => {
+                if (confirmAction) executeAction(confirmAction);
+                setConfirmAction(undefined);
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(futureMessage)} onOpenChange={(open) => !open && setFutureMessage("")}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Etapa ainda não disponível</DialogTitle>
+            <DialogDescription>{futureMessage}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setFutureMessage("")}>Entendi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={manualStatusOpen} onOpenChange={setManualStatusOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajustar status manualmente</DialogTitle>
+            <DialogDescription>
+              Use somente para correção ou exceção operacional. A alteração será registrada no
+              histórico.
+            </DialogDescription>
+          </DialogHeader>
+          <select
+            value={manualStatus}
+            onChange={(event) => setManualStatus(event.target.value as ServiceOrder["status"])}
+            className="h-11 w-full rounded-xl border bg-white px-3"
+          >
+            {orderStatuses.map((status) => (
+              <option key={status}>{status}</option>
+            ))}
+          </select>
+          {getStatusPrerequisites(order, manualStatus).length > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              <strong>Atenção:</strong> esta alteração ignora:{" "}
+              {getStatusPrerequisites(order, manualStatus).join(", ")}.
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualStatusOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                transitionStatus(
+                  manualStatus,
+                  `Correção manual de fluxo: ${order.status} → ${manualStatus}`,
+                );
+                setManualStatusOpen(false);
+                notify("Status ajustado manualmente e registrado");
+              }}
+              disabled={manualStatus === order.status}
+            >
+              Confirmar ajuste
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1712,6 +1837,7 @@ function OrderOverview({
   approved,
   total,
   onQuickAction,
+  workflow,
 }: {
   order: ServiceOrder;
   vehicle: Vehicle;
@@ -1720,8 +1846,8 @@ function OrderOverview({
   approved: number;
   total: number;
   onQuickAction: (tab: string) => void;
+  workflow: ReturnType<typeof evaluateOrderWorkflow>;
 }) {
-  const pending = getOrderPendingItems(order);
   const refused = order.budget
     .filter((item) => item.approval === "Recusado")
     .reduce((sum, item) => sum + item.price, 0);
@@ -1896,10 +2022,10 @@ function OrderOverview({
           <CardContent className="p-5">
             <p className="text-xs font-semibold uppercase text-muted-foreground">Pendências</p>
             <div className="mt-3 space-y-2">
-              {pending.length ? (
-                pending.map((item) => (
-                  <p key={item} className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
-                    {item}
+              {workflow.blockers.length ? (
+                workflow.blockers.map((item) => (
+                  <p key={item} className="rounded-lg bg-rose-50 p-2 text-sm text-rose-900">
+                    <strong>Bloqueio:</strong> {item}
                   </p>
                 ))
               ) : (
@@ -1907,13 +2033,18 @@ function OrderOverview({
                   Nenhuma pendência operacional identificada.
                 </p>
               )}
+              {workflow.warnings.map((item) => (
+                <p key={item} className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+                  <strong>Aviso:</strong> {item}
+                </p>
+              ))}
             </div>
           </CardContent>
         </Card>
         <Card className="border-0 bg-slate-900 text-white">
           <CardContent className="p-5">
             <p className="text-xs font-semibold uppercase text-orange-400">Próxima ação sugerida</p>
-            <p className="mt-2 font-semibold">{nextActionByStatus[order.status]}</p>
+            <p className="mt-2 font-semibold">{workflow.nextAction.label}</p>
             {order.status === "Recebido" && (
               <Button
                 onClick={() => onQuickAction("diagnosis")}
@@ -2255,7 +2386,7 @@ function BudgetPanel({
   const setApproval = (id: string, approval: ApprovalStatus) => {
     onUpdate((current) => {
       const item = current.budget.find((entry) => entry.id === id);
-      return withActivity(
+      const updated = withActivity(
         current,
         "budget",
         `${item?.name ?? "Item"} marcado como ${approval.toLowerCase()}`,
@@ -2263,8 +2394,52 @@ function BudgetPanel({
           budget: current.budget.map((entry) => (entry.id === id ? { ...entry, approval } : entry)),
         },
       );
+      const flow = evaluateOrderWorkflow(updated);
+      if (
+        current.status === "Aguardando aprovação" &&
+        flow.waitingApprovalCount === 0 &&
+        flow.approvedCount > 0
+      ) {
+        const nextStatus = flow.blockingPartCount > 0 ? "Aguardando peça" : "Em manutenção";
+        return withStatusTransition(
+          updated,
+          nextStatus,
+          flow.blockingPartCount > 0
+            ? `Decisões registradas; peças pendentes: Aguardando aprovação → ${nextStatus}`
+            : `Decisões registradas e peças disponíveis: Aguardando aprovação → ${nextStatus}`,
+        );
+      }
+      return updated;
     });
     notify(`Item marcado como ${approval.toLowerCase()}`);
+  };
+  const setAvailability = (
+    id: string,
+    availability: NonNullable<ServiceOrder["budget"][number]["availability"]>,
+  ) => {
+    onUpdate((current) => {
+      const item = current.budget.find((entry) => entry.id === id);
+      const updated = withActivity(
+        current,
+        "budget",
+        `Disponibilidade de ${item?.name ?? "peça"}: ${availability}`,
+        {
+          budget: current.budget.map((entry) =>
+            entry.id === id ? { ...entry, availability } : entry,
+          ),
+        },
+      );
+      const flow = evaluateOrderWorkflow(updated);
+      if (current.status === "Aguardando peça" && flow.blockingPartCount === 0) {
+        return withStatusTransition(
+          updated,
+          "Em manutenção",
+          "Peças necessárias disponíveis: Aguardando peça → Em manutenção",
+        );
+      }
+      return updated;
+    });
+    notify("Disponibilidade da peça atualizada");
   };
   const addAdditional = () => {
     const cleanName = name.trim();
@@ -2407,6 +2582,25 @@ function BudgetPanel({
                   <StatusBadge status={item.approval} />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 lg:justify-end">
+                  {item.type === "Peça" && item.approval === "Aprovado" && (
+                    <label className="mr-auto flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                      Disponibilidade
+                      <select
+                        value={item.availability ?? "Disponível"}
+                        onChange={(event) =>
+                          setAvailability(
+                            item.id,
+                            event.target.value as NonNullable<typeof item.availability>,
+                          )
+                        }
+                        className="h-9 rounded-lg border bg-white px-2 text-sm text-slate-900"
+                      >
+                        <option>Disponível</option>
+                        <option>Solicitada</option>
+                        <option>Aguardando peça</option>
+                      </select>
+                    </label>
+                  )}
                   <Button
                     size="sm"
                     variant={item.approval === "Aprovado" ? "default" : "outline"}
@@ -2628,6 +2822,10 @@ function ExecutionPanel({
           <h2 className="font-bold">Serviços autorizados</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Marque o que foi efetivamente executado.
+          </p>
+          <p className="mt-3 rounded-xl bg-slate-100 p-3 text-sm font-semibold text-slate-800">
+            {approved.filter((item) => item.executed).length} de {approved.length} serviços
+            aprovados concluídos
           </p>
           <div className="mt-5 space-y-3">
             {approved.length === 0 && (
