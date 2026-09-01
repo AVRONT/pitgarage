@@ -4,13 +4,13 @@ Sistema de gestão para uma oficina real de carros e motos. O projeto busca cent
 
 ## Estado atual
 
-O projeto está na fase de **Piloto v0.1.3**. A aplicação local com dados fictícios está preparada para demonstração, orienta cadastros inconsistentes e agora registra o fluxo operacional e as atividades relevantes de cada ordem. O piloto não representa aprovação do MVP, da arquitetura ou das decisões técnicas definitivas.
+O projeto está na fase de **Piloto v0.1.4**. A aplicação local com dados fictícios está preparada para demonstração, registra o fluxo operacional e agora apresenta progresso contínuo e uma visão somente leitura do orçamento como cliente. O piloto não representa aprovação do MVP, da arquitetura ou das decisões técnicas definitivas.
 
 Consulte o índice em [`docs/README.md`](docs/README.md).
 
 ## Próximos passos
 
-1. Demonstrar o Piloto v0.1.3 aos responsáveis pela oficina.
+1. Demonstrar o Piloto v0.1.4 aos responsáveis pela oficina.
 2. Registrar feedback sobre fluxo, informações e facilidade de uso.
 3. Atualizar requisitos e escopo com base apenas no que for validado.
 

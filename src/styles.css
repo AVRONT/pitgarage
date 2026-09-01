@@ -158,3 +158,31 @@
     text-wrap: balance;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .client-quote-print,
+  .client-quote-print * {
+    visibility: visible;
+  }
+
+  .client-quote-print {
+    position: absolute !important;
+    inset: 0 !important;
+    max-height: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .client-quote-print > button,
+  .client-quote-print .no-print {
+    display: none !important;
+  }
+}

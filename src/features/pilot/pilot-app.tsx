@@ -15,6 +15,7 @@ import {
   FileText,
   Gauge,
   History,
+  Eye,
   ImagePlus,
   LayoutDashboard,
   Menu,
@@ -23,6 +24,7 @@ import {
   Phone,
   Play,
   Plus,
+  Printer,
   ReceiptText,
   RotateCcw,
   Search,
@@ -181,6 +183,93 @@ function StatusBadge({ status }: { status: string }) {
     >
       {status}
     </Badge>
+  );
+}
+
+function OrderProgress({ status }: { status: ServiceOrder["status"] }) {
+  const currentStepIndex = orderStatuses.indexOf(status);
+  const progressPercentage =
+    currentStepIndex < 0 ? 0 : (currentStepIndex / (orderStatuses.length - 1)) * 100;
+
+  return (
+    <section
+      className="mb-5 rounded-2xl border bg-white p-4 md:p-5"
+      aria-label="Progresso provisório da ordem de serviço"
+    >
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Fluxo da ordem
+          </p>
+          <p className="text-lg font-bold text-slate-900">
+            Etapa {currentStepIndex + 1} de {orderStatuses.length}
+          </p>
+          <p className="mt-0.5 text-sm font-semibold text-orange-700">{status}</p>
+        </div>
+        <span className="text-xs text-muted-foreground">Estados ainda sujeitos à validação</span>
+      </div>
+      <div className="overflow-x-auto pb-1">
+        <div className="min-w-[760px] px-2">
+          <div
+            role="progressbar"
+            aria-label={`Etapa ${currentStepIndex + 1} de ${orderStatuses.length}: ${status}`}
+            aria-valuemin={1}
+            aria-valuemax={orderStatuses.length}
+            aria-valuenow={currentStepIndex + 1}
+            className="relative h-3 rounded-full bg-slate-200 shadow-inner"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-orange-500 transition-[width] duration-500 ease-out"
+              style={{ width: `${progressPercentage}%` }}
+            />
+            <div className="absolute inset-0 flex items-center justify-between">
+              {orderStatuses.map((step, index) => {
+                const completed = index < currentStepIndex;
+                const current = index === currentStepIndex;
+                return (
+                  <span
+                    key={step}
+                    aria-hidden="true"
+                    className={cn(
+                      "grid h-6 w-6 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors",
+                      completed && "border-emerald-600 bg-emerald-600 text-white",
+                      current &&
+                        "h-7 w-7 border-orange-500 bg-white text-orange-700 ring-4 ring-orange-100",
+                      !completed && !current && "border-slate-300 bg-white text-slate-400",
+                    )}
+                  >
+                    {completed ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-8 gap-2">
+            {orderStatuses.map((step, index) => (
+              <div key={step} className="text-center">
+                <p
+                  className={cn(
+                    "text-[10px] leading-tight",
+                    index < currentStepIndex && "font-semibold text-emerald-700",
+                    index === currentStepIndex && "font-bold text-orange-700",
+                    index > currentStepIndex && "text-muted-foreground",
+                  )}
+                >
+                  {step}
+                </p>
+                <span className="sr-only">
+                  {index < currentStepIndex
+                    ? "Concluída"
+                    : index === currentStepIndex
+                      ? "Atual"
+                      : "Futura"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -554,7 +643,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.3.
+              Piloto v0.1.4.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -611,7 +700,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.3</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.4</span>
           </span>
         </button>
         <Button className="lg:hidden" size="icon" variant="ghost" onClick={onClose}>
@@ -1423,7 +1512,9 @@ function OrderDetail({
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
-  const statusIndex = orderStatuses.indexOf(order.status);
+  const waitingApprovalCount = order.budget.filter(
+    (item) => item.approval === "Aguardando aprovação",
+  ).length;
   const updateItem = (id: string, patch: Partial<ServiceOrder["budget"][number]>) =>
     onUpdate((current) => {
       const item = current.budget.find((entry) => entry.id === id);
@@ -1516,53 +1607,17 @@ function OrderDetail({
           {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
-      <section
-        className="mb-5 rounded-2xl border bg-white p-4"
-        aria-label="Progresso provisório da ordem de serviço"
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Fluxo da ordem
-            </p>
-            <p className="text-sm font-semibold">
-              Etapa {statusIndex + 1} de {orderStatuses.length}
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground">Estados ainda sujeitos à validação</span>
+      <OrderProgress status={order.status} />
+      {waitingApprovalCount > 0 && (
+        <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <Clock3 className="h-5 w-5 shrink-0 text-amber-600" />
+          <p className="font-semibold">
+            {waitingApprovalCount}{" "}
+            {waitingApprovalCount === 1 ? "item aguardando" : "itens aguardando"} aprovação do
+            cliente
+          </p>
         </div>
-        <div className="flex items-start overflow-x-auto pb-1">
-          {orderStatuses.map((status, index) => (
-            <div key={status} className="flex min-w-28 flex-1 items-start last:min-w-20">
-              <div className="min-w-0 flex-1">
-                <div
-                  className={cn(
-                    "h-1.5 rounded-full",
-                    index < statusIndex
-                      ? "bg-emerald-500"
-                      : index === statusIndex
-                        ? "bg-orange-500"
-                        : "bg-slate-200",
-                  )}
-                />
-                <p
-                  className={cn(
-                    "mt-2 text-[10px] leading-tight",
-                    index < statusIndex
-                      ? "font-semibold text-emerald-700"
-                      : index === statusIndex
-                        ? "font-bold text-orange-700"
-                        : "text-muted-foreground",
-                  )}
-                >
-                  {status}
-                </p>
-              </div>
-              {index < orderStatuses.length - 1 && <span className="w-2" />}
-            </div>
-          ))}
-        </div>
-      </section>
+      )}
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border bg-white p-4">
         <div className="mr-auto">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1624,7 +1679,14 @@ function OrderDetail({
           <DiagnosisPanel order={order} onUpdate={onUpdate} notify={notify} />
         </TabsContent>
         <TabsContent value="budget" className="mt-6">
-          <BudgetPanel order={order} updateItem={updateItem} onUpdate={onUpdate} notify={notify} />
+          <BudgetPanel
+            order={order}
+            vehicle={vehicle}
+            customer={customer}
+            updateItem={updateItem}
+            onUpdate={onUpdate}
+            notify={notify}
+          />
         </TabsContent>
         <TabsContent value="execution" className="mt-6">
           <ExecutionPanel order={order} updateItem={updateItem} notify={notify} />
@@ -1987,19 +2049,199 @@ function DiagnosisPanel({
   );
 }
 
+function ClientQuotePreview({
+  order,
+  vehicle,
+  customer,
+  onPrint,
+}: {
+  order: ServiceOrder;
+  vehicle: Vehicle;
+  customer: Customer;
+  onPrint: () => void;
+}) {
+  const sumByApproval = (approval: ApprovalStatus) =>
+    order.budget
+      .filter((item) => item.approval === approval)
+      .reduce((sum, item) => sum + item.price, 0);
+  const total = order.budget.reduce((sum, item) => sum + item.price, 0);
+  const totals = [
+    { label: "Total do orçamento", value: total, className: "text-slate-950" },
+    { label: "Aprovado", value: sumByApproval("Aprovado"), className: "text-emerald-700" },
+    {
+      label: "Aguardando aprovação",
+      value: sumByApproval("Aguardando aprovação"),
+      className: "text-amber-700",
+    },
+    { label: "Recusado", value: sumByApproval("Recusado"), className: "text-rose-700" },
+  ];
+
+  return (
+    <article className="bg-[#f7f5f0] text-slate-900">
+      <header className="bg-slate-900 px-6 py-7 text-white md:px-9">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-500">
+              <Wrench className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-xl font-bold tracking-tight">PITGARAGE</p>
+              <p className="text-sm text-slate-300">Oficina Pit Stop</p>
+            </div>
+          </div>
+          <div className="pr-8 text-right">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-400">
+              Orçamento · {order.id}
+            </p>
+            <p className="mt-1 text-sm text-slate-300">Preparado para {customer.name}</p>
+          </div>
+        </div>
+        <div className="mt-7 rounded-2xl bg-white/8 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Status do veículo</p>
+          <p className="mt-1 text-lg font-semibold">
+            Seu veículo está: {order.status.toLowerCase()}
+          </p>
+        </div>
+      </header>
+
+      <div className="space-y-6 p-6 md:p-9">
+        <div className="no-print flex justify-end">
+          <Button onClick={onPrint} variant="outline" className="gap-2 bg-white">
+            <Printer className="h-4 w-4" /> Imprimir orçamento
+          </Button>
+        </div>
+
+        <section className="grid gap-4 rounded-2xl border bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Veículo</p>
+            <p className="font-bold">
+              {vehicle.brand} {vehicle.model}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Placa</p>
+            <p className="font-mono font-bold">{vehicle.plate}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Ano / modelo</p>
+            <p className="font-bold">
+              {vehicle.year} · {vehicle.model}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Quilometragem na entrada</p>
+            <p className="font-bold">{order.entryMileage.toLocaleString("pt-BR")} km</p>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+              O que você relatou
+            </p>
+            <p className="mt-2 leading-relaxed">{order.complaint}</p>
+          </div>
+          <div className="rounded-2xl border bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+              O que encontramos
+            </p>
+            <p className="mt-2 leading-relaxed">
+              {order.diagnosis || "Diagnóstico ainda não registrado."}
+            </p>
+            {order.findings && <p className="mt-3 text-sm text-slate-600">{order.findings}</p>}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3">
+            <h2 className="text-lg font-bold">Evidências do diagnóstico</h2>
+            <p className="text-sm text-muted-foreground">Fotos e vídeos registrados pela oficina</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {order.evidence.length ? (
+              order.evidence.map((evidence) => (
+                <div key={evidence.id} className="rounded-2xl bg-slate-800 p-4 text-white">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/10">
+                    {evidence.kind === "Foto" ? (
+                      <Camera className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </span>
+                  <p className="mt-6 font-semibold">{evidence.caption}</p>
+                  <p className="mt-1 text-xs text-slate-400">Prévia simulada · {evidence.kind}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed bg-white p-5 text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+                Nenhuma foto ou vídeo disponível para esta ordem.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border bg-white">
+          <div className="border-b p-5">
+            <h2 className="text-lg font-bold">Serviços e peças recomendados</h2>
+            <p className="text-sm text-muted-foreground">Cada item mantém a decisão registrada</p>
+          </div>
+          {order.budget.length ? (
+            <div className="divide-y">
+              {order.budget.map((item) => (
+                <div
+                  key={item.id}
+                  className="grid gap-3 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                >
+                  <div>
+                    <p className="font-semibold">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.type}</p>
+                  </div>
+                  <strong>{money(item.price)}</strong>
+                  <StatusBadge status={item.approval} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="p-5 text-sm text-muted-foreground">Nenhum item incluído no orçamento.</p>
+          )}
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {totals.map((item) => (
+            <div key={item.label} className="rounded-2xl border bg-white p-4">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className={cn("mt-1 text-xl font-bold", item.className)}>{money(item.value)}</p>
+            </div>
+          ))}
+        </section>
+
+        <p className="text-center text-xs text-muted-foreground">
+          Visualização demonstrativa local. Aprovações e recusas continuam sendo registradas pela
+          oficina.
+        </p>
+      </div>
+    </article>
+  );
+}
+
 function BudgetPanel({
   order,
+  vehicle,
+  customer,
   updateItem,
   onUpdate,
   notify,
 }: {
   order: ServiceOrder;
+  vehicle: Vehicle;
+  customer: Customer;
   updateItem: (id: string, patch: Partial<ServiceOrder["budget"][number]>) => void;
   onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
 }) {
   const [additionalOpen, setAdditionalOpen] = useState(false);
   const [itemOpen, setItemOpen] = useState(false);
+  const [clientPreviewOpen, setClientPreviewOpen] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [itemName, setItemName] = useState("");
@@ -2091,6 +2333,13 @@ function BudgetPanel({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
+                onClick={() => setClientPreviewOpen(true)}
+                variant="outline"
+                className="gap-2 rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50"
+              >
+                <Eye className="h-4 w-4" /> Visualizar como cliente
+              </Button>
+              <Button
                 onClick={() => setItemOpen(true)}
                 className="gap-2 rounded-xl bg-slate-900 hover:bg-slate-800"
               >
@@ -2113,7 +2362,16 @@ function BudgetPanel({
               />
             )}
             {order.budget.map((item) => (
-              <div key={item.id} className={cn("p-5", item.additional && "bg-amber-50/60")}>
+              <div
+                key={item.id}
+                className={cn(
+                  "border-l-4 p-5",
+                  item.approval === "Aprovado" && "border-l-emerald-500",
+                  item.approval === "Recusado" && "border-l-rose-500",
+                  item.approval === "Aguardando aprovação" && "border-l-amber-500",
+                  item.additional && "bg-amber-50/60",
+                )}
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 gap-3">
                     <span
@@ -2225,6 +2483,16 @@ function BudgetPanel({
           </div>
         </aside>
       </div>
+      <Dialog open={clientPreviewOpen} onOpenChange={setClientPreviewOpen}>
+        <DialogContent className="client-quote-print max-h-[92vh] max-w-5xl overflow-y-auto p-0">
+          <ClientQuotePreview
+            order={order}
+            vehicle={vehicle}
+            customer={customer}
+            onPrint={() => window.print()}
+          />
+        </DialogContent>
+      </Dialog>
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
         <DialogContent>
           <DialogHeader>

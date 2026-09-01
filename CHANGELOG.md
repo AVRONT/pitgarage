@@ -2,6 +2,22 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.4] - 2026-09-01
+
+### Corrigido
+
+- Progresso visual da ordem de serviço com barra contínua e marcadores de etapas concluída, atual e futura, sempre derivados de `order.status`.
+
+### Adicionado
+
+- Visualização somente leitura do orçamento como cliente, com veículo, diagnóstico, evidências, itens, decisões e totais.
+- Alerta de itens aguardando aprovação e diferenciação visual das decisões na tela interna.
+- Versão de impressão com recurso nativo do navegador e controles ocultos no papel ou PDF.
+
+### Observação
+
+- O preview é uma demonstração local. Link seguro, autenticação, compartilhamento e aprovação real permanecem possibilidades futuras sujeitas à validação.
+
 ## [Piloto v0.1.3] - 2026-09-01
 
 ### Corrigido
