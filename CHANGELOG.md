@@ -2,6 +2,18 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.15] - 2026-09-02
+
+### Segurança e consistência histórica local
+
+- Snapshot dos dados da oficina criado na primeira conclusão guiada da OS; documentos fechados preferem o snapshot e registros antigos mantêm fallback compatível para as configurações atuais.
+- Snapshots existentes não são regravados por alterações de configurações, regressão ou nova conclusão.
+- Configurações recebem exportação e importação de backup JSON com clientes, veículos, ordens e dados da oficina, data de exportação e versão explícita do formato.
+- Importação valida formato, estrutura, identificadores e vínculos antes da confirmação; arquivo inválido não altera dados, e falha de persistência restaura os valores locais anteriores.
+- Persistência operacional e configurações passam a declarar `schemaVersion: 1`, preservando leitura dos registros legados e sem exigir reset ou migração destrutiva.
+- Workflow, status, stepper, regressões, Nova OS, orçamento, diagnóstico, pagamento, garantia, timeline, exclusão lógica e identidade visual da v0.1.14 preservados.
+- Escopo, compatibilidade e validação em `docs/piloto/piloto-v0.1.15.md`.
+
 ## [Piloto v0.1.14] - 2026-09-02
 
 ### Identidade visual da oficina piloto

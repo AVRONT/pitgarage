@@ -83,6 +83,15 @@ export interface ServiceOrder {
   status: OrderStatus;
   openedAt: string;
   completedAt?: string;
+  workshopSnapshot?: {
+    name: string;
+    legalName: string;
+    cnpj: string;
+    phone: string;
+    address: string;
+    postalCode: string;
+    hours: string;
+  };
   entryMileage: number;
   complaint: string;
   diagnosis: string;

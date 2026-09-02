@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatWorkshopField, workshopStorageKey, type Workshop } from "./workshop-data";
+import { createWorkshopRecord } from "./pilot-storage";
 import { WorkshopDocumentPreview } from "./workshop-document-preview";
 
 export function WorkshopSettings({
@@ -49,7 +50,7 @@ export function WorkshopSettings({
               return;
             }
             try {
-              localStorage.setItem(workshopStorageKey, JSON.stringify(clean));
+              localStorage.setItem(workshopStorageKey, JSON.stringify(createWorkshopRecord(clean)));
               onSave(clean);
               setDraft(clean);
               setError(false);
@@ -128,8 +129,8 @@ export function WorkshopSettings({
               </Button>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Sair sem salvar descarta o rascunho. Os documentos de OS antigas ainda usam os dados
-              atuais da oficina.
+              Sair sem salvar descarta o rascunho. Documentos fechados usam os dados congelados na
+              conclusão quando esse registro existe.
             </p>
           </div>
         </form>

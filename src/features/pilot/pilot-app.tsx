@@ -65,8 +65,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { WorkshopSettings } from "./workshop-settings";
+import { PilotBackupSettings } from "./pilot-backup-settings";
 import { WorkshopIdentity } from "./workshop-document-header";
 import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
+import {
+  createPilotRecord,
+  persistImportedBackup,
+  pilotStorageKey,
+  type PilotBackup,
+} from "./pilot-storage";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
@@ -146,16 +153,19 @@ const withStatusTransition = (
   status: ServiceOrder["status"],
   description: string,
   completion = false,
+  workshop?: Workshop,
 ) => {
   if (order.status === status) return order;
   const at = orderTimestamp();
   return {
     ...withActivity(order, "status", description, {
       status,
-      completedAt:
-        completion && !order.completedAt
-          ? new Date().toISOString().slice(0, 10)
-          : order.completedAt,
+      ...(completion && !order.completedAt
+        ? { completedAt: new Date().toISOString().slice(0, 10) }
+        : {}),
+      ...(completion && workshop && !order.workshopSnapshot
+        ? { workshopSnapshot: { ...workshop } }
+        : {}),
     }),
     statusHistory: [
       ...(order.statusHistory ?? []),
@@ -354,7 +364,7 @@ export function PilotApp() {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("pitgarage-pilot-v012");
+      const saved = window.localStorage.getItem(pilotStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved) as {
           customers?: Customer[];
@@ -373,8 +383,8 @@ export function PilotApp() {
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        "pitgarage-pilot-v012",
-        JSON.stringify({ customers, vehicles, orders }),
+        pilotStorageKey,
+        JSON.stringify(createPilotRecord({ customers, vehicles, orders })),
       );
     } catch {
       /* armazenamento local opcional */
@@ -583,7 +593,40 @@ export function PilotApp() {
           </div>
         )}
         <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
-          {screen === "settings" && <WorkshopSettings workshop={workshop} onSave={setWorkshop} />}
+          {screen === "settings" && (
+            <>
+              <WorkshopSettings
+                key={JSON.stringify(workshop)}
+                workshop={workshop}
+                onSave={setWorkshop}
+              />
+              <PilotBackupSettings
+                customers={customers}
+                vehicles={vehicles}
+                orders={orders}
+                workshop={workshop}
+                onImport={(backup: PilotBackup) => {
+                  try {
+                    persistImportedBackup(backup);
+                    setCustomers(backup.data.customers);
+                    setVehicles(backup.data.vehicles);
+                    setOrders(backup.data.orders.map(migrateOrder));
+                    setWorkshop(backup.workshop);
+                    setSelectedCustomerId(backup.data.customers[0]?.id ?? "");
+                    setSelectedVehicleId(backup.data.vehicles[0]?.id ?? "");
+                    setSelectedOrderId(backup.data.orders[0]?.id ?? "");
+                    setNotice("Backup importado com sucesso");
+                    return true;
+                  } catch {
+                    setNotice(
+                      "Não foi possível gravar o backup; os dados anteriores foram preservados",
+                    );
+                    return false;
+                  }
+                }}
+              />
+            </>
+          )}
           {screen === "dashboard" && (
             <Dashboard
               orders={operationalOrders}
@@ -732,7 +775,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.14.
+              Piloto v0.1.15.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -792,7 +835,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.14</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.15</span>
           </span>
         </button>
         <Button
@@ -1813,7 +1856,16 @@ function OrderDetail({
     status: ServiceOrder["status"],
     description: string,
     completion = false,
-  ) => onUpdate((current) => withStatusTransition(current, status, description, completion));
+  ) =>
+    onUpdate((current) =>
+      withStatusTransition(
+        current,
+        status,
+        description,
+        completion,
+        completion ? workshop : undefined,
+      ),
+    );
   const executeAction = (action: WorkflowAction) => {
     setActiveTab(action.tab);
     if (!action.targetStatus) return;
@@ -1879,7 +1931,7 @@ function OrderDetail({
           order={order}
           customer={customer}
           vehicle={vehicle}
-          workshop={workshop}
+          workshop={order.workshopSnapshot ?? workshop}
           open={
             summaryOpen &&
             ["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status)
@@ -2041,7 +2093,7 @@ function OrderDetail({
         <TabsContent value="budget" className="mt-6">
           <BudgetPanel
             order={order}
-            workshop={workshop}
+            workshop={order.workshopSnapshot ?? workshop}
             vehicle={vehicle}
             customer={customer}
             updateItem={updateItem}

@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.14 — identidade visual da oficina piloto**, ainda vinculada à **v2 — Entrada na fase piloto**. A identidade se aproxima da oficina Abraão & Salomão pela paleta: sidebar azul, conteúdo claro/neutro, cards brancos e detalhes vermelhos pontuais. Não altera o nome nem os dados salvos da oficina. Tabelas, microcopy e documentos continuam preservados, com contraste adaptado à base clara. Funcionalidades, configurações, Nova OS, workflow, stepper e exclusão lógica permanecem intactos. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.15 — segurança e consistência histórica local**, ainda vinculada à **v2 — Entrada na fase piloto**. Documentos de uma OS passam a congelar os dados da oficina na conclusão guiada do serviço, com fallback para configurações atuais em registros antigos. Configurações oferecem exportação e importação validada de backup JSON completo do piloto, e os registros persistidos passam a declarar versão de schema sem exigir reset. A identidade clara da v0.1.14, Nova OS, workflow, stepper, regressões, exclusão lógica e demais regras permanecem intactos. As regras de fechamento e documentos continuam demonstrativas e sujeitas à validação. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -54,9 +54,12 @@ O projeto está na fase **Piloto v0.1.14 — identidade visual da oficina piloto
 - [Acabamento de produto do Piloto v0.1.13](piloto/piloto-v0.1.13.md)
 - [Patch visual grafite, azul e vermelho da v0.1.13](piloto/piloto-v0.1.13-patch-visual.md)
 - [Identidade visual da oficina piloto — v0.1.14](piloto/piloto-v0.1.14.md)
+- [Segurança e consistência histórica local — v0.1.15](piloto/piloto-v0.1.15.md)
 
 # Decisões atuais importantes
 
+- A v0.1.15 cria o snapshot imutável dos dados da oficina somente na primeira conclusão guiada da OS. Esta escolha reutiliza o fechamento funcional já existente e é provisória até validação da oficina. OS anteriores ou ajustadas manualmente sem snapshot continuam usando as configurações atuais. Regressão e nova conclusão não substituem snapshot existente.
+- O backup v1 contém clientes, veículos, ordens e configurações, além de identificador do formato, versão e data de exportação. A importação aceita somente formato compatível, valida estrutura e vínculos antes da confirmação e preserva os valores anteriores se a gravação falhar. Os registros locais conhecidos declaram `schemaVersion: 1`; formatos legados continuam legíveis.
 - A v0.1.14 substitui o tema grafite da v0.1.13 por base clara, sidebar azul e vermelho pontual. Paleta vigente documentada na v0.1.14; os registros da v0.1.13, inclusive seu patch, são históricos e permanecem intactos. Mudanças limitadas a CSS e identificação visual da versão, sem migração de dados nem personalização cadastral da oficina.
 - O patch visual da v0.1.13 substitui a predominância azul nas superfícies por grafite. Vermelho ganha presença decorativa e destaque no painel de atenção, sem criar urgências, mudar status ou suas regras. O registro original da v0.1.13 é preservado como histórico; a paleta vigente está no documento do patch.
 - A v0.1.13 usa vermelho apenas como assinatura decorativa da marca, separado de erros/destruição. Melhora apresentação e textos sem alterar ações. E-mails fictícios padrão usam `example.com`; registros já salvos não são migrados ou sobrescritos.
@@ -87,7 +90,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1.14 aos responsáveis pela oficina. Validar conforto visual e identificação com a paleta nos dispositivos reais, além dos fluxos preservados. As pendências de snapshots e integração fiscal permanecem sem implementação.
+Demonstrar o Piloto v0.1.15 aos responsáveis pela oficina. Validar o momento provisório do snapshot, a recuperação por backup e o comportamento esperado para correções/reemissões, além do conforto visual nos dispositivos reais. Integração fiscal permanece sem implementação.
 
 # Histórico
 

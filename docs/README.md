@@ -25,6 +25,7 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 
 ## Piloto
 
+- [`piloto/piloto-v0.1.15.md`](piloto/piloto-v0.1.15.md): snapshot da oficina em documentos fechados, backup local completo e versionamento compatível da persistência.
 - [`piloto/piloto-v0.1.14.md`](piloto/piloto-v0.1.14.md): identidade visual da oficina piloto, paleta vigente com base clara, sidebar azul e detalhes vermelhos.
 - [`piloto/piloto-v0.1.13-patch-visual.md`](piloto/piloto-v0.1.13-patch-visual.md): registro anterior das superfícies grafite e maior presença da identidade azul/vermelho, sem mudanças funcionais.
 - [`piloto/piloto-v0.1.13.md`](piloto/piloto-v0.1.13.md): acabamento de produto, assinatura azul/vermelho, tabelas e mensagens contextuais.

@@ -48,7 +48,7 @@ export function FinalOrderSummary({
         </DialogDescription>
         <article className="document-paper bg-white text-slate-900">
           <header className="document-header bg-slate-900 p-6 pr-12 text-white md:p-9">
-            <WorkshopIdentity workshop={workshop} />
+            <WorkshopIdentity workshop={order.workshopSnapshot ?? workshop} />
             <p className="mt-6 text-sm font-semibold uppercase tracking-wider">
               Resumo final · {order.id}
             </p>
