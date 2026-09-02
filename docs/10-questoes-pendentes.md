@@ -44,3 +44,8 @@
 25. Quais dispositivos serão usados na oficina e como é a conectividade do local?
 26. Qual problema causa mais impacto hoje e qual resultado indicará que o MVP funcionou?
 27. Qual volume aproximado de clientes, veículos, ordens e mídias o sistema deve atender?
+
+## Documentos e integração fiscal — possibilidades futuras da v0.1.11
+
+28. Em que momento um documento deve congelar os dados da oficina e do atendimento? Como tratar correções e reemissões sem alterar o histórico? O piloto ainda usa os dados atuais, sem snapshots.
+29. Existe necessidade de integrar emissão fiscal ao atendimento? Quais documentos, responsáveis e retornos precisam ser associados à OS? Validar o escopo antes de escolher provedor, requisitos fiscais ou arquitetura; nada disso está implementado ou aprovado.

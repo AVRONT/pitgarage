@@ -64,7 +64,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { WorkshopIdentity, WorkshopSettings } from "./workshop-settings";
+import { WorkshopSettings } from "./workshop-settings";
+import { WorkshopIdentity } from "./workshop-document-header";
 import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
@@ -726,7 +727,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.10.
+              Piloto v0.1.11.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -783,7 +784,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.10</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.11</span>
           </span>
         </button>
         <Button
@@ -2741,7 +2742,7 @@ function ClientQuotePreview({
           ))}
         </section>
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="no-print text-center text-xs text-muted-foreground">
           Visualização demonstrativa local. Aprovações e recusas continuam sendo registradas pela
           oficina.
         </p>

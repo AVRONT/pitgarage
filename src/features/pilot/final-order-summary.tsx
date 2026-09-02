@@ -2,7 +2,7 @@ import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { formatDate, money, type Customer, type Vehicle, type ServiceOrder } from "./pilot-data";
-import { WorkshopIdentity } from "./workshop-settings";
+import { WorkshopIdentity } from "./workshop-document-header";
 import { type Workshop } from "./workshop-data";
 
 export function FinalOrderSummary({

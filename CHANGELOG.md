@@ -2,6 +2,20 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.11] - 2026-09-01
+
+### Melhorado
+
+- Configurações em duas colunas no desktop e prévia abaixo no tablet; modos Orçamento e Resumo da OS com exemplos fictícios independentes.
+- Prévia ao vivo, indicador de alterações não salvas e cancelamento sem modal. Persistência somente ao salvar.
+- Cabeçalho compartilhado entre prévia, visão do cliente, resumo final e impressão; campos vazios omitidos e razão social/CEP opcionais.
+- Formatação leve de CNPJ numérico, telefone brasileiro e CEP, sem consulta externa ou validação fiscal bloqueante.
+
+### Documentado e preservado
+
+- Integração fiscal e snapshots de documentos somente como possibilidades futuras, sem emissão ou arquitetura definida.
+- Configurações antigas compatíveis, dados operacionais e histórico preservados; nenhuma nova dependência.
+
 ## [Piloto v0.1.10] - 2026-09-01
 
 ### Adicionado

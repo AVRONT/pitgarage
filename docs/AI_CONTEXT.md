@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.10**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local integra configurações da oficina à visão do cliente e oferece resumo final e impressão do atendimento. Preserva a Nova OS v0.1.9, o workflow seguro, o redesign, o stepper e a exclusão lógica. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.11**, ainda vinculada à **v2 — Entrada na fase piloto**. Configurações da oficina oferece prévia ao vivo de orçamento e resumo, razão social e CEP, mantendo a visão do cliente e os documentos de fechamento da v0.1.10. Preserva a Nova OS, o workflow seguro, o redesign, o stepper e a exclusão lógica. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -49,9 +49,11 @@ O projeto está na fase **Piloto v0.1.10**, ainda vinculada à **v2 — Entrada 
 - [Entrada operacional concentrada na Nova OS do Piloto v0.1.8](piloto/piloto-v0.1.8.md)
 - [Refinamento do atendimento do Piloto v0.1.9](piloto/piloto-v0.1.9.md)
 - [Apresentação e fechamento do Piloto v0.1.10](piloto/piloto-v0.1.10.md)
+- [Configurações e prévia de documentos do Piloto v0.1.11](piloto/piloto-v0.1.11.md)
 
 # Decisões atuais importantes
 
+- A v0.1.11 usa rascunho local para prévias fictícias; apenas salvar grava configurações. Cabeçalho compartilhado com razão social e CEP, defaults compatíveis com dados anteriores e formatação leve sem validação fiscal. Integração fiscal e snapshots históricos são possibilidades documentadas, não implementadas.
 - A v0.1.10 mantém configurações da oficina em `pitgarage-workshop-settings-v1`, separadas de `pitgarage-pilot-v012`. Não migra nem apaga dados operacionais. Documentos usam as configurações atuais, sem congelar versões por OS.
 - O resumo final é somente leitura nas três etapas finais. Valor final continua sendo a soma dos itens aprovados; execução é apresentada pelo registro `executed`, sem inferência pelo status. A garantia mantém os 30 dias e a referência demonstrativa fixa de 01/09/2026. Não há documento fiscal, link público nem aprovação real.
 
@@ -77,7 +79,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1.9 aos responsáveis pela oficina. Validar o autocomplete, a recuperação de duplicidades, o fluxo integrado da Nova OS e os resumos operacionais.
+Demonstrar o Piloto v0.1.11 aos responsáveis pela oficina. Validar apresentação dos documentos e configurações, além dos fluxos preservados. Levantar a necessidade de congelar dados históricos por documento antes de definir implementação de snapshots ou integração fiscal.
 
 # Histórico
 
