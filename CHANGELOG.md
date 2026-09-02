@@ -2,6 +2,23 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.9] - 2026-09-01
+
+### Corrigido
+
+- Busca por nome na Nova OS, antes afetada por correspondências numéricas vazias.
+- Duplicidades agora identificam cliente, veículo e campo com orientação para o cadastro existente.
+
+### Melhorado
+
+- Autocomplete acessível, aproveitamento da busca no cadastro novo e identificação do cliente selecionado.
+- Resumo financeiro no topo da OS, menor repetição visual, inputs, cards e rodapés de diálogos consistentes.
+- Nome visível PitGarage e título da aplicação padronizados.
+
+### Preservado
+
+- Workflow, stepper, reversões, exclusão lógica, dados e cadastros somente na confirmação final.
+
 ## [Piloto v0.1.8] - 2026-09-01
 
 ### Alterado

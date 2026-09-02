@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.8**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local concentra o cadastro operacional na Nova OS, preserva o workflow seguro da v0.1.7 e usa exclusão lógica para manter o histórico identificável. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.9**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local refina a busca e seleção da Nova OS, as mensagens de duplicidade e a hierarquia da tela operacional. Preserva o workflow seguro da v0.1.7 e a exclusão lógica da v0.1.8. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -47,6 +47,7 @@ O projeto está na fase **Piloto v0.1.8**, ainda vinculada à **v2 — Entrada n
 - [Identidade visual profissional e redesign global do Piloto v0.1.6](piloto/piloto-v0.1.6.md)
 - [Confirmação e reversão segura do workflow do Piloto v0.1.7](piloto/piloto-v0.1.7.md)
 - [Entrada operacional concentrada na Nova OS do Piloto v0.1.8](piloto/piloto-v0.1.8.md)
+- [Refinamento do atendimento do Piloto v0.1.9](piloto/piloto-v0.1.9.md)
 
 # Decisões atuais importantes
 
@@ -72,7 +73,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1.8 aos responsáveis pela oficina. Validar o fluxo integrado da Nova OS, os resumos operacionais e a exclusão lógica de clientes e veículos.
+Demonstrar o Piloto v0.1.9 aos responsáveis pela oficina. Validar o autocomplete, a recuperação de duplicidades, o fluxo integrado da Nova OS e os resumos operacionais.
 
 # Histórico
 

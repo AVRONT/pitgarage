@@ -54,6 +54,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
+} from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -707,7 +714,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.8.
+              Piloto v0.1.9.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -763,8 +770,8 @@ function Sidebar({
             <Wrench className="h-5 w-5" />
           </span>
           <span className="text-left">
-            <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.8</span>
+            <strong className="block text-lg tracking-tight">PitGarage</strong>
+            <span className="text-xs text-slate-400">Piloto v0.1.9</span>
           </span>
         </button>
         <Button
@@ -1824,7 +1831,6 @@ function OrderDetail({
         }
       />
       <div className="mb-5 flex flex-wrap gap-2">
-        <StatusBadge status={order.status} />
         {customer.deletedAt && <Badge variant="outline">Cliente excluído</Badge>}
         {vehicle.deletedAt && <Badge variant="outline">Veículo excluído</Badge>}
         <Badge variant="outline" className="bg-white">
@@ -1838,6 +1844,27 @@ function OrderDetail({
           {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
+      <dl
+        className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4"
+        aria-label="Valores da ordem"
+      >
+        {[
+          ["Orçado", money(total)],
+          ["Aprovado", money(approved)],
+          ["Pago", money(order.payment?.status === "Pago" ? order.payment.amount : 0)],
+          [
+            "Saldo aprovado",
+            money(
+              Math.max(approved - (order.payment?.status === "Pago" ? order.payment.amount : 0), 0),
+            ),
+          ],
+        ].map(([label, value]) => (
+          <div key={label} className="bg-white px-4 py-3">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-1 text-base font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
       <OrderProgress
         order={order}
         onStep={(index) => {
@@ -1898,9 +1925,9 @@ function OrderDetail({
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border-l-4 border-l-orange-500 bg-white p-4">
         <div className="mr-auto">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Próxima ação sugerida
+            Próxima ação
           </p>
-          <p className="font-semibold">{workflow.nextAction.label}</p>
+          <p className="text-sm text-muted-foreground">Continue o atendimento pela ação ao lado.</p>
         </div>
         <Button
           className="bg-orange-500 hover:bg-orange-600"
@@ -2557,7 +2584,7 @@ function ClientQuotePreview({
               <Wrench className="h-6 w-6" />
             </span>
             <div>
-              <p className="text-xl font-bold tracking-tight">PITGARAGE</p>
+              <p className="text-xl font-bold tracking-tight">PitGarage</p>
               <p className="text-sm text-slate-300">Oficina Pit Stop</p>
             </div>
           </div>
@@ -3908,10 +3935,32 @@ function NewOrderDialog({
       `${customer.name} ${customer.phone} ${customer.email} ${customer.cpf ?? ""}`
         .toLocaleLowerCase("pt-BR")
         .includes(term) ||
-      normalizePhone(customer.phone).includes(normalizePhone(customerSearch)) ||
-      normalizeCpf(customer.cpf ?? "").includes(normalizeCpf(customerSearch))
+      (normalizePhone(customerSearch).length > 0 &&
+        normalizePhone(customer.phone).includes(normalizePhone(customerSearch))) ||
+      (normalizeCpf(customerSearch).length > 0 &&
+        normalizeCpf(customer.cpf ?? "").includes(normalizeCpf(customerSearch)))
     );
   });
+
+  const duplicateCustomer =
+    allCustomers.find(
+      (item) => customerCpf.trim() && normalizeCpf(item.cpf ?? "") === normalizeCpf(customerCpf),
+    ) ??
+    allCustomers.find(
+      (item) =>
+        (customerPhone.trim() && normalizePhone(item.phone) === normalizePhone(customerPhone)) ||
+        (customerEmail.trim() && normalizeEmail(item.email) === normalizeEmail(customerEmail)),
+    );
+  const selectCustomer = (customer: Customer) => {
+    setCustomerId(customer.id);
+    setNewCustomer(false);
+    setDraftCustomer(undefined);
+    setVehicleId("");
+    setDraftVehicle(undefined);
+    setEntryMileage("");
+    setMileageWarningAccepted(false);
+    setError("");
+  };
 
   const reset = () => {
     setStep(0);
@@ -3961,15 +4010,10 @@ function NewOrderDialog({
       return setError("Informe um telefone válido com DDD.");
     if (cleanCpf && !isBasicCpfValid(cleanCpf)) return setError("Informe um CPF válido.");
     if (!isBasicEmailValid(cleanEmail)) return setError("Informe um e-mail válido.");
-    const duplicate = allCustomers.find(
-      (item) =>
-        normalizePhone(item.phone) === cleanPhone ||
-        (cleanEmail && normalizeEmail(item.email) === cleanEmail) ||
-        (cleanCpf && normalizeCpf(item.cpf ?? "") === cleanCpf),
-    );
+    const duplicate = duplicateCustomer;
     if (duplicate)
       return setError(
-        `Possível duplicidade: ${duplicate.name} já possui o mesmo telefone, e-mail ou CPF${duplicate.deletedAt ? " e está excluído operacionalmente" : ""}.`,
+        `${cleanCpf && normalizeCpf(duplicate.cpf ?? "") === cleanCpf ? "CPF" : normalizePhone(duplicate.phone) === cleanPhone ? "Telefone" : "E-mail"} já cadastrado para ${duplicate.name}.${duplicate.deletedAt ? " Este cadastro está excluído. Consulte o responsável pela oficina; ele não pode ser usado em uma nova OS." : " Use o cadastro existente para evitar duplicidade."}`,
       );
     const customer: Customer = {
       id: `c-${Date.now()}`,
@@ -4003,7 +4047,7 @@ function NewOrderDialog({
       return setError("Informe marca, modelo e uma placa com 7 caracteres.");
     if (existing)
       return setError(
-        `A placa ${cleanPlate} já pertence a ${existing.brand} ${existing.model}${existing.deletedAt ? " e está excluída operacionalmente" : ""}.`,
+        `A placa ${cleanPlate} já está cadastrada: ${existing.brand} ${existing.model}, cliente ${allCustomers.find((item) => item.id === existing.customerId)?.name ?? "não identificado"}.${existing.deletedAt ? " Este veículo está excluído e não pode ser usado em uma nova OS." : existing.customerId === selectedCustomer.id ? " Escolha-o em Selecionar veículo." : " Volte à etapa Cliente para selecionar o proprietário correto."}`,
       );
     const numericYear = Number(year);
     const numericMileage = Number(vehicleMileage);
@@ -4052,6 +4096,14 @@ function NewOrderDialog({
   };
   const createAll = () => {
     if (!selectedCustomer || !selectedVehicle) return;
+    if (
+      selectedVehicle.customerId !== selectedCustomer.id ||
+      selectedCustomer.deletedAt ||
+      selectedVehicle.deletedAt
+    ) {
+      setError("Confira o cliente e selecione um veículo ativo que pertença a ele.");
+      return;
+    }
     const orderId = nextOrderId(orders.map((order) => order.id));
     onCreate({
       customer: draftCustomer,
@@ -4129,6 +4181,14 @@ function NewOrderDialog({
                       setNewCustomer(true);
                       setCustomerId("");
                       setDraftCustomer(undefined);
+                      setError("");
+                      if (customerSearch.trim()) {
+                        if (/^[\d\s()+.-]+$/.test(customerSearch)) {
+                          if (/\d{3}\.\d{3}\.\d{3}-\d{2}/.test(customerSearch))
+                            setCustomerCpf(customerSearch);
+                          else setCustomerPhone(customerSearch);
+                        } else setCustomerName(customerSearch.trim());
+                      }
                     }}
                   >
                     Cadastrar novo cliente
@@ -4136,53 +4196,95 @@ function NewOrderDialog({
                 </div>
                 {!newCustomer ? (
                   <>
-                    <Input
-                      value={customerSearch}
-                      onChange={(event) => setCustomerSearch(event.target.value)}
-                      placeholder="Buscar por nome, telefone, CPF ou e-mail"
-                    />
-                    <div className="max-h-48 space-y-2 overflow-y-auto">
-                      {filteredCustomers.map((customer) => (
-                        <button
-                          key={customer.id}
-                          type="button"
-                          onClick={() => setCustomerId(customer.id)}
-                          className={cn(
-                            "w-full rounded-lg border p-3 text-left",
-                            customerId === customer.id && "border-orange-500 bg-orange-50",
-                          )}
-                        >
-                          <strong className="block text-sm">{customer.name}</strong>
-                          <span className="text-xs text-muted-foreground">
-                            {customer.phone} · {customer.email}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    <Command shouldFilter={false} className="rounded-md border">
+                      <CommandInput
+                        value={customerSearch}
+                        onValueChange={setCustomerSearch}
+                        aria-label="Buscar cliente por nome, CPF ou telefone"
+                        placeholder="Digite nome, CPF ou telefone"
+                      />
+                      <CommandList className="max-h-48">
+                        <CommandEmpty>
+                          Nenhum cliente encontrado. Use Cadastrar novo cliente acima.
+                        </CommandEmpty>
+                        {filteredCustomers.map((customer) => (
+                          <CommandItem
+                            key={customer.id}
+                            value={customer.id}
+                            onSelect={() => selectCustomer(customer)}
+                            className={cn(
+                              "flex flex-col items-start rounded-none border-b p-3 text-left last:border-b-0",
+                              customerId === customer.id && "border-orange-500 bg-orange-50",
+                            )}
+                          >
+                            <strong className="block text-sm">{customer.name}</strong>
+                            <span className="text-xs text-muted-foreground">
+                              {customer.phone} · CPF: {customer.cpf || "não informado"}
+                            </span>
+                            {customer.email && (
+                              <span className="text-xs text-muted-foreground">
+                                {customer.email}
+                              </span>
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandList>
+                    </Command>
+                    {selectedCustomer && (
+                      <div
+                        className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm"
+                        role="status"
+                      >
+                        <strong>Cliente selecionado: {selectedCustomer.name}</strong>
+                        <p>
+                          {selectedCustomer.phone} · CPF: {selectedCustomer.cpf || "não informado"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Os veículos deste cliente serão exibidos na próxima etapa.
+                        </p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      value={customerName}
-                      onChange={(event) => setCustomerName(event.target.value)}
-                      placeholder="Nome"
-                    />
-                    <Input
-                      value={customerPhone}
-                      onChange={(event) => setCustomerPhone(event.target.value)}
-                      placeholder="Telefone com DDD"
-                    />
-                    <Input
-                      value={customerEmail}
-                      onChange={(event) => setCustomerEmail(event.target.value)}
-                      placeholder="E-mail"
-                    />
-                    <Input
-                      value={customerCpf}
-                      onChange={(event) => setCustomerCpf(event.target.value)}
-                      placeholder="CPF (opcional)"
-                    />
+                    <label className="space-y-1 text-sm font-medium">
+                      Nome
+                      <Input
+                        value={customerName}
+                        onChange={(event) => setCustomerName(event.target.value)}
+                        placeholder="Nome"
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Telefone com DDD
+                      <Input
+                        value={customerPhone}
+                        onChange={(event) => setCustomerPhone(event.target.value)}
+                        placeholder="Telefone com DDD"
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      E-mail (opcional)
+                      <Input
+                        value={customerEmail}
+                        onChange={(event) => setCustomerEmail(event.target.value)}
+                        placeholder="E-mail"
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      CPF (opcional)
+                      <Input
+                        value={customerCpf}
+                        onChange={(event) => setCustomerCpf(event.target.value)}
+                        placeholder="CPF (opcional)"
+                      />
+                    </label>
                   </div>
+                )}
+                {newCustomer && error && duplicateCustomer && !duplicateCustomer.deletedAt && (
+                  <Button variant="outline" onClick={() => selectCustomer(duplicateCustomer)}>
+                    Usar cadastro de {duplicateCustomer.name}
+                  </Button>
                 )}
               </>
             )}
@@ -4210,7 +4312,7 @@ function NewOrderDialog({
                       setDraftVehicle(undefined);
                     }}
                   >
-                    Cadastrar novo veículo
+                    Cadastrar outro veículo
                   </Button>
                 </div>
                 {!newVehicle ? (

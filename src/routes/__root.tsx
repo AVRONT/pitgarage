@@ -77,10 +77,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PITGARAGE — Piloto v0.1.4" },
+      { title: "PitGarage — Gestão da oficina" },
       { name: "description", content: "Piloto de gestão para oficina de carros e motos" },
-      { name: "author", content: "PITGARAGE" },
-      { property: "og:title", content: "PITGARAGE — Piloto v0.1.4" },
+      { name: "author", content: "PitGarage" },
+      { property: "og:title", content: "PitGarage — Gestão da oficina" },
       { property: "og:description", content: "Piloto de gestão para oficina de carros e motos" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -25,6 +25,8 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 
 ## Piloto
 
+- [`piloto/piloto-v0.1.9.md`](piloto/piloto-v0.1.9.md): refinamento da Nova OS, mensagens de duplicidade e hierarquia operacional.
+
 - [`piloto/piloto-v0.1.md`](piloto/piloto-v0.1.md): escopo implementado, decisões temporárias e limitações da primeira versão demonstrável.
 - [`piloto/piloto-v0.1.1.md`](piloto/piloto-v0.1.1.md): auditoria, polimento e roteiro da versão preparada para demonstração.
 - [`piloto/piloto-v0.1.2.md`](piloto/piloto-v0.1.2.md): validações locais, normalização e regras de integridade adicionadas ao piloto.
