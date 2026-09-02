@@ -2,6 +2,23 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.8] - 2026-09-01
+
+### Alterado
+
+- A Nova OS concentra seleção ou cadastro de cliente, seleção ou cadastro de veículo, dados da entrada e revisão final.
+- Clientes e Veículos permanecem como áreas de consulta e gestão, com resumos baseados somente nos dados existentes e CTA para Nova OS.
+
+### Integridade
+
+- Cliente e veículo novos permanecem como rascunhos até a criação final da OS; cancelar não gera registros parciais.
+- Veículos selecionáveis são limitados ao cliente definido e duplicidades continuam bloqueadas pelas validações locais.
+- Exclusão de cliente ou veículo é lógica por `deletedAt`, sem cascata sobre ordens nem referências órfãs.
+
+### Preservação
+
+- Workflow, confirmações, reversões, histórico, persistência anterior, redesign e ajuste visual do stepper permanecem preservados.
+
 ## [Piloto v0.1.7] - 2026-09-01
 
 ### Alterado

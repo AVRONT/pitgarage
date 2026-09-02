@@ -30,6 +30,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UserRound,
   Users,
   Video,
@@ -61,6 +62,8 @@ import {
   initialCustomers,
   initialOrders,
   initialVehicles,
+  logicallyDeleteCustomer,
+  logicallyDeleteVehicle,
   money,
   orderStatuses,
   type ApprovalStatus,
@@ -233,27 +236,41 @@ function OrderProgress({
             aria-valuemin={1}
             aria-valuemax={orderStatuses.length}
             aria-valuenow={currentStepIndex + 1}
-            className="flex items-center justify-between"
+            className="grid grid-cols-8 items-center"
           >
             {orderStatuses.map((step, index) => {
               const completed = index < currentStepIndex;
               const current = index === currentStepIndex;
               return (
-                <button
-                  key={step}
-                  type="button"
-                  onClick={() => onStep(index)}
-                  aria-label={`${step}: ${completed ? "concluída" : current ? "atual" : "futura"}`}
-                  className={cn(
-                    "grid h-6 w-6 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors",
-                    completed && "border-emerald-600 bg-emerald-600 text-white",
-                    current &&
-                      "h-7 w-7 border-orange-500 bg-white text-orange-700 ring-4 ring-orange-100",
-                    !completed && !current && "border-slate-300 bg-white text-slate-400",
+                <div key={step} className="relative flex justify-center">
+                  {index < orderStatuses.length - 1 && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-[calc(50%+0.875rem)] top-1/2 h-px w-[calc(100%-1.75rem)] -translate-y-1/2 overflow-hidden bg-slate-300"
+                    >
+                      <span
+                        className={cn(
+                          "block h-full origin-left bg-emerald-500 transition-transform duration-300 ease-out motion-reduce:transition-none",
+                          index < currentStepIndex ? "scale-x-100" : "scale-x-0",
+                        )}
+                      />
+                    </span>
                   )}
-                >
-                  {completed ? <Check className="h-3.5 w-3.5" /> : index + 1}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onStep(index)}
+                    aria-label={`${step}: ${completed ? "concluída" : current ? "atual" : "futura"}`}
+                    className={cn(
+                      "relative z-10 grid h-6 w-6 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors delay-300 duration-150 motion-reduce:delay-0 motion-reduce:transition-none",
+                      completed && "border-emerald-600 bg-emerald-600 text-white",
+                      current &&
+                        "h-7 w-7 border-orange-500 bg-white text-orange-700 ring-4 ring-orange-100",
+                      !completed && !current && "border-slate-300 bg-white text-slate-400",
+                    )}
+                  >
+                    {completed ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -362,6 +379,16 @@ export function PilotApp() {
   };
 
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? orders[0];
+  const activeCustomers = customers.filter((customer) => !customer.deletedAt);
+  const activeVehicles = vehicles.filter(
+    (vehicle) =>
+      !vehicle.deletedAt && activeCustomers.some((customer) => customer.id === vehicle.customerId),
+  );
+  const operationalOrders = orders.filter(
+    (order) =>
+      activeCustomers.some((customer) => customer.id === order.customerId) &&
+      activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
+  );
   const updateOrder = (id: string, updater: OrderUpdater) =>
     setOrders((current) => current.map((order) => (order.id === id ? updater(order) : order)));
 
@@ -370,7 +397,7 @@ export function PilotApp() {
     const phoneTerm = normalizePhone(query);
     const plateTerm = normalizePlate(query);
     if (!term) return [];
-    const customerResults = customers
+    const customerResults = activeCustomers
       .filter(
         (customer) =>
           `${customer.name} ${customer.email}`.toLocaleLowerCase("pt-BR").includes(term) ||
@@ -378,7 +405,7 @@ export function PilotApp() {
           (customer.cpf && normalizeCpf(customer.cpf).includes(normalizeCpf(query))),
       )
       .map((customer) => ({ type: "customer" as const, customer }));
-    const vehicleResults = vehicles
+    const vehicleResults = activeVehicles
       .filter((vehicle) => {
         const owner = customers.find((customer) => customer.id === vehicle.customerId);
         return (
@@ -394,7 +421,7 @@ export function PilotApp() {
       .filter((order) => order.id.toLocaleLowerCase("pt-BR").includes(term))
       .map((order) => ({ type: "order" as const, order }));
     return [...orderResults, ...customerResults, ...vehicleResults].slice(0, 6);
-  }, [query, vehicles, customers, orders]);
+  }, [query, activeVehicles, activeCustomers, customers, orders]);
 
   return (
     <div className="pilot-shell min-h-screen bg-[#f4f3ef]">
@@ -535,29 +562,29 @@ export function PilotApp() {
         <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
           {screen === "dashboard" && (
             <Dashboard
-              orders={orders}
-              vehicles={vehicles}
-              customers={customers}
+              orders={operationalOrders}
+              vehicles={activeVehicles}
+              customers={activeCustomers}
               onNavigate={navigate}
               onNewOrder={() => setNewOrderOpen(true)}
             />
           )}
           {screen === "customers" && (
             <CustomersScreen
-              customers={customers}
-              vehicles={vehicles}
+              customers={activeCustomers}
+              vehicles={activeVehicles}
               orders={orders}
               onOpen={(id) => navigate("customer", id)}
-              onNew={() => setNewCustomerOpen(true)}
+              onNew={() => setNewOrderOpen(true)}
             />
           )}
           {screen === "vehicles" && (
             <VehiclesScreen
-              vehicles={vehicles}
-              customers={customers}
+              vehicles={activeVehicles}
+              customers={activeCustomers}
               orders={orders}
               onOpen={(id) => navigate("vehicle", id)}
-              onNew={() => setNewVehicleOpen(true)}
+              onNew={() => setNewOrderOpen(true)}
             />
           )}
           {screen === "orders" && (
@@ -577,6 +604,19 @@ export function PilotApp() {
               onBack={() => navigate("customers")}
               onVehicle={(id) => navigate("vehicle", id)}
               onOrder={(id) => navigate("order", id)}
+              onDelete={() => {
+                const at = orderTimestamp();
+                const deleted = logicallyDeleteCustomer(
+                  customers,
+                  vehicles,
+                  selectedCustomerId,
+                  at,
+                );
+                setCustomers(deleted.customers);
+                setVehicles(deleted.vehicles);
+                setNotice("Cliente e veículos vinculados removidos das áreas operacionais");
+                navigate("customers");
+              }}
             />
           )}
           {screen === "vehicle" && (
@@ -592,6 +632,12 @@ export function PilotApp() {
               onCustomer={(id) => navigate("customer", id)}
               onOrder={(id) => navigate("order", id)}
               onNewOrder={() => setNewOrderOpen(true)}
+              onDelete={() => {
+                const at = orderTimestamp();
+                setVehicles((current) => logicallyDeleteVehicle(current, selectedVehicleId, at));
+                setNotice("Veículo removido das áreas operacionais; histórico preservado");
+                navigate("vehicles");
+              }}
             />
           )}
           {screen === "order" && selectedOrder && (
@@ -641,10 +687,14 @@ export function PilotApp() {
       <NewOrderDialog
         open={newOrderOpen}
         onOpenChange={setNewOrderOpen}
-        customers={customers}
-        vehicles={vehicles}
+        customers={activeCustomers}
+        vehicles={activeVehicles}
+        allCustomers={customers}
+        allVehicles={vehicles}
         orders={orders}
-        onCreate={(order) => {
+        onCreate={({ customer, vehicle, order }) => {
+          if (customer) setCustomers((current) => [...current, customer]);
+          if (vehicle) setVehicles((current) => [...current, vehicle]);
           setOrders((current) => [migrateOrder(order), ...current]);
           setNewOrderOpen(false);
           setNotice("Ordem de serviço criada");
@@ -657,7 +707,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.6.
+              Piloto v0.1.8.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -714,7 +764,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PITGARAGE</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.6</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.8</span>
           </span>
         </button>
         <Button
@@ -1029,10 +1079,37 @@ function CustomersScreen({
         text="Encontre rapidamente quem chegou à oficina e os veículos relacionados."
         action={
           <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
-            <Plus className="h-4 w-4" /> Novo cliente
+            <Plus className="h-4 w-4" /> Nova ordem de serviço
           </Button>
         }
       />
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          ["Clientes ativos", customers.length],
+          [
+            "Com veículos",
+            customers.filter((customer) =>
+              vehicles.some((vehicle) => vehicle.customerId === customer.id),
+            ).length,
+          ],
+          [
+            "Com OS em aberto",
+            customers.filter((customer) =>
+              orders.some(
+                (order) => order.customerId === customer.id && order.status !== "Entregue",
+              ),
+            ).length,
+          ],
+          ["Veículos vinculados", vehicles.length],
+        ].map(([label, value]) => (
+          <Card key={label} className="bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {label}
+            </p>
+            <strong className="mt-1 block text-2xl">{value}</strong>
+          </Card>
+        ))}
+      </div>
       <div className="mb-5 max-w-md">
         <Input
           value={filter}
@@ -1121,10 +1198,30 @@ function VehiclesScreen({
         text="Carros e motos com informações, serviços atuais e histórico em um só lugar."
         action={
           <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
-            <Plus className="h-4 w-4" /> Novo veículo
+            <Plus className="h-4 w-4" /> Nova ordem de serviço
           </Button>
         }
       />
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          ["Veículos ativos", vehicles.length],
+          ["Carros", vehicles.filter((vehicle) => vehicle.kind === "Carro").length],
+          ["Motos", vehicles.filter((vehicle) => vehicle.kind === "Moto").length],
+          [
+            "Com OS em aberto",
+            vehicles.filter((vehicle) =>
+              orders.some((order) => order.vehicleId === vehicle.id && order.status !== "Entregue"),
+            ).length,
+          ],
+        ].map(([label, value]) => (
+          <Card key={label} className="bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {label}
+            </p>
+            <strong className="mt-1 block text-2xl">{value}</strong>
+          </Card>
+        ))}
+      </div>
       <div className="mb-5 max-w-md">
         <Input
           value={filter}
@@ -1296,6 +1393,7 @@ function CustomerDetail({
   onBack,
   onVehicle,
   onOrder,
+  onDelete,
 }: {
   customer: Customer;
   vehicles: Vehicle[];
@@ -1303,7 +1401,9 @@ function CustomerDetail({
   onBack: () => void;
   onVehicle: (id: string) => void;
   onOrder: (id: string) => void;
+  onDelete: () => void;
 }) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const relatedOrders = orders.filter((o) => o.customerId === customer.id);
   return (
     <>
@@ -1312,6 +1412,19 @@ function CustomerDetail({
         eyebrow="Cliente"
         title={customer.name}
         text={`${customer.phone} · ${customer.email}`}
+        action={
+          customer.deletedAt ? (
+            <Badge variant="outline">Cliente excluído</Badge>
+          ) : (
+            <Button
+              variant="outline"
+              className="gap-2 text-rose-700"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" /> Excluir cliente
+            </Button>
+          )
+        }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section>
@@ -1362,6 +1475,25 @@ function CustomerDetail({
           </CardContent>
         </Card>
       </div>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir cliente das áreas operacionais?</DialogTitle>
+            <DialogDescription>
+              {customer.name} e seus {vehicles.length} veículo(s) deixarão de aparecer nas listagens
+              e na Nova OS. As ordens e todo o histórico permanecerão identificáveis.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={onDelete}>
+              Confirmar exclusão lógica
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1374,6 +1506,7 @@ function VehicleDetail({
   onCustomer,
   onOrder,
   onNewOrder,
+  onDelete,
 }: {
   vehicle: Vehicle;
   customer: Customer;
@@ -1382,7 +1515,9 @@ function VehicleDetail({
   onCustomer: (id: string) => void;
   onOrder: (id: string) => void;
   onNewOrder: () => void;
+  onDelete: () => void;
 }) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const current = orders.find((o) => o.status !== "Entregue");
   return (
     <>
@@ -1392,12 +1527,27 @@ function VehicleDetail({
         title={`${vehicle.brand} ${vehicle.model} ${vehicle.year}`}
         text={`${vehicle.plate} · ${vehicle.mileage.toLocaleString("pt-BR")} km · ${vehicle.color}`}
         action={
-          <Button
-            onClick={onNewOrder}
-            className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600"
-          >
-            <Plus className="h-4 w-4" /> Criar OS
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {vehicle.deletedAt ? (
+              <Badge variant="outline">Veículo excluído</Badge>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="gap-2 text-rose-700"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" /> Excluir veículo
+                </Button>
+                <Button
+                  onClick={onNewOrder}
+                  className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600"
+                >
+                  <Plus className="h-4 w-4" /> Criar OS
+                </Button>
+              </>
+            )}
+          </div>
         }
       />
       <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -1541,6 +1691,25 @@ function VehicleDetail({
           </div>
         </section>
       </div>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir veículo das áreas operacionais?</DialogTitle>
+            <DialogDescription>
+              {vehicle.brand} {vehicle.model} deixará de aparecer nas listagens e na Nova OS. Todas
+              as ordens anteriores permanecerão preservadas e identificáveis.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={onDelete}>
+              Confirmar exclusão lógica
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1656,6 +1825,8 @@ function OrderDetail({
       />
       <div className="mb-5 flex flex-wrap gap-2">
         <StatusBadge status={order.status} />
+        {customer.deletedAt && <Badge variant="outline">Cliente excluído</Badge>}
+        {vehicle.deletedAt && <Badge variant="outline">Veículo excluído</Badge>}
         <Badge variant="outline" className="bg-white">
           Responsáveis: {order.team.join(", ") || "A definir"}
         </Badge>
@@ -3687,6 +3858,8 @@ function NewOrderDialog({
   onOpenChange,
   customers,
   vehicles,
+  allCustomers,
+  allVehicles,
   orders,
   onCreate,
 }: {
@@ -3694,26 +3867,179 @@ function NewOrderDialog({
   onOpenChange: (value: boolean) => void;
   customers: Customer[];
   vehicles: Vehicle[];
+  allCustomers: Customer[];
+  allVehicles: Vehicle[];
   orders: ServiceOrder[];
-  onCreate: (order: ServiceOrder) => void;
+  onCreate: (result: { customer?: Customer; vehicle?: Vehicle; order: ServiceOrder }) => void;
 }) {
-  const [vehicleId, setVehicleId] = useState(vehicles[0]?.id ?? "");
-  const [mileage, setMileage] = useState("");
+  const [step, setStep] = useState(0);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [newCustomer, setNewCustomer] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerCpf, setCustomerCpf] = useState("");
+  const [draftCustomer, setDraftCustomer] = useState<Customer>();
+  const [vehicleId, setVehicleId] = useState("");
+  const [newVehicle, setNewVehicle] = useState(false);
+  const [kind, setKind] = useState<Vehicle["kind"]>("Carro");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [plate, setPlate] = useState("");
+  const [year, setYear] = useState("");
+  const [vehicleMileage, setVehicleMileage] = useState("");
+  const [color, setColor] = useState("");
+  const [draftVehicle, setDraftVehicle] = useState<Vehicle>();
+  const [entryMileage, setEntryMileage] = useState("");
   const [complaint, setComplaint] = useState("");
   const [error, setError] = useState("");
   const [mileageWarningAccepted, setMileageWarningAccepted] = useState(false);
-  const vehicle = vehicles.find((v) => v.id === vehicleId);
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!vehicle) return setError("Selecione um veículo para criar a ordem.");
+
+  const selectedCustomer = draftCustomer ?? customers.find((item) => item.id === customerId);
+  const customerVehicles = selectedCustomer
+    ? vehicles.filter((vehicle) => vehicle.customerId === selectedCustomer.id)
+    : [];
+  const selectedVehicle = draftVehicle ?? customerVehicles.find((item) => item.id === vehicleId);
+  const filteredCustomers = customers.filter((customer) => {
+    const term = customerSearch.toLocaleLowerCase("pt-BR").trim();
+    if (!term) return true;
+    return (
+      `${customer.name} ${customer.phone} ${customer.email} ${customer.cpf ?? ""}`
+        .toLocaleLowerCase("pt-BR")
+        .includes(term) ||
+      normalizePhone(customer.phone).includes(normalizePhone(customerSearch)) ||
+      normalizeCpf(customer.cpf ?? "").includes(normalizeCpf(customerSearch))
+    );
+  });
+
+  const reset = () => {
+    setStep(0);
+    setCustomerSearch("");
+    setCustomerId("");
+    setNewCustomer(false);
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerEmail("");
+    setCustomerCpf("");
+    setDraftCustomer(undefined);
+    setVehicleId("");
+    setNewVehicle(false);
+    setKind("Carro");
+    setBrand("");
+    setModel("");
+    setPlate("");
+    setYear("");
+    setVehicleMileage("");
+    setColor("");
+    setDraftVehicle(undefined);
+    setEntryMileage("");
+    setComplaint("");
+    setError("");
+    setMileageWarningAccepted(false);
+  };
+  const close = () => {
+    reset();
+    onOpenChange(false);
+  };
+  const confirmCustomer = () => {
+    if (!newCustomer) {
+      if (!selectedCustomer) return setError("Selecione um cliente ou cadastre um novo.");
+      setVehicleId("");
+      setDraftVehicle(undefined);
+      setNewVehicle(false);
+      setError("");
+      setStep(1);
+      return;
+    }
+    const cleanName = normalizeName(customerName);
+    const cleanPhone = normalizePhone(customerPhone);
+    const cleanEmail = normalizeEmail(customerEmail);
+    const cleanCpf = normalizeCpf(customerCpf);
+    if (!cleanName) return setError("Informe o nome do cliente.");
+    if (cleanPhone.length < 10 || cleanPhone.length > 11)
+      return setError("Informe um telefone válido com DDD.");
+    if (cleanCpf && !isBasicCpfValid(cleanCpf)) return setError("Informe um CPF válido.");
+    if (!isBasicEmailValid(cleanEmail)) return setError("Informe um e-mail válido.");
+    const duplicate = allCustomers.find(
+      (item) =>
+        normalizePhone(item.phone) === cleanPhone ||
+        (cleanEmail && normalizeEmail(item.email) === cleanEmail) ||
+        (cleanCpf && normalizeCpf(item.cpf ?? "") === cleanCpf),
+    );
+    if (duplicate)
+      return setError(
+        `Possível duplicidade: ${duplicate.name} já possui o mesmo telefone, e-mail ou CPF${duplicate.deletedAt ? " e está excluído operacionalmente" : ""}.`,
+      );
+    const customer: Customer = {
+      id: `c-${Date.now()}`,
+      name: cleanName,
+      phone: cleanPhone,
+      email: cleanEmail,
+      ...(cleanCpf ? { cpf: cleanCpf } : {}),
+      since: "2026",
+    };
+    setDraftCustomer(customer);
+    setCustomerId(customer.id);
+    setVehicleId("");
+    setDraftVehicle(undefined);
+    setNewVehicle(false);
+    setError("");
+    setStep(1);
+  };
+  const confirmVehicle = () => {
+    if (!selectedCustomer) return setError("Defina o cliente antes do veículo.");
+    if (!newVehicle) {
+      const vehicle = customerVehicles.find((item) => item.id === vehicleId);
+      if (!vehicle) return setError("Selecione um veículo deste cliente ou cadastre um novo.");
+      setDraftVehicle(undefined);
+      setError("");
+      setStep(2);
+      return;
+    }
+    const cleanPlate = normalizePlate(plate);
+    const existing = allVehicles.find((item) => normalizePlate(item.plate) === cleanPlate);
+    if (!brand.trim() || !model.trim() || cleanPlate.length !== 7)
+      return setError("Informe marca, modelo e uma placa com 7 caracteres.");
+    if (existing)
+      return setError(
+        `A placa ${cleanPlate} já pertence a ${existing.brand} ${existing.model}${existing.deletedAt ? " e está excluída operacionalmente" : ""}.`,
+      );
+    const numericYear = Number(year);
+    const numericMileage = Number(vehicleMileage);
+    if (!Number.isInteger(numericYear) || numericYear < 1900 || numericYear > 2027)
+      return setError("Informe um ano válido para o veículo.");
+    if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
+      return setError("Informe uma quilometragem válida entre 0 e 2.000.000 km.");
+    const vehicle: Vehicle = {
+      id: `v-${Date.now()}`,
+      customerId: selectedCustomer.id,
+      kind,
+      brand: normalizeName(brand),
+      model: normalizeName(model),
+      year: numericYear,
+      plate: cleanPlate,
+      mileage: numericMileage,
+      color: normalizeName(color) || "Não informada",
+    };
+    setDraftVehicle(vehicle);
+    setVehicleId(vehicle.id);
+    setEntryMileage(numericMileage.toString());
+    setError("");
+    setStep(2);
+  };
+  const confirmOrderData = () => {
+    if (!selectedVehicle) return setError("Defina o veículo antes dos dados da OS.");
     const cleanComplaint = complaint.trim();
     if (!cleanComplaint) return setError("Informe o problema relatado pelo cliente.");
-    const numericMileage = mileage === "" ? vehicle.mileage : Number(mileage);
+    const numericMileage = entryMileage === "" ? selectedVehicle.mileage : Number(entryMileage);
     if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
       return setError("Informe uma quilometragem válida entre 0 e 2.000.000 km.");
     const lastMileage = Math.max(
-      vehicle.mileage,
-      ...orders.filter((item) => item.vehicleId === vehicle.id).map((item) => item.entryMileage),
+      selectedVehicle.mileage,
+      ...orders
+        .filter((item) => item.vehicleId === selectedVehicle.id)
+        .map((item) => item.entryMileage),
     );
     if (numericMileage < lastMileage && !mileageWarningAccepted) {
       setMileageWarningAccepted(true);
@@ -3721,92 +4047,356 @@ function NewOrderDialog({
         `A quilometragem informada é menor que a última registrada (${lastMileage.toLocaleString("pt-BR")} km). Confira o valor e clique novamente para continuar.`,
       );
     }
+    setError("");
+    setStep(3);
+  };
+  const createAll = () => {
+    if (!selectedCustomer || !selectedVehicle) return;
     const orderId = nextOrderId(orders.map((order) => order.id));
     onCreate({
-      id: orderId,
-      customerId: vehicle.customerId,
-      vehicleId: vehicle.id,
-      status: "Recebido",
-      openedAt: "2026-09-01",
-      entryMileage: numericMileage,
-      complaint: cleanComplaint,
-      diagnosis: "",
-      findings: "",
-      notes: "",
-      team: [],
-      budget: [],
-      evidence: [],
+      customer: draftCustomer,
+      vehicle: draftVehicle,
+      order: {
+        id: orderId,
+        customerId: selectedCustomer.id,
+        vehicleId: selectedVehicle.id,
+        status: "Recebido",
+        openedAt: "2026-09-01",
+        entryMileage: entryMileage === "" ? selectedVehicle.mileage : Number(entryMileage),
+        complaint: complaint.trim(),
+        diagnosis: "",
+        findings: "",
+        notes: "",
+        team: [],
+        budget: [],
+        evidence: [],
+      },
     });
-    setComplaint("");
-    setMileage("");
-    setError("");
-    setMileageWarningAccepted(false);
+    reset();
   };
+  const stages = ["Cliente", "Veículo", "Dados da OS", "Confirmar"];
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={submit} noValidate>
+    <Dialog open={open} onOpenChange={(value) => (value ? onOpenChange(true) : close())}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+        <div>
           <DialogHeader>
             <DialogTitle>Nova ordem de serviço</DialogTitle>
             <DialogDescription>
-              Registre a entrada e o problema relatado pelo cliente.
+              Cadastre ou selecione cliente e veículo antes de confirmar a entrada.
             </DialogDescription>
           </DialogHeader>
-          <div className="my-5 space-y-4">
-            <div>
-              <label className="text-sm font-semibold">Cliente e veículo</label>
-              <select
-                value={vehicleId}
-                onChange={(e) => setVehicleId(e.target.value)}
-                className="mt-2 h-10 w-full rounded-lg border bg-white px-3 text-sm"
-              >
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {customers.find((c) => c.id === v.customerId)?.name} · {v.brand} {v.model} ·{" "}
-                    {v.plate}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Quilometragem de entrada</label>
-              <Input
-                type="number"
-                value={mileage}
-                onChange={(e) => {
-                  setMileage(e.target.value);
-                  setMileageWarningAccepted(false);
-                }}
-                min="0"
-                max="2000000"
-                className="mt-2"
-                placeholder={vehicle?.mileage.toString()}
-              />
-            </div>
+          <div className="my-5 grid grid-cols-4 gap-2">
+            {stages.map((label, index) => (
+              <div key={label} className="text-center">
+                <span
+                  className={cn(
+                    "mx-auto grid h-7 w-7 place-items-center rounded-full border text-xs font-bold",
+                    index <= step
+                      ? "border-orange-500 bg-orange-500 text-white"
+                      : "border-slate-300 text-slate-400",
+                  )}
+                >
+                  {index + 1}
+                </span>
+                <span
+                  className={cn(
+                    "mt-1 block text-[10px] font-semibold",
+                    index === step ? "text-orange-700" : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="min-h-72 space-y-4">
+            {step === 0 && (
+              <>
+                <div className="flex gap-2">
+                  <Button
+                    variant={!newCustomer ? "default" : "outline"}
+                    onClick={() => {
+                      setNewCustomer(false);
+                      setDraftCustomer(undefined);
+                    }}
+                  >
+                    Selecionar existente
+                  </Button>
+                  <Button
+                    variant={newCustomer ? "default" : "outline"}
+                    onClick={() => {
+                      setNewCustomer(true);
+                      setCustomerId("");
+                      setDraftCustomer(undefined);
+                    }}
+                  >
+                    Cadastrar novo cliente
+                  </Button>
+                </div>
+                {!newCustomer ? (
+                  <>
+                    <Input
+                      value={customerSearch}
+                      onChange={(event) => setCustomerSearch(event.target.value)}
+                      placeholder="Buscar por nome, telefone, CPF ou e-mail"
+                    />
+                    <div className="max-h-48 space-y-2 overflow-y-auto">
+                      {filteredCustomers.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => setCustomerId(customer.id)}
+                          className={cn(
+                            "w-full rounded-lg border p-3 text-left",
+                            customerId === customer.id && "border-orange-500 bg-orange-50",
+                          )}
+                        >
+                          <strong className="block text-sm">{customer.name}</strong>
+                          <span className="text-xs text-muted-foreground">
+                            {customer.phone} · {customer.email}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value)}
+                      placeholder="Nome"
+                    />
+                    <Input
+                      value={customerPhone}
+                      onChange={(event) => setCustomerPhone(event.target.value)}
+                      placeholder="Telefone com DDD"
+                    />
+                    <Input
+                      value={customerEmail}
+                      onChange={(event) => setCustomerEmail(event.target.value)}
+                      placeholder="E-mail"
+                    />
+                    <Input
+                      value={customerCpf}
+                      onChange={(event) => setCustomerCpf(event.target.value)}
+                      placeholder="CPF (opcional)"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {step === 1 && selectedCustomer && (
+              <>
+                <p className="rounded-lg bg-slate-100 p-3 text-sm">
+                  <strong>Cliente:</strong> {selectedCustomer.name}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant={!newVehicle ? "default" : "outline"}
+                    onClick={() => {
+                      setNewVehicle(false);
+                      setDraftVehicle(undefined);
+                    }}
+                  >
+                    Selecionar veículo
+                  </Button>
+                  <Button
+                    variant={newVehicle ? "default" : "outline"}
+                    onClick={() => {
+                      setNewVehicle(true);
+                      setVehicleId("");
+                      setDraftVehicle(undefined);
+                    }}
+                  >
+                    Cadastrar novo veículo
+                  </Button>
+                </div>
+                {!newVehicle ? (
+                  <div className="space-y-2">
+                    {customerVehicles.map((vehicle) => (
+                      <button
+                        key={vehicle.id}
+                        type="button"
+                        onClick={() => setVehicleId(vehicle.id)}
+                        className={cn(
+                          "w-full rounded-lg border p-3 text-left",
+                          vehicleId === vehicle.id && "border-orange-500 bg-orange-50",
+                        )}
+                      >
+                        <strong>
+                          {vehicle.brand} {vehicle.model}
+                        </strong>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {vehicle.plate} · {vehicle.mileage.toLocaleString("pt-BR")} km
+                        </span>
+                      </button>
+                    ))}
+                    {customerVehicles.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Este cliente ainda não possui veículo ativo. Cadastre um novo.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <select
+                      value={kind}
+                      onChange={(event) => setKind(event.target.value as Vehicle["kind"])}
+                      className="h-10 rounded-lg border bg-white px-3"
+                    >
+                      <option>Carro</option>
+                      <option>Moto</option>
+                    </select>
+                    <Input
+                      value={plate}
+                      onChange={(event) => setPlate(event.target.value)}
+                      placeholder="Placa"
+                      className="uppercase"
+                    />
+                    <Input
+                      value={brand}
+                      onChange={(event) => setBrand(event.target.value)}
+                      placeholder="Marca"
+                    />
+                    <Input
+                      value={model}
+                      onChange={(event) => setModel(event.target.value)}
+                      placeholder="Modelo"
+                    />
+                    <Input
+                      type="number"
+                      value={year}
+                      onChange={(event) => setYear(event.target.value)}
+                      placeholder="Ano"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={vehicleMileage}
+                      onChange={(event) => setVehicleMileage(event.target.value)}
+                      placeholder="Quilometragem atual"
+                    />
+                    <Input
+                      value={color}
+                      onChange={(event) => setColor(event.target.value)}
+                      placeholder="Cor"
+                      className="sm:col-span-2"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {step === 2 && selectedVehicle && (
+              <>
+                <p className="rounded-lg bg-slate-100 p-3 text-sm">
+                  <strong>{selectedCustomer?.name}</strong> · {selectedVehicle.brand}{" "}
+                  {selectedVehicle.model} · {selectedVehicle.plate}
+                </p>
+                <div>
+                  <label className="text-sm font-semibold">Quilometragem de entrada</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="2000000"
+                    value={entryMileage}
+                    onChange={(event) => {
+                      setEntryMileage(event.target.value);
+                      setMileageWarningAccepted(false);
+                    }}
+                    placeholder={selectedVehicle.mileage.toString()}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold">Problema relatado</label>
+                  <Textarea
+                    value={complaint}
+                    onChange={(event) => setComplaint(event.target.value)}
+                    className="mt-2 min-h-28"
+                    placeholder="Descreva com as palavras do cliente"
+                  />
+                </div>
+              </>
+            )}
+
+            {step === 3 && selectedCustomer && selectedVehicle && (
+              <div className="space-y-3 rounded-lg border bg-slate-50 p-5 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Cliente</span>
+                  <strong className="block">
+                    {selectedCustomer.name} · {selectedCustomer.phone}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Veículo</span>
+                  <strong className="block">
+                    {selectedVehicle.brand} {selectedVehicle.model} · {selectedVehicle.plate}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Entrada</span>
+                  <strong className="block">
+                    {(entryMileage === ""
+                      ? selectedVehicle.mileage
+                      : Number(entryMileage)
+                    ).toLocaleString("pt-BR")}{" "}
+                    km · {complaint.trim()}
+                  </strong>
+                </div>
+                {(draftCustomer || draftVehicle) && (
+                  <p className="border-t pt-3 text-xs text-muted-foreground">
+                    Os novos cadastros serão salvos somente junto com a OS.
+                  </p>
+                )}
+              </div>
+            )}
             {error && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 {error}
               </p>
             )}
-            <div>
-              <label className="text-sm font-semibold">Problema relatado</label>
-              <Textarea
-                value={complaint}
-                onChange={(e) => setComplaint(e.target.value)}
-                className="mt-2 min-h-24"
-                placeholder="Descreva com as palavras do cliente"
-              />
-            </div>
           </div>
+
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={close}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
-              Criar ordem
-            </Button>
+            {step > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setError("");
+                  setStep((current) => current - 1);
+                }}
+              >
+                Voltar
+              </Button>
+            )}
+            {step === 0 && (
+              <Button className="bg-orange-500 hover:bg-orange-600" onClick={confirmCustomer}>
+                Continuar
+              </Button>
+            )}
+            {step === 1 && (
+              <Button className="bg-orange-500 hover:bg-orange-600" onClick={confirmVehicle}>
+                Continuar
+              </Button>
+            )}
+            {step === 2 && (
+              <Button className="bg-orange-500 hover:bg-orange-600" onClick={confirmOrderData}>
+                Revisar
+              </Button>
+            )}
+            {step === 3 && (
+              <Button className="bg-orange-500 hover:bg-orange-600" onClick={createAll}>
+                {draftCustomer || draftVehicle ? "Criar cadastros e OS" : "Criar OS"}
+              </Button>
+            )}
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

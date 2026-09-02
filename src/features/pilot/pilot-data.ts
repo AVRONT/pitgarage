@@ -20,6 +20,7 @@ export interface Customer {
   email: string;
   cpf?: string;
   since: string;
+  deletedAt?: string;
 }
 
 export interface Vehicle {
@@ -32,6 +33,7 @@ export interface Vehicle {
   plate: string;
   mileage: number;
   color: string;
+  deletedAt?: string;
 }
 
 export interface BudgetItem {
@@ -93,6 +95,28 @@ export interface ServiceOrder {
   statusHistory?: StatusHistoryEntry[];
   activities?: OrderActivity[];
   updatedAt?: string;
+}
+
+export function logicallyDeleteCustomer(
+  customers: Customer[],
+  vehicles: Vehicle[],
+  customerId: string,
+  deletedAt: string,
+) {
+  return {
+    customers: customers.map((customer) =>
+      customer.id === customerId ? { ...customer, deletedAt } : customer,
+    ),
+    vehicles: vehicles.map((vehicle) =>
+      vehicle.customerId === customerId ? { ...vehicle, deletedAt } : vehicle,
+    ),
+  };
+}
+
+export function logicallyDeleteVehicle(vehicles: Vehicle[], vehicleId: string, deletedAt: string) {
+  return vehicles.map((vehicle) =>
+    vehicle.id === vehicleId ? { ...vehicle, deletedAt } : vehicle,
+  );
 }
 
 export const initialCustomers: Customer[] = [

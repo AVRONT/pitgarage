@@ -33,6 +33,7 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 - [`piloto/piloto-v0.1.5.md`](piloto/piloto-v0.1.5.md): workflow funcional orientado por ações, bloqueios e correção de inconsistências.
 - [`piloto/piloto-v0.1.6.md`](piloto/piloto-v0.1.6.md): identidade visual profissional, maior densidade e redesign global do piloto.
 - [`piloto/piloto-v0.1.7.md`](piloto/piloto-v0.1.7.md): confirmações contextuais e reversão segura do workflow da OS.
+- [`piloto/piloto-v0.1.8.md`](piloto/piloto-v0.1.8.md): entrada operacional concentrada na Nova OS e exclusão lógica segura.
 
 ## Histórico e versionamento
 
