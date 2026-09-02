@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.13 — acabamento de produto e identidade azul/vermelho**, ainda vinculada à **v2 — Entrada na fase piloto**. Preserva o tema escuro e azul predominante, com detalhe vermelho discreto da marca, tabelas alinhadas, microcopy contextual e feedback acessível. Documentos continuam claros. Funcionalidades, configurações, Nova OS, workflow, stepper e exclusão lógica permanecem intactos. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.14 — identidade visual da oficina piloto**, ainda vinculada à **v2 — Entrada na fase piloto**. A identidade se aproxima da oficina Abraão & Salomão pela paleta: sidebar azul, conteúdo claro/neutro, cards brancos e detalhes vermelhos pontuais. Não altera o nome nem os dados salvos da oficina. Tabelas, microcopy e documentos continuam preservados, com contraste adaptado à base clara. Funcionalidades, configurações, Nova OS, workflow, stepper e exclusão lógica permanecem intactos. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -52,9 +52,13 @@ O projeto está na fase **Piloto v0.1.13 — acabamento de produto e identidade 
 - [Configurações e prévia de documentos do Piloto v0.1.11](piloto/piloto-v0.1.11.md)
 - [Refinamento visual profissional do Piloto v0.1.12](piloto/piloto-v0.1.12.md)
 - [Acabamento de produto do Piloto v0.1.13](piloto/piloto-v0.1.13.md)
+- [Patch visual grafite, azul e vermelho da v0.1.13](piloto/piloto-v0.1.13-patch-visual.md)
+- [Identidade visual da oficina piloto — v0.1.14](piloto/piloto-v0.1.14.md)
 
 # Decisões atuais importantes
 
+- A v0.1.14 substitui o tema grafite da v0.1.13 por base clara, sidebar azul e vermelho pontual. Paleta vigente documentada na v0.1.14; os registros da v0.1.13, inclusive seu patch, são históricos e permanecem intactos. Mudanças limitadas a CSS e identificação visual da versão, sem migração de dados nem personalização cadastral da oficina.
+- O patch visual da v0.1.13 substitui a predominância azul nas superfícies por grafite. Vermelho ganha presença decorativa e destaque no painel de atenção, sem criar urgências, mudar status ou suas regras. O registro original da v0.1.13 é preservado como histórico; a paleta vigente está no documento do patch.
 - A v0.1.13 usa vermelho apenas como assinatura decorativa da marca, separado de erros/destruição. Melhora apresentação e textos sem alterar ações. E-mails fictícios padrão usam `example.com`; registros já salvos não são migrados ou sobrescritos.
 - A v0.1.12 altera somente apresentação, centralizada em `styles.css`. Documentos isolados por `document-paper`. Azul = ação/ativo, verde = sucesso/concluído, âmbar = espera, vermelho = erro/recusado e cinza = neutro. Nenhum nome de status ou cálculo foi alterado.
 - A v0.1.11 usa rascunho local para prévias fictícias; apenas salvar grava configurações. Cabeçalho compartilhado com razão social e CEP, defaults compatíveis com dados anteriores e formatação leve sem validação fiscal. Integração fiscal e snapshots históricos são possibilidades documentadas, não implementadas.
@@ -83,7 +87,7 @@ Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pen
 
 # Próxima etapa
 
-Demonstrar o Piloto v0.1.13 aos responsáveis pela oficina. Validar acabamento, mensagens e leitura das tabelas nos dispositivos reais, além dos fluxos preservados. As pendências de snapshots e integração fiscal permanecem sem implementação.
+Demonstrar o Piloto v0.1.14 aos responsáveis pela oficina. Validar conforto visual e identificação com a paleta nos dispositivos reais, além dos fluxos preservados. As pendências de snapshots e integração fiscal permanecem sem implementação.
 
 # Histórico
 

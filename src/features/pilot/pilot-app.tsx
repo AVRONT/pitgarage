@@ -732,7 +732,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.13.
+              Piloto v0.1.14.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -792,7 +792,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.13</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.14</span>
           </span>
         </button>
         <Button
@@ -1041,7 +1041,7 @@ function Dashboard({
             })}
           </div>
         </Card>
-        <Card className="border-slate-800 bg-slate-900 text-white">
+        <Card className="attention-panel border-slate-800 bg-slate-900 text-white">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
               <div>

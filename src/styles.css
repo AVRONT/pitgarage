@@ -51,43 +51,45 @@
 
 :root,
 .dark {
-  color-scheme: dark;
+  color-scheme: light;
   --radius: 0.375rem;
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --card: #182233;
-  --card-foreground: #f8fafc;
-  --popover: #182233;
-  --popover-foreground: #f8fafc;
-  --primary: #2563eb;
-  --brand-red: #dc2626;
-  --brand-red-dark: #b91c1c;
+  --background: #f5f6f8;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #173f8f;
+  --primary-hover: #123473;
+  --primary-support: #315ead;
+  --brand-red: #d3262e;
+  --brand-red-dark: #b51f26;
   --primary-foreground: #ffffff;
-  --secondary: #223047;
-  --secondary-foreground: #f8fafc;
-  --muted: #223047;
-  --muted-foreground: #94a3b8;
-  --accent: #223654;
-  --accent-foreground: #dbeafe;
-  --destructive: #b91c1c;
+  --secondary: #f0f2f5;
+  --secondary-foreground: #1f2937;
+  --muted: #f0f2f5;
+  --muted-foreground: #667085;
+  --accent: #f0f2f5;
+  --accent-foreground: #173f8f;
+  --destructive: #b51f26;
   --destructive-foreground: #ffffff;
-  --border: #2a3546;
-  --input: #64748b;
-  --ring: #60a5fa;
-  --chart-1: #2563eb;
+  --border: #d9dee7;
+  --input: #8590a2;
+  --ring: #315ead;
+  --chart-1: #173f8f;
   --chart-2: #22c55e;
   --chart-3: #f59e0b;
   --chart-4: #94a3b8;
   --chart-5: #ef4444;
-  --sidebar: #111827;
+  --sidebar: #173f8f;
   --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #2563eb;
+  --sidebar-primary: #173f8f;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e3150;
-  --sidebar-accent-foreground: #dbeafe;
-  --sidebar-border: #2a3546;
-  --sidebar-ring: #60a5fa;
-  --status-success: #22c55e;
+  --sidebar-accent: #123473;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #315ead;
+  --sidebar-ring: #315ead;
+  --status-success: #15803d;
   --status-warning: #f59e0b;
   --status-error: #ef4444;
 }
@@ -145,8 +147,8 @@
   min-height: 2.5rem;
   align-items: center;
   border-bottom: 1px solid var(--color-border);
-  background: var(--sidebar);
-  color: var(--muted-foreground);
+  background: var(--secondary);
+  color: #5f687a;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -164,6 +166,7 @@
 }
 
 .pilot-table-row:hover {
+  --muted-foreground: #5f687a;
   background: var(--secondary);
 }
 
@@ -177,10 +180,29 @@
 .pilot-shell {
   background: var(--background);
 }
-.pilot-shell > aside,
-.pilot-shell > main > header {
+.pilot-shell > aside {
+  --foreground: #ffffff;
+  --muted-foreground: #d5def0;
+  --primary-support: #dce8ff;
+  --secondary: #123473;
+  --accent: #123473;
+  --accent-foreground: #ffffff;
+  --border: #315ead;
+  --ring: #dce8ff;
   background: var(--sidebar);
+  color: var(--foreground);
   border-color: var(--border);
+}
+.pilot-shell > main > header {
+  background: var(--card);
+  border-color: var(--border);
+}
+.pilot-shell > aside .brand-mark {
+  background: var(--primary-support);
+  color: var(--sidebar);
+}
+.pilot-shell > aside [class~="before:bg-orange-500"]::before {
+  background: var(--primary-support);
 }
 :where(.pilot-shell, [role="dialog"])
   :is(.rounded-xl, .rounded-2xl):not(.document-paper, .document-paper *) {
@@ -204,8 +226,8 @@
 }
 :where(.pilot-shell, [role="dialog"]) :disabled {
   opacity: 1;
-  color: #94a3b8;
-  background-color: #223047;
+  color: var(--muted-foreground);
+  background-color: var(--secondary);
   cursor: not-allowed;
 }
 :where(.pilot-shell, [role="dialog"])
@@ -224,7 +246,8 @@
     .document-paper,
     .document-paper *
   ) {
-  background-color: var(--sidebar);
+  background-color: var(--card);
+  color: var(--foreground);
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -238,6 +261,7 @@
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
+    [class~="text-slate-300"],
     [class~="text-slate-400"],
     [class~="text-slate-500"],
     [class~="text-slate-600"],
@@ -269,14 +293,14 @@
     [class~="text-orange-700"],
     [class~="text-orange-800"]
   ):not(.document-paper, .document-paper *) {
-  color: #93c5fd;
+  color: var(--primary-support);
 }
 :where(.pilot-shell, [role="dialog"])
   :is([class~="bg-orange-50"], [class~="bg-orange-100"], [class~="bg-orange-50/60"]):not(
     .document-paper,
     .document-paper *
   ) {
-  background-color: #1e3150;
+  background-color: var(--secondary);
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -290,7 +314,7 @@
 }
 :where(.pilot-shell, [role="dialog"])
   :is([class~="ring-orange-100"]):not(.document-paper, .document-paper *) {
-  --tw-ring-color: #2563eb40;
+  --tw-ring-color: #173f8f40;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -299,7 +323,7 @@
     [class~="hover:bg-orange-700"],
     [class~="hover:bg-primary/90"]
   ):hover:not(.document-paper, .document-paper *) {
-  background-color: #1d4ed8;
+  background-color: var(--primary-hover);
   color: white;
 }
 :where(.pilot-shell, [role="dialog"])
@@ -318,10 +342,13 @@
     [class~="bg-green-50"],
     [class~="bg-green-100"]
   ):not(.document-paper, .document-paper *) {
-  background-color: #15362b;
+  background-color: #edf7ef;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
+    [class~="text-emerald-300"],
+    [class~="text-emerald-400"],
+    [class~="text-emerald-500"],
     [class~="text-emerald-600"],
     [class~="text-emerald-700"],
     [class~="text-emerald-800"],
@@ -333,7 +360,7 @@
     [class~="text-green-900"],
     [class~="text-green-950"]
   ):not(.document-paper, .document-paper *) {
-  color: #86efac;
+  color: #166534;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -342,7 +369,7 @@
     [class~="border-green-200"],
     [class~="border-green-300"]
   ):not(.document-paper, .document-paper *) {
-  border-color: #28764c;
+  border-color: #9ccbab;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -351,10 +378,13 @@
     [class~="bg-yellow-50"],
     [class~="bg-yellow-100"]
   ):not(.document-paper, .document-paper *) {
-  background-color: #382b17;
+  background-color: #fff7e6;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
+    [class~="text-amber-300"],
+    [class~="text-amber-400"],
+    [class~="text-amber-500"],
     [class~="text-amber-600"],
     [class~="text-amber-700"],
     [class~="text-amber-800"],
@@ -366,7 +396,7 @@
     [class~="text-yellow-900"],
     [class~="text-yellow-950"]
   ):not(.document-paper, .document-paper *) {
-  color: #fcd34d;
+  color: #92400e;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -375,7 +405,7 @@
     [class~="border-yellow-200"],
     [class~="border-yellow-300"]
   ):not(.document-paper, .document-paper *) {
-  border-color: #886224;
+  border-color: #e1bd72;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -384,22 +414,28 @@
     [class~="bg-rose-50"],
     [class~="bg-rose-100"]
   ):not(.document-paper, .document-paper *) {
-  background-color: #3e232c;
+  background-color: #fff1f2;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
+    [class~="text-red-300"],
+    [class~="text-red-400"],
+    [class~="text-red-500"],
     [class~="text-red-600"],
     [class~="text-red-700"],
     [class~="text-red-800"],
     [class~="text-red-900"],
     [class~="text-red-950"],
+    [class~="text-rose-300"],
+    [class~="text-rose-400"],
+    [class~="text-rose-500"],
     [class~="text-rose-600"],
     [class~="text-rose-700"],
     [class~="text-rose-800"],
     [class~="text-rose-900"],
     [class~="text-rose-950"]
   ):not(.document-paper, .document-paper *) {
-  color: #fca5a5;
+  color: #b51f26;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -408,7 +444,7 @@
     [class~="border-rose-200"],
     [class~="border-rose-300"]
   ):not(.document-paper, .document-paper *) {
-  border-color: #99505b;
+  border-color: #e4a1a5;
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -421,7 +457,7 @@
     [class~="bg-violet-50"],
     [class~="bg-violet-100"]
   ):not(.document-paper, .document-paper *) {
-  background-color: #1e3150;
+  background-color: var(--secondary);
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -446,7 +482,7 @@
     [class~="text-violet-900"],
     [class~="text-violet-950"]
   ):not(.document-paper, .document-paper *) {
-  color: #93c5fd;
+  color: var(--primary-support);
 }
 :where(.pilot-shell, [role="dialog"])
   :is(
@@ -459,48 +495,48 @@
     [class~="border-violet-200"],
     [class~="border-violet-300"]
   ):not(.document-paper, .document-paper *) {
-  border-color: #355a88;
+  border-color: #afc1e0;
 }
 
 .pilot-shell [class~="before:bg-orange-500"]::before {
-  background: #2563eb;
+  background: #173f8f;
 }
 .pilot-shell [class~="before:bg-orange-500"] {
-  background: #1e3150;
+  background: var(--sidebar-accent);
 }
 [role="tab"][data-state="active"] {
-  color: #93c5fd;
-  background: #1e3150;
-  border-bottom-color: #2563eb;
+  color: var(--primary-support);
+  background: var(--secondary);
+  border-bottom-color: #173f8f;
 }
 [role="dialog"]:not(.client-quote-print) {
   background: var(--card);
   box-shadow: 0 12px 32px #0004;
 }
 .status-neutral {
-  color: #cbd5e1;
-  background: #293548;
-  border-color: #536276;
+  color: #475467;
+  background: var(--secondary);
+  border-color: #b7c0ce;
 }
 .status-active {
-  color: #93c5fd;
-  background: #1e3150;
-  border-color: #355a88;
+  color: var(--primary-support);
+  background: var(--secondary);
+  border-color: #afc1e0;
 }
 .status-success {
-  color: #86efac;
-  background: #15362b;
-  border-color: #28764c;
+  color: #166534;
+  background: #edf7ef;
+  border-color: #9ccbab;
 }
 .status-warning {
-  color: #fcd34d;
-  background: #382b17;
-  border-color: #886224;
+  color: #92400e;
+  background: #fff7e6;
+  border-color: #e1bd72;
 }
 .status-error {
-  color: #fca5a5;
-  background: #3e232c;
-  border-color: #99505b;
+  color: #b51f26;
+  background: #fff1f2;
+  border-color: #e4a1a5;
 }
 /* The paper palette is inherited only within the three document surfaces. */
 .document-paper {
@@ -511,9 +547,9 @@
   --card-foreground: #172332;
   --muted-foreground: #475569;
   --border: #cbd5e1;
-  --input: #64748b;
+  --input: #8590a2;
   --accent: #eff6ff;
-  --accent-foreground: #1d4ed8;
+  --accent-foreground: #123473;
   background: #ffffff;
   color: #172332;
 }
@@ -534,7 +570,7 @@
 .document-paper .document-header {
   background: #fff;
   color: #172332;
-  border-bottom: 2px solid #2563eb;
+  border-bottom: 2px solid #173f8f;
 }
 .document-paper .document-header p {
   color: #334155;
@@ -543,10 +579,10 @@
   color: white;
 }
 .document-paper :is(.text-orange-400, .text-orange-700, .text-orange-800) {
-  color: #1d4ed8;
+  color: #123473;
 }
 .document-paper .bg-orange-700 {
-  background: #2563eb;
+  background: #173f8f;
 }
 .document-paper :is(.bg-orange-50) {
   background: #eff6ff;
@@ -561,23 +597,32 @@
 }
 .document-paper .status-active {
   background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #93c5fd;
+  color: #123473;
+  border-color: #afc1e0;
 }
 .document-paper .status-success {
   background: #f0fdf4;
   color: #166534;
-  border-color: #86efac;
+  border-color: #9ccbab;
 }
 .document-paper .status-warning {
   background: #fffbeb;
   color: #92400e;
-  border-color: #fcd34d;
+  border-color: #e1bd72;
 }
 .document-paper .status-error {
   background: #fef2f2;
   color: #991b1b;
-  border-color: #fca5a5;
+  border-color: #e4a1a5;
+}
+
+/* Light evidence tags inherit the panel text, not the former dark-theme white. */
+:where(.pilot-shell, [role="dialog"]) [class~="bg-white/10"]:not(.document-paper *) {
+  color: var(--foreground);
+  background: var(--secondary);
+}
+:where(.pilot-shell, [role="dialog"]) button[class~="bg-white/10"]:hover {
+  background: #e7ebf0;
 }
 
 /* Operational emphasis and keyboard affordances, independent of the legacy utilities. */
@@ -592,16 +637,16 @@
 .order-progress [class~="bg-emerald-500"] {
   background-color: var(--status-success);
   border-color: var(--status-success);
-  color: #0f172a;
+  color: #ffffff;
 }
 .order-progress [class~="bg-slate-300"] {
-  background-color: #475569;
+  background-color: #b7c0ce;
 }
 .order-progress [class~="border-orange-500"] {
-  border-color: #60a5fa;
+  border-color: #315ead;
 }
 
-/* v0.1.13: restrained brand signature; not an operational status indicator. */
+/* v0.1.14: light working surface and the pilot workshop blue/red identity. */
 .brand-mark {
   position: relative;
   overflow: hidden;
@@ -609,13 +654,42 @@
 .brand-mark::after {
   content: "";
   position: absolute;
-  inset: auto 0 0 auto;
-  width: 38%;
-  height: 3px;
+  inset: 0 0 0 auto;
+  width: 6px;
   background: var(--brand-red);
 }
 button:hover > .brand-mark::after {
   background: var(--brand-red-dark);
+}
+.pilot-shell > main > header::after,
+.document-paper .document-header::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  width: 4rem;
+  height: 2px;
+  background: var(--brand-red);
+  pointer-events: none;
+}
+.document-paper .document-header {
+  position: relative;
+}
+/* Brand emphasis only: pending approvals retain their existing status and meaning. */
+.pilot-shell .attention-panel {
+  background: var(--card);
+  border-color: var(--border);
+  border-top: 3px solid var(--brand-red);
+}
+.pilot-shell .attention-panel .text-orange-400 {
+  color: #b51f26;
+}
+.pilot-shell .attention-panel button {
+  background: var(--secondary);
+  border-color: var(--brand-red-dark);
+}
+.pilot-shell .attention-panel button:hover {
+  background: #e7ebf0;
 }
 .pilot-shell .page-heading h1 {
   font-size: clamp(1.4rem, 2vw, 1.75rem);
@@ -623,6 +697,7 @@ button:hover > .brand-mark::after {
   font-weight: 650;
 }
 .pilot-shell .page-heading > div > p:first-child {
+  color: var(--muted-foreground);
   font-size: 0.75rem;
   letter-spacing: 0.07em;
 }
@@ -654,7 +729,7 @@ button:hover > .brand-mark::after {
   color: var(--muted-foreground);
 }
 .pilot-table-row:hover > svg:last-child {
-  color: #93c5fd;
+  color: var(--primary-support);
 }
 .pilot-table-row :is([class*="status-"], .text-xs.border) {
   padding: 2px 7px;
@@ -734,7 +809,7 @@ button:hover > .brand-mark::after {
     color: #172332 !important;
   }
   .client-quote-print .document-header {
-    border-bottom: 2px solid #2563eb;
+    border-bottom: 2px solid #173f8f;
   }
   .client-quote-print .document-header p {
     color: #172332 !important;

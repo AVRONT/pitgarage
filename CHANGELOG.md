@@ -2,6 +2,25 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.14] - 2026-09-02
+
+### Identidade visual da oficina piloto
+
+- Base clara/neutra, cards brancos, sidebar azul e acentos vermelhos inspirados na paleta informada da oficina Abraão & Salomão.
+- Estilos compartilhados adaptam tabelas, campos, botões, dialogs, tabs, badges, feedbacks e painéis operacionais, mantendo densidade e comportamento.
+- Contraste de textos semânticos e controles de evidência adaptado ao fundo claro. Stepper permanece verde/azul/cinza, com animações e redução de movimento preservadas.
+- Orçamento, resumo e prévias seguem claros, com identidade discreta nos cabeçalhos/divisores.
+- Dados, configurações, localStorage, regras e histórico inalterados. Documentos da v0.1.13 preservados integralmente.
+- Escopo e validação em `docs/piloto/piloto-v0.1.14.md`.
+
+## [Piloto v0.1.13 — patch visual] - 2026-09-02
+
+- Superfícies, tabelas, campos, dialogs, tabs e navegação ativa passam a bases grafite; azul concentrado em ações, foco e informação ativa.
+- Marca bicolor mais perceptível, detalhe vermelho nos cabeçalhos e destaque do painel Atenção agora, mantendo espera em âmbar e stepper verde/azul/cinza.
+- Documentos e impressão continuam claros, com pequenos detalhes de identidade.
+- Alterações centralizadas em estilos e uma classe visual do Dashboard. Nenhuma mudança funcional, de dados, armazenamento ou histórico; versões anteriores preservadas.
+- Detalhes e validação em `docs/piloto/piloto-v0.1.13-patch-visual.md`.
+
 ## [Piloto v0.1.13] - 2026-09-02
 
 ### Acabamento de produto e identidade azul/vermelho
