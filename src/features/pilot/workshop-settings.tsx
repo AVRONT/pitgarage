@@ -113,7 +113,7 @@ export function WorkshopSettings({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="submit">Salvar dados da oficina</Button>
+              <Button type="submit">Salvar configurações</Button>
               <Button
                 type="button"
                 variant="outline"

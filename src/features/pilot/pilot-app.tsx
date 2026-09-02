@@ -323,8 +323,8 @@ function VehicleIcon({ kind, className }: { kind: Vehicle["kind"]; className?: s
 
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-lg border border-dashed bg-white/50 p-6 text-center">
-      <FileText className="mx-auto h-8 w-8 text-slate-300" />
+    <div className="pilot-empty-state" role="status">
+      <FileText aria-hidden="true" className="mx-auto h-6 w-6 text-muted-foreground" />
       <h3 className="mt-3 font-semibold">{title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{text}</p>
     </div>
@@ -572,8 +572,13 @@ export function PilotApp() {
           </div>
         </header>
         {notice && (
-          <div className="fixed right-5 top-24 z-50 flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-xl">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+          <div
+            className="pilot-action-feedback"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-400" />
             {notice}
           </div>
         )}
@@ -727,7 +732,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.12.
+              Piloto v0.1.13.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -779,12 +784,15 @@ function Sidebar({
     >
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
         <button className="flex items-center gap-3" onClick={() => onNavigate("dashboard")}>
-          <span className="grid h-9 w-9 place-items-center rounded-md bg-orange-600">
+          <span
+            className="brand-mark grid h-9 w-9 place-items-center rounded-md bg-orange-600"
+            aria-hidden="true"
+          >
             <Wrench className="h-5 w-5" />
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.12</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.13</span>
           </span>
         </button>
         <Button
@@ -857,7 +865,7 @@ function PageTitle({
   back?: () => void;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <div className="page-heading mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div>
         {back && (
           <button
@@ -949,7 +957,7 @@ function Dashboard({
             onClick={onNewOrder}
             className="h-10 gap-2 bg-orange-600 px-5 hover:bg-orange-700"
           >
-            <Plus className="h-4 w-4" /> Nova ordem de serviço
+            <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
@@ -1099,7 +1107,7 @@ function CustomersScreen({
         text="Encontre rapidamente quem chegou à oficina e os veículos relacionados."
         action={
           <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
-            <Plus className="h-4 w-4" /> Nova ordem de serviço
+            <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
@@ -1149,8 +1157,12 @@ function CustomersScreen({
         {visible.length === 0 && (
           <div>
             <EmptyState
-              title="Nenhum cliente encontrado"
-              text="Revise a busca ou crie um cadastro de demonstração."
+              title={customers.length ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+              text={
+                customers.length
+                  ? "Tente outro nome ou telefone."
+                  : "Comece por Criar ordem de serviço para cadastrar o primeiro cliente."
+              }
             />
           </div>
         )}
@@ -1218,7 +1230,7 @@ function VehiclesScreen({
         text="Carros e motos com informações, serviços atuais e histórico em um só lugar."
         action={
           <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
-            <Plus className="h-4 w-4" /> Nova ordem de serviço
+            <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
@@ -1262,8 +1274,12 @@ function VehiclesScreen({
         {visible.length === 0 && (
           <div>
             <EmptyState
-              title="Nenhum veículo encontrado"
-              text="Tente buscar por placa, modelo ou proprietário."
+              title={vehicles.length ? "Nenhum veículo encontrado" : "Nenhum veículo cadastrado"}
+              text={
+                vehicles.length
+                  ? "Tente outra placa, modelo ou proprietário."
+                  : "Cadastre o primeiro veículo ao criar uma ordem de serviço."
+              }
             />
           </div>
         )}
@@ -1333,7 +1349,7 @@ function OrdersScreen({
         text="Acompanhe diagnóstico, aprovação, execução e entrega sem perder o histórico."
         action={
           <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
-            <Plus className="h-4 w-4" /> Nova OS
+            <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
@@ -1360,13 +1376,17 @@ function OrdersScreen({
             <span>Veículo</span>
             <span>Cliente</span>
             <span>Status</span>
-            <span>Valor</span>
+            <span className="text-right">Valor</span>
             <span />
           </div>
           {visible.length === 0 && (
             <EmptyState
-              title="Nenhuma OS neste estado"
-              text="Escolha outro filtro ou crie uma nova ordem."
+              title={orders.length ? "Nenhuma OS neste estado" : "Nenhuma ordem de serviço"}
+              text={
+                orders.length
+                  ? "Escolha outro filtro para consultar as ordens."
+                  : "Crie uma ordem de serviço para registrar o primeiro atendimento."
+              }
             />
           )}
           {visible.map((order) => {
@@ -1395,7 +1415,9 @@ function OrdersScreen({
                 <span className="hidden md:block">
                   <StatusBadge status={order.status} />
                 </span>
-                <strong className="hidden text-sm md:block">{money(total)}</strong>
+                <strong className="hidden text-right text-sm tabular-nums md:block">
+                  {money(total)}
+                </strong>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             );
@@ -1563,7 +1585,7 @@ function VehicleDetail({
                   onClick={onNewOrder}
                   className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600"
                 >
-                  <Plus className="h-4 w-4" /> Criar OS
+                  <Plus className="h-4 w-4" /> Criar ordem de serviço
                 </Button>
               </>
             )}
@@ -1852,7 +1874,7 @@ function OrderDetail({
           </div>
         }
       />
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="order-metadata mb-5 flex flex-wrap gap-2">
         <FinalOrderSummary
           order={order}
           customer={customer}
@@ -4529,7 +4551,7 @@ function NewOrderDialog({
             )}
             {step === 3 && (
               <Button className="bg-orange-500 hover:bg-orange-600" onClick={createAll}>
-                {draftCustomer || draftVehicle ? "Criar cadastros e OS" : "Criar OS"}
+                Criar ordem de serviço
               </Button>
             )}
           </DialogFooter>

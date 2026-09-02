@@ -25,6 +25,7 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 
 ## Piloto
 
+- [`piloto/piloto-v0.1.13.md`](piloto/piloto-v0.1.13.md): acabamento de produto, assinatura azul/vermelho, tabelas e mensagens contextuais.
 - [`piloto/piloto-v0.1.12.md`](piloto/piloto-v0.1.12.md): refinamento visual profissional, tema operacional escuro/azul e documentos claros.
 - [`piloto/piloto-v0.1.11.md`](piloto/piloto-v0.1.11.md): prévia ao vivo dos documentos, razão social/CEP e possibilidades futuras de integração fiscal e snapshots.
 - [`piloto/piloto-v0.1.10.md`](piloto/piloto-v0.1.10.md): configurações locais da oficina, visão do cliente integrada e resumo final imprimível.

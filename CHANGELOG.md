@@ -2,6 +2,16 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.13] - 2026-09-02
+
+### Acabamento de produto e identidade azul/vermelho
+
+- Detalhe vermelho discreto na marca, mantendo azul predominante e sem mudar a semântica de erros.
+- Títulos mais contidos, espaçamento de colunas consistente, valores de OS alinhados à direita, badges compactos e metadados secundários da OS menos destacados.
+- Estados vazios contextualizados, ações de criação/configurações com textos explícitos e feedback existente anunciado por tecnologias assistivas.
+- E-mails dos clientes fictícios padrão em `example.com`, sem migração de dados salvos.
+- Workflow, validações, cálculos, histórico, documentos e versões anteriores preservados. Sem dependências novas.
+
 ## [Piloto v0.1.12] - 2026-09-02
 
 ### Refinamento visual profissional

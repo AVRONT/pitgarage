@@ -12,7 +12,10 @@ export function WorkshopIdentity({ workshop }: { workshop: Workshop }) {
   ].filter(Boolean);
   return (
     <div className="flex min-w-0 items-start gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-orange-700 text-white">
+      <span
+        className="brand-mark grid h-11 w-11 shrink-0 place-items-center rounded-md bg-orange-700 text-white"
+        aria-hidden="true"
+      >
         <Wrench className="h-6 w-6" />
       </span>
       <div className="min-w-0 break-words">
