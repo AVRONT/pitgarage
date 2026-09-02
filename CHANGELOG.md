@@ -2,6 +2,16 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.12] - 2026-09-02
+
+### Refinamento visual profissional
+
+- Paleta operacional escura, ações azuis, bordas discretas e baixa elevação centralizadas nos estilos compartilhados.
+- Sidebar, header, botões, cards, campos, diálogos, tabs e estados adaptados sem mudança de navegação.
+- Estados e stepper com semântica consistente; foco e contraste revisados.
+- Documentos/prévias com superfície clara isolada do tema, preservada na impressão.
+- Nenhuma alteração em funcionalidades, workflow, cálculos, armazenamento ou histórico. Versões anteriores preservadas.
+
 ## [Piloto v0.1.11] - 2026-09-01
 
 ### Melhorado

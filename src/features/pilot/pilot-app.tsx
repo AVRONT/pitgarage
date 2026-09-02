@@ -188,20 +188,20 @@ const countOrdersByStatus = (orders: ServiceOrder[], statuses: ServiceOrder["sta
   orders.filter((order) => statuses.includes(order.status)).length;
 
 const statusStyles: Record<string, string> = {
-  Recebido: "bg-slate-100 text-slate-700 border-slate-200",
-  "Em diagnóstico": "bg-sky-100 text-sky-800 border-sky-200",
-  "Aguardando aprovação": "bg-amber-100 text-amber-800 border-amber-200",
-  "Aguardando peça": "bg-violet-100 text-violet-800 border-violet-200",
-  "Em manutenção": "bg-emerald-100 text-emerald-800 border-emerald-200",
-  "Serviço concluído": "bg-cyan-100 text-cyan-800 border-cyan-200",
-  "Aguardando retirada": "bg-orange-100 text-orange-800 border-orange-200",
-  Entregue: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  Aprovado: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  Recusado: "bg-rose-100 text-rose-800 border-rose-200",
-  Pago: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  Pendente: "bg-amber-100 text-amber-800 border-amber-200",
-  ATIVA: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  EXPIRADA: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  Recebido: "status-neutral",
+  "Em diagnóstico": "status-active",
+  "Aguardando aprovação": "status-warning",
+  "Aguardando peça": "status-warning",
+  "Em manutenção": "status-active",
+  "Serviço concluído": "status-success",
+  "Aguardando retirada": "status-warning",
+  Entregue: "status-success",
+  Aprovado: "status-success",
+  Recusado: "status-error",
+  Pago: "status-success",
+  Pendente: "status-warning",
+  ATIVA: "status-success",
+  EXPIRADA: "status-neutral",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -226,7 +226,7 @@ function OrderProgress({
   const currentStepIndex = orderStatuses.indexOf(status);
   return (
     <section
-      className="mb-5 rounded-lg border bg-white p-4 md:p-5"
+      className="order-progress mb-5 rounded-lg border bg-white p-4 md:p-5"
       aria-label="Progresso provisório da ordem de serviço"
     >
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -727,7 +727,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.11.
+              Piloto v0.1.12.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -784,7 +784,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.11</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.12</span>
           </span>
         </button>
         <Button
@@ -919,19 +919,19 @@ function Dashboard({
       label: "Aguardando peça",
       value: countOrdersByStatus(orders, ["Aguardando peça"]),
       icon: PackageCheck,
-      tone: "bg-violet-50 text-violet-700",
+      tone: "status-warning",
     },
     {
       label: "Em manutenção",
       value: countOrdersByStatus(orders, ["Em manutenção"]),
       icon: Wrench,
-      tone: "bg-emerald-50 text-emerald-700",
+      tone: "status-active",
     },
     {
       label: "Prontos para retirada",
       value: countOrdersByStatus(orders, ["Serviço concluído", "Aguardando retirada"]),
       icon: CheckCircle2,
-      tone: "bg-cyan-50 text-cyan-700",
+      tone: "status-success",
     },
   ];
   const pendingValue = orders
@@ -2612,7 +2612,7 @@ function ClientQuotePreview({
   ];
 
   return (
-    <article className="bg-[#f7f5f0] text-slate-900">
+    <article className="document-paper bg-white text-slate-900">
       <header className="document-header bg-slate-900 px-6 py-7 text-white md:px-9">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <WorkshopIdentity workshop={workshop} />

@@ -46,7 +46,7 @@ export function FinalOrderSummary({
         <DialogDescription className="sr-only no-print">
           Documento demonstrativo, somente leitura.
         </DialogDescription>
-        <article className="bg-white text-slate-900">
+        <article className="document-paper bg-white text-slate-900">
           <header className="document-header bg-slate-900 p-6 pr-12 text-white md:p-9">
             <WorkshopIdentity workshop={workshop} />
             <p className="mt-6 text-sm font-semibold uppercase tracking-wider">

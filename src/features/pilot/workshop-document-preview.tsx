@@ -28,7 +28,7 @@ export function WorkshopDocumentPreview({ workshop }: { workshop: Workshop }) {
               vínculo com atendimentos.
             </p>
             <article
-              className="overflow-hidden border bg-white text-slate-900 shadow-sm"
+              className="document-paper overflow-hidden border bg-white text-slate-900 shadow-sm"
               aria-label={mode === "quote" ? "Prévia do orçamento" : "Prévia do resumo da OS"}
             >
               <header className="document-header border-b-2 border-orange-700 px-5 py-6 sm:px-7">
