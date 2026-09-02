@@ -64,6 +64,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { WorkshopIdentity, WorkshopSettings } from "./workshop-settings";
+import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
+import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
   initialCustomers,
@@ -160,13 +163,15 @@ const withStatusTransition = (
   };
 };
 
-type Screen = "dashboard" | "customers" | "vehicles" | "orders" | "customer" | "vehicle" | "order";
+type Screen =
+  "dashboard" | "customers" | "vehicles" | "orders" | "customer" | "vehicle" | "order" | "settings";
 
 const navItems = [
   { id: "dashboard" as Screen, label: "Visão geral", icon: LayoutDashboard },
   { id: "customers" as Screen, label: "Clientes", icon: Users },
   { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
+  { id: "settings" as Screen, label: "Configurações da oficina", icon: Settings2 },
 ];
 
 const formatActivityDate = (value: string) =>
@@ -340,6 +345,11 @@ export function PilotApp() {
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
+
+  useEffect(() => {
+    setWorkshop(readWorkshop());
+  }, []);
 
   useEffect(() => {
     try {
@@ -552,11 +562,11 @@ export function PilotApp() {
           </div>
           <div className="ml-auto hidden items-center gap-3 sm:flex">
             <div className="text-right">
-              <p className="text-sm font-semibold">Oficina Pit Stop</p>
+              <p className="max-w-48 truncate text-sm font-semibold">{workshop.name}</p>
               <p className="text-xs text-muted-foreground">Ambiente piloto</p>
             </div>
             <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-              PS
+              <Wrench className="h-5 w-5" />
             </div>
           </div>
         </header>
@@ -567,6 +577,7 @@ export function PilotApp() {
           </div>
         )}
         <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
+          {screen === "settings" && <WorkshopSettings workshop={workshop} onSave={setWorkshop} />}
           {screen === "dashboard" && (
             <Dashboard
               orders={operationalOrders}
@@ -650,6 +661,7 @@ export function PilotApp() {
           {screen === "order" && selectedOrder && (
             <OrderDetail
               order={selectedOrder}
+              workshop={workshop}
               vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
               customer={customers.find((item) => item.id === selectedOrder.customerId)!}
               onBack={() => navigate("orders")}
@@ -714,7 +726,7 @@ export function PilotApp() {
             <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
             <DialogDescription>
               Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.9.
+              Piloto v0.1.10.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -771,7 +783,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.9</span>
+            <span className="text-xs text-slate-400">Piloto v0.1.10</span>
           </span>
         </button>
         <Button
@@ -1723,6 +1735,7 @@ function VehicleDetail({
 
 function OrderDetail({
   order,
+  workshop,
   vehicle,
   customer,
   onBack,
@@ -1731,6 +1744,7 @@ function OrderDetail({
   notify,
 }: {
   order: ServiceOrder;
+  workshop: Workshop;
   vehicle: Vehicle;
   customer: Customer;
   onBack: () => void;
@@ -1739,6 +1753,7 @@ function OrderDetail({
   notify: (text: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [manualStatusOpen, setManualStatusOpen] = useState(false);
   const [manualStatus, setManualStatus] = useState<ServiceOrder["status"]>(order.status);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingWorkflowConfirmation>();
@@ -1816,6 +1831,12 @@ function OrderDetail({
               Status atual · provisório
             </span>
             <StatusBadge status={order.status} />
+            {["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status) && (
+              <Button variant="outline" size="sm" onClick={() => setSummaryOpen(true)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Resumo final
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -1831,6 +1852,17 @@ function OrderDetail({
         }
       />
       <div className="mb-5 flex flex-wrap gap-2">
+        <FinalOrderSummary
+          order={order}
+          customer={customer}
+          vehicle={vehicle}
+          workshop={workshop}
+          open={
+            summaryOpen &&
+            ["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status)
+          }
+          onOpenChange={setSummaryOpen}
+        />
         {customer.deletedAt && <Badge variant="outline">Cliente excluído</Badge>}
         {vehicle.deletedAt && <Badge variant="outline">Veículo excluído</Badge>}
         <Badge variant="outline" className="bg-white">
@@ -1986,6 +2018,7 @@ function OrderDetail({
         <TabsContent value="budget" className="mt-6">
           <BudgetPanel
             order={order}
+            workshop={workshop}
             vehicle={vehicle}
             customer={customer}
             updateItem={updateItem}
@@ -2550,11 +2583,13 @@ function DiagnosisPanel({
 
 function ClientQuotePreview({
   order,
+  workshop,
   vehicle,
   customer,
   onPrint,
 }: {
   order: ServiceOrder;
+  workshop: Workshop;
   vehicle: Vehicle;
   customer: Customer;
   onPrint: () => void;
@@ -2577,17 +2612,9 @@ function ClientQuotePreview({
 
   return (
     <article className="bg-[#f7f5f0] text-slate-900">
-      <header className="bg-slate-900 px-6 py-7 text-white md:px-9">
+      <header className="document-header bg-slate-900 px-6 py-7 text-white md:px-9">
         <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-500">
-              <Wrench className="h-6 w-6" />
-            </span>
-            <div>
-              <p className="text-xl font-bold tracking-tight">PitGarage</p>
-              <p className="text-sm text-slate-300">Oficina Pit Stop</p>
-            </div>
-          </div>
+          <WorkshopIdentity workshop={workshop} />
           <div className="pr-8 text-right">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-400">
               Orçamento · {order.id}
@@ -2725,6 +2752,7 @@ function ClientQuotePreview({
 
 function BudgetPanel({
   order,
+  workshop,
   vehicle,
   customer,
   updateItem,
@@ -2732,6 +2760,7 @@ function BudgetPanel({
   notify,
 }: {
   order: ServiceOrder;
+  workshop: Workshop;
   vehicle: Vehicle;
   customer: Customer;
   updateItem: (id: string, patch: Partial<ServiceOrder["budget"][number]>) => void;
@@ -3096,8 +3125,13 @@ function BudgetPanel({
       </div>
       <Dialog open={clientPreviewOpen} onOpenChange={setClientPreviewOpen}>
         <DialogContent className="client-quote-print max-h-[92vh] max-w-5xl overflow-y-auto p-0">
+          <DialogTitle className="sr-only no-print">Orçamento · {order.id}</DialogTitle>
+          <DialogDescription className="sr-only no-print">
+            Visão do cliente, somente leitura.
+          </DialogDescription>
           <ClientQuotePreview
             order={order}
+            workshop={workshop}
             vehicle={vehicle}
             customer={customer}
             onPrint={() => window.print()}

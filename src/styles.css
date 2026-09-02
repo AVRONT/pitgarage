@@ -214,17 +214,25 @@
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4;
+    margin: 14mm;
   }
-
-  .client-quote-print,
-  .client-quote-print * {
-    visibility: visible;
+  body:has(.client-quote-print) > :not(.client-quote-print) {
+    display: none !important;
+  }
+  body:has(.client-quote-print) {
+    overflow: visible !important;
+    height: auto !important;
+    margin: 0 !important;
+    background: white !important;
   }
 
   .client-quote-print {
-    position: absolute !important;
+    --tw-translate-x: 0px !important;
+    --tw-translate-y: 0px !important;
+    display: block !important;
+    position: static !important;
     inset: 0 !important;
     max-height: none !important;
     width: 100% !important;
@@ -233,6 +241,27 @@
     border: 0 !important;
     box-shadow: none !important;
     transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .client-quote-print article,
+  .client-quote-print .document-header {
+    background: white !important;
+    color: #172332 !important;
+  }
+  .client-quote-print .document-header {
+    border-bottom: 2px solid #b45309;
+  }
+  .client-quote-print .document-header p {
+    color: #172332 !important;
+  }
+  .client-quote-print li,
+  .client-quote-print dl > div {
+    break-inside: avoid;
+  }
+  .client-quote-print h3 {
+    break-after: avoid;
   }
 
   .client-quote-print > button,

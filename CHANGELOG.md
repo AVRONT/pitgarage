@@ -2,6 +2,22 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Piloto v0.1.10] - 2026-09-01
+
+### Adicionado
+
+- Configurações locais de nome, CNPJ, telefone, endereço e atendimento da oficina, com armazenamento separado e ícone atual.
+- Resumo final somente leitura para serviço concluído, aguardando retirada e entregue; execução, pagamento e garantia refletem registros existentes.
+
+### Melhorado
+
+- Visão do cliente existente integrada à identificação da oficina, com título acessível.
+- Impressão de orçamento e resumo sem navegação, botões ou controles internos, com posicionamento corrigido e margens A4.
+
+### Preservado
+
+- Dados operacionais, histórico, `deletedAt`, workflow, reversões, stepper, Nova OS, cálculos e versões documentais anteriores. Sem novas dependências ou integração externa.
+
 ## [Piloto v0.1.9] - 2026-09-01
 
 ### Corrigido

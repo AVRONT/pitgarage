@@ -26,7 +26,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
-O projeto está na fase **Piloto v0.1.9**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local refina a busca e seleção da Nova OS, as mensagens de duplicidade e a hierarquia da tela operacional. Preserva o workflow seguro da v0.1.7 e a exclusão lógica da v0.1.8. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
+O projeto está na fase **Piloto v0.1.10**, ainda vinculada à **v2 — Entrada na fase piloto**. A aplicação local integra configurações da oficina à visão do cliente e oferece resumo final e impressão do atendimento. Preserva a Nova OS v0.1.9, o workflow seguro, o redesign, o stepper e a exclusão lógica. As questões pendentes continuam válidas. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
 # Documentação atual
 
@@ -48,8 +48,12 @@ O projeto está na fase **Piloto v0.1.9**, ainda vinculada à **v2 — Entrada n
 - [Confirmação e reversão segura do workflow do Piloto v0.1.7](piloto/piloto-v0.1.7.md)
 - [Entrada operacional concentrada na Nova OS do Piloto v0.1.8](piloto/piloto-v0.1.8.md)
 - [Refinamento do atendimento do Piloto v0.1.9](piloto/piloto-v0.1.9.md)
+- [Apresentação e fechamento do Piloto v0.1.10](piloto/piloto-v0.1.10.md)
 
 # Decisões atuais importantes
+
+- A v0.1.10 mantém configurações da oficina em `pitgarage-workshop-settings-v1`, separadas de `pitgarage-pilot-v012`. Não migra nem apaga dados operacionais. Documentos usam as configurações atuais, sem congelar versões por OS.
+- O resumo final é somente leitura nas três etapas finais. Valor final continua sendo a soma dos itens aprovados; execução é apresentada pelo registro `executed`, sem inferência pelo status. A garantia mantém os 30 dias e a referência demonstrativa fixa de 01/09/2026. Não há documento fiscal, link público nem aprovação real.
 
 - O histórico rastreável do veículo e da ordem de serviço é o núcleo proposto do MVP.
 - Aprovações podem ser parciais e serviços adicionais exigem nova autorização.
