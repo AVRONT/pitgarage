@@ -14,16 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_profiles: {
+        Row: {
+          access_level: Database["public"]["Enums"]["access_level"]
+          created_at: string
+          full_name: string | null
+          is_active: boolean
+          operational_role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: Database["public"]["Enums"]["access_level"]
+          created_at?: string
+          full_name?: string | null
+          is_active?: boolean
+          operational_role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: Database["public"]["Enums"]["access_level"]
+          created_at?: string
+          full_name?: string | null
+          is_active?: boolean
+          operational_role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      administer_user_profile: {
+        Args: {
+          new_access_level: Database["public"]["Enums"]["access_level"]
+          new_full_name: string
+          new_is_active: boolean
+          new_operational_role: string
+          target_user_id: string
+        }
+        Returns: {
+          access_level: Database["public"]["Enums"]["access_level"]
+          created_at: string
+          full_name: string | null
+          is_active: boolean
+          operational_role: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
-      [_ in never]: never
+      access_level: "customer" | "staff" | "admin" | "owner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +202,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      access_level: ["customer", "staff", "admin", "owner"],
+    },
   },
 } as const
