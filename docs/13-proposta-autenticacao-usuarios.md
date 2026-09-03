@@ -39,6 +39,14 @@ O UUID estável do perfil permitirá que tabelas futuras registrem campos como `
 - Falha transitória ao consultar `user_profiles` mantém a sessão e oferece nova tentativa; perfil comprovadamente ausente ou inativo continua bloqueado.
 - Recuperação de senha não foi exposta enquanto URL de redirecionamento e fluxo de definição da nova senha não estiverem configurados e testados no Supabase.
 
+### Fechamento da revisão local — 2026-09-02
+
+- A descrição acima da Área do Cliente inicial registra a etapa anterior. O runtime operacional pendente agora usa `get_my_customer`, `get_my_vehicles` e `get_my_service_orders`, sem consulta direta às tabelas internas pelo portal. Exige vínculo próprio e perfil customer ativo.
+- A migration operacional pendente restringe a leitura de outros perfis a owner; a policy de leitura da migration Auth aplicada ainda admitia admin. O arquivo histórico aplicado não foi modificado. A UI de Equipe já restringia gestão a owner; seus controles e a proteção contra promoção/rebaixamento/desativação de owner foram preservados.
+- `Continuar como...` reutiliza e-mail, não autentica por metadados. O registro de última conta aceita somente nome/e-mail/iniciais. Bloqueio de armazenamento não interrompe login. A persistência de sessão/renovação pertence ao SDK Supabase e não a tokens customizados do PitGarage.
+- Falha transitória de perfil ou da verificação durante retry não apaga a sessão. Login oferece nova tentativa de carregar perfil. Perfil realmente ausente/inativo bloqueia acesso; sessão inexistente/inválida exige autenticação novamente. Respostas antigas de perfil são invalidadas ao trocar/encerrar sessão.
+- `weak_password` continua traduzido como senha muito fraca, mantendo a validação real no Auth. Não houve teste remoto de login/revogação nesta revisão.
+
 Login passa a ser a base futura para auditoria, notificações e chat, mas esses recursos não foram implementados agora.
 
 ## Aplicação realizada e próximos passos

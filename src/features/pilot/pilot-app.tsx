@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   Bike,
@@ -769,19 +769,16 @@ export function PilotApp() {
         allCustomers={customers}
         allVehicles={vehicles}
         orders={orders}
-        onCreate={(bundle) => {
-          void repository
-            .createOrder(bundle)
-            .then((data) => {
-              setCustomers(data.customers);
-              setVehicles(data.vehicles);
-              setOrders(data.orders.map(migrateOrder));
-              const createdOrder = data.orders[0];
-              setNewOrderOpen(false);
-              setNotice("Ordem de serviço criada");
-              if (createdOrder) navigate("order", createdOrder.id);
-            })
-            .catch(() => setNotice("Não foi possível criar a OS; nenhum dado parcial foi salvo."));
+        onCreate={async (bundle) => {
+          await repository.createOrder(bundle).then((data) => {
+            setCustomers(data.customers);
+            setVehicles(data.vehicles);
+            setOrders(data.orders.map(migrateOrder));
+            const createdOrder = data.orders[0];
+            setNewOrderOpen(false);
+            setNotice("Ordem de serviço criada");
+            if (createdOrder) navigate("order", createdOrder.id);
+          });
         }}
       />
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
@@ -4032,8 +4029,10 @@ function NewOrderDialog({
     customer?: Customer | undefined;
     vehicle?: Vehicle | undefined;
     order: ServiceOrder;
-  }) => void;
+  }) => Promise<void>;
 }) {
+  const creating = useRef(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [step, setStep] = useState(0);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -4123,6 +4122,7 @@ function NewOrderDialog({
     setMileageWarningAccepted(false);
   };
   const close = () => {
+    if (creating.current) return;
     reset();
     onOpenChange(false);
   };
@@ -4229,7 +4229,8 @@ function NewOrderDialog({
     setError("");
     setStep(3);
   };
-  const createAll = () => {
+  const createAll = async () => {
+    if (creating.current) return;
     if (!selectedCustomer || !selectedVehicle) return;
     if (
       selectedVehicle.customerId !== selectedCustomer.id ||
@@ -4240,26 +4241,40 @@ function NewOrderDialog({
       return;
     }
     const orderId = nextOrderId(orders.map((order) => order.id));
-    onCreate({
-      customer: draftCustomer,
-      vehicle: draftVehicle,
-      order: {
-        id: orderId,
-        customerId: selectedCustomer.id,
-        vehicleId: selectedVehicle.id,
-        status: "Recebido",
-        openedAt: "2026-09-01",
-        entryMileage: entryMileage === "" ? selectedVehicle.mileage : Number(entryMileage),
-        complaint: complaint.trim(),
-        diagnosis: "",
-        findings: "",
-        notes: "",
-        team: [],
-        budget: [],
-        evidence: [],
-      },
-    });
-    reset();
+    creating.current = true;
+    setIsCreating(true);
+    setError("");
+    try {
+      await onCreate({
+        customer: draftCustomer,
+        vehicle: draftVehicle,
+        order: {
+          id: orderId,
+          customerId: selectedCustomer.id,
+          vehicleId: selectedVehicle.id,
+          status: "Recebido",
+          openedAt: "2026-09-01",
+          entryMileage: entryMileage === "" ? selectedVehicle.mileage : Number(entryMileage),
+          complaint: complaint.trim(),
+          diagnosis: "",
+          findings: "",
+          notes: "",
+          team: [],
+          budget: [],
+          evidence: [],
+        },
+      });
+      reset();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível confirmar a criação. Confira a lista antes de tentar novamente; seus dados preenchidos foram mantidos.",
+      );
+    } finally {
+      creating.current = false;
+      setIsCreating(false);
+    }
   };
   const stages = ["Cliente", "Veículo", "Dados da OS", "Confirmar"];
   return (
@@ -4598,12 +4613,13 @@ function NewOrderDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={close}>
+            <Button variant="outline" onClick={close} disabled={isCreating}>
               Cancelar
             </Button>
             {step > 0 && (
               <Button
                 variant="ghost"
+                disabled={isCreating}
                 onClick={() => {
                   setError("");
                   setStep((current) => current - 1);
@@ -4628,8 +4644,12 @@ function NewOrderDialog({
               </Button>
             )}
             {step === 3 && (
-              <Button className="bg-orange-500 hover:bg-orange-600" onClick={createAll}>
-                Criar ordem de serviço
+              <Button
+                className="bg-orange-500 hover:bg-orange-600"
+                onClick={() => void createAll()}
+                disabled={isCreating}
+              >
+                {isCreating ? "Salvando…" : "Criar ordem de serviço"}
               </Button>
             )}
           </DialogFooter>

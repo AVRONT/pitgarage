@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -95,7 +96,7 @@ function readRememberedAccount(): RememberedAccount | null {
     return typeof candidate["name"] === "string" &&
       typeof candidate["email"] === "string" &&
       typeof candidate["initials"] === "string"
-      ? (candidate as unknown as RememberedAccount)
+      ? { name: candidate["name"], email: candidate["email"], initials: candidate["initials"] }
       : null;
   } catch {
     return null;
@@ -144,6 +145,7 @@ function translateRegistrationError(message: string, code?: string) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const profileRequest = useRef(0);
   const [user, setUser] = useState<User | null>(null);
   const [identity, setIdentity] = useState<AuthIdentity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -153,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const clearAuth = useCallback((nextMessage: string | null = null) => {
+    profileRequest.current += 1;
     setUser(null);
     setIdentity(null);
     setMessage(nextMessage);
@@ -161,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadAuthenticatedIdentity = useCallback(
     async (nextUser: User): Promise<LoginResult> => {
+      const request = ++profileRequest.current;
       const { data, error } = await supabase
         .from("user_profiles")
         .select(
@@ -168,6 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         )
         .eq("user_id", nextUser.id)
         .maybeSingle();
+
+      if (request !== profileRequest.current)
+        return { ok: false, message: "Verificação substituída por uma sessão mais recente." };
 
       if (error) {
         if (import.meta.env.DEV) console.error("Falha temporária ao carregar perfil", error);
@@ -210,7 +217,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (nextUser.email) {
         const name = profile.full_name ?? nextUser.email.split("@")[0] ?? nextUser.email;
         const remembered = { name, email: nextUser.email, initials: initialsFor(name) };
-        localStorage.setItem(rememberedAccountKey, JSON.stringify(remembered));
+        try {
+          localStorage.setItem(rememberedAccountKey, JSON.stringify(remembered));
+        } catch {
+          /* Optional device hint must not break authentication. */
+        }
         setRememberedAccount(remembered);
       }
       return { ok: true, accessLevel: profile.access_level };
@@ -220,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    let authEvent = 0;
 
     if (isLocalDevelopmentHost()) {
       setIdentity(localIdentity);
@@ -230,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     void supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
+      if (!active || authEvent > 0) return;
       if (error) {
         if (import.meta.env.DEV) console.error("Falha ao restaurar sessão", error);
         setMessage("Não foi possível verificar sua sessão agora. Tente novamente.");
@@ -246,17 +258,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
+      const event = ++authEvent;
+      profileRequest.current += 1;
       if (!session?.user) {
         clearAuth();
         return;
       }
-      queueMicrotask(() => {
-        if (active) void loadAuthenticatedIdentity(session.user);
-      });
+      setTimeout(() => {
+        if (active && event === authEvent) void loadAuthenticatedIdentity(session.user);
+      }, 0);
     });
 
     return () => {
       active = false;
+      profileRequest.current += 1;
       listener.subscription.unsubscribe();
     };
   }, [clearAuth, loadAuthenticatedIdentity]);
@@ -317,20 +332,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    profileRequest.current += 1;
     setIsLoading(true);
     if (!identity?.isLocalBypass) await supabase.auth.signOut();
     clearAuth();
   }, [clearAuth, identity]);
 
   const retryProfile = useCallback(async () => {
+    const request = ++profileRequest.current;
+    setIsLoading(true);
     const { data, error } = await supabase.auth.getUser();
+    if (request !== profileRequest.current) return;
+    if (
+      error &&
+      ![401, 403].includes(error.status ?? 0) &&
+      error.name !== "AuthSessionMissingError"
+    ) {
+      setMessage("Não foi possível verificar sua sessão agora. Tente novamente.");
+      setIsLoading(false);
+      return;
+    }
     if (error || !data.user)
       return clearAuth("Sua sessão não está mais disponível. Entre novamente.");
     await loadAuthenticatedIdentity(data.user);
   }, [clearAuth, loadAuthenticatedIdentity]);
 
   const forgetRememberedAccount = useCallback(() => {
-    localStorage.removeItem(rememberedAccountKey);
+    try {
+      localStorage.removeItem(rememberedAccountKey);
+    } catch {
+      /* Storage may be blocked. */
+    }
     setRememberedAccount(null);
   }, []);
 

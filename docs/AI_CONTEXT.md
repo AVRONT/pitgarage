@@ -32,6 +32,8 @@ A base de Supabase Auth está aplicada no Lovable Cloud com perfis e níveis `cu
 
 A primeira base operacional Supabase está implementada no repositório, mas sua nova migration `20260902230000_create_operational_base.sql` **ainda não foi aplicada remotamente**. Ela prepara clientes, veículos, OS, vínculo opcional conta-cliente, RLS, RPC transacional da Nova OS, portal seguro do cliente e consulta mínima de equipe. Usuários reais usam o repositório cloud; `Admin Local` usa adapter separado, vazio e sem `service_role`. As fixtures e `pitgarage-pilot-v012` não são apagadas, porém deixam de carregar como fonte real; o backup JSON legado não protege cloud. Consultar [a base operacional](14-base-operacional-supabase.md) antes de qualquer publicação.
 
+Revisão final local de 2026-09-02: a migration operacional pendente recebeu fechamento de grants, acesso ao portal por projeções mínimas e perfil ativo, listagem de perfis exclusiva do owner (além do próprio perfil), vínculo sem ambiguidade e proteções da transação de Nova OS. O formulário aguarda a gravação sem descartar rascunhos em erro; Auth preserva sessão em falhas transitórias e ignora respostas de perfil desatualizadas. A migration Auth aplicada e o bootstrap não foram alterados nem repetidos. Isso é revisão estática/local, não validação remota de RLS: os testes obrigatórios e a próxima ação manual estão em [base operacional](14-base-operacional-supabase.md#fechamento-da-revisão-local--2026-09-02). Não publicar o runtime cloud antes dessa validação.
+
 # Documentação atual
 
 - [Visão e processo atual](README.md#documentos)

@@ -149,7 +149,7 @@ class CloudOperationalRepository implements OperationalRepository {
   }
 
   async createOrder(bundle: NewOrderBundle) {
-    const { error } = await supabase.rpc("create_service_order_atomic", {
+    const { data: created, error } = await supabase.rpc("create_service_order_atomic", {
       existing_customer_id: bundle.customer ? null : bundle.order.customerId,
       new_customer: bundle.customer ? asJson(bundle.customer) : null,
       existing_vehicle_id: bundle.vehicle ? null : bundle.order.vehicleId,
@@ -160,7 +160,21 @@ class CloudOperationalRepository implements OperationalRepository {
       }),
     });
     if (error) throw error;
-    return this.load();
+    try {
+      const data = await this.load();
+      // Another operator may have created a newer OS while the list was loading.
+      return {
+        ...data,
+        orders: [
+          mapOrder(created),
+          ...data.orders.filter((order) => order.databaseId !== created.id),
+        ],
+      };
+    } catch {
+      throw new Error(
+        `OS-${created.order_number} foi criada, mas a lista não pôde ser atualizada. Recarregue antes de criar outra OS.`,
+      );
+    }
   }
 
   async saveOrder(order: ServiceOrder) {
@@ -290,28 +304,34 @@ class LocalOperationalRepository implements OperationalRepository {
   }
 }
 
-export const createOperationalRepository = (localBypass: boolean): OperationalRepository =>
-  localBypass ? new LocalOperationalRepository() : new CloudOperationalRepository();
+export const createOperationalRepository = (localBypass: boolean): OperationalRepository => {
+  if (
+    localBypass &&
+    (!import.meta.env.DEV ||
+      typeof window === "undefined" ||
+      !["localhost", "127.0.0.1"].includes(window.location.hostname))
+  ) {
+    throw new Error("Adapter local disponível somente em desenvolvimento local.");
+  }
+  return localBypass ? new LocalOperationalRepository() : new CloudOperationalRepository();
+};
 
 export async function loadCustomerPortal() {
   const { error: linkError } = await supabase.rpc("try_link_my_customer");
   if (linkError) throw linkError;
-  const { data: customers, error: customerError } = await supabase
-    .from("customers")
-    .select("*")
-    .limit(1);
+  const { data: customers, error: customerError } = await supabase.rpc("get_my_customer");
   if (customerError) throw customerError;
   const customerRow = customers?.[0];
   if (!customerRow) return null;
   const [vehiclesResult, ordersResult] = await Promise.all([
-    supabase.from("vehicles").select("*").eq("customer_id", customerRow.id),
+    supabase.rpc("get_my_vehicles"),
     supabase.rpc("get_my_service_orders"),
   ]);
   const error = vehiclesResult.error ?? ordersResult.error;
   if (error) throw error;
   return {
-    customer: mapCustomer(customerRow),
-    vehicles: (vehiclesResult.data ?? []).map(mapVehicle),
+    customer: mapCustomer({ ...customerRow, auth_user_id: null, deleted_at: null }),
+    vehicles: (vehiclesResult.data ?? []).map((row) => mapVehicle({ ...row, deleted_at: null })),
     orders: (ordersResult.data ?? []).map((row) => ({
       id: `OS-${row.order_number}`,
       databaseId: row.id,

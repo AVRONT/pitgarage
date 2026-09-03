@@ -2,6 +2,14 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Fechamento da revisão operacional/Auth — somente local] - 2026-09-02
+
+- Revisada a migration operacional ainda não aplicada: transação de aplicação, grants restritos, proteção do vínculo Auth, índices/constraints e portal por RPCs de campos permitidos, exigindo perfil customer ativo.
+- Listagem de outros perfis reservada ao owner na migration pendente; arquivo histórico da migration Auth e bootstrap permanecem intocados.
+- Corrigidos retry transitório de sessão, respostas de perfil desatualizadas e tolerância a bloqueio do armazenamento de última conta, limitado a nome/e-mail/iniciais.
+- Nova OS aguarda confirmação de gravação, mantém rascunhos em erro, bloqueia duplo envio simultâneo e abre a OS efetivamente retornada pela RPC. Falha de atualização da lista após sucesso informa que a OS já foi criada.
+- Validado localmente sem banco remoto; matriz de testes pós-aplicação e limitações registradas na documentação operacional. Histórico, fixtures legadas e localStorage real não foram apagados. Sem commit/push ou aplicação de SQL remoto.
+
 ## [Primeira base operacional Supabase — não aplicada] - 2026-09-02
 
 - Criada migration separada para clientes, veículos e OS, com UUIDs, numeração segura, exclusão lógica, JSONB para estruturas internas, RLS e RPC transacional da Nova OS.

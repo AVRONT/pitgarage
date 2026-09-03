@@ -241,6 +241,31 @@ export type Database = {
           vehicle_id: string;
         }[];
       };
+      get_my_customer: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          name: string;
+          phone: string;
+          email: string;
+          cpf: string | null;
+          since: string;
+        }[];
+      };
+      get_my_vehicles: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          customer_id: string;
+          kind: string;
+          brand: string;
+          model: string;
+          year: number;
+          plate: string;
+          mileage: number;
+          color: string;
+        }[];
+      };
       try_link_my_customer: {
         Args: Record<PropertyKey, never>;
         Returns: string | null;

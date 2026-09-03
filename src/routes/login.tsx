@@ -20,6 +20,8 @@ function LoginPage() {
     message,
     register,
     rememberedAccount,
+    retryProfile,
+    user,
     resumeLocalAccess,
   } = useAuth();
   const navigate = useNavigate();
@@ -123,6 +125,17 @@ function LoginPage() {
           >
             {formMessage ?? message}
           </div>
+        )}
+
+        {user && !identity && (
+          <Button
+            type="button"
+            variant="outline"
+            className="mb-5 w-full"
+            onClick={() => void retryProfile()}
+          >
+            Tentar carregar perfil novamente
+          </Button>
         )}
 
         {!isRegistering && rememberedAccount && (
