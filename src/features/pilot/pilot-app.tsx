@@ -1974,6 +1974,7 @@ function OrderDetail({
           }
           if (index > workflow.currentIndex) {
             const target = orderStatuses[index];
+            if (!target) return;
             const missing = getStatusPrerequisites(order, target);
             setFutureMessage(
               missing.length
