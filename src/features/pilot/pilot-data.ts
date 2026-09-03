@@ -82,7 +82,7 @@ export interface ServiceOrder {
   vehicleId: string;
   status: OrderStatus;
   openedAt: string;
-  completedAt?: string;
+  completedAt?: string | undefined;
   workshopSnapshot?: {
     name: string;
     legalName: string;
@@ -100,7 +100,7 @@ export interface ServiceOrder {
   team: string[];
   budget: BudgetItem[];
   evidence: Evidence[];
-  payment?: Payment;
+  payment?: Payment | undefined;
   statusHistory?: StatusHistoryEntry[];
   activities?: OrderActivity[];
   updatedAt?: string;
