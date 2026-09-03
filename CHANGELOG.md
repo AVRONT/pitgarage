@@ -2,6 +2,15 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Primeira base operacional Supabase — não aplicada] - 2026-09-02
+
+- Criada migration separada para clientes, veículos e OS, com UUIDs, numeração segura, exclusão lógica, JSONB para estruturas internas, RLS e RPC transacional da Nova OS.
+- Conta Auth e cadastro comercial permanecem independentes; vínculo opcional usa e-mail confirmado e normalizado nos dois sentidos, sem acesso frontend a `auth.users`.
+- Área do Cliente consulta somente cadastro, veículos e resumo sanitizado das próprias OS; Configurações recebe gestão de equipe exclusiva do owner.
+- Runtime interno passa a usar repositório Supabase para usuários reais e adapter local vazio para `Admin Local`; fixtures e storage legado deixam de carregar automaticamente sem serem apagados.
+- Última conta guarda apenas nome/e-mail/iniciais, e falhas transitórias de perfil preservam a sessão. Mensagem `weak_password` permanece tratada em PT-BR.
+- Backup JSON é identificado como legado/local e não aparenta proteger dados cloud. Nenhuma migration foi aplicada remotamente nesta rodada.
+
 ## [Aplicação da base de autenticação no Lovable Cloud] - 2026-09-02
 
 - Migration `20260902190000_prepare_auth_user_profiles.sql` aplicada no Supabase do Lovable Cloud; o trigger foi validado criando perfil `customer` ativo e o usuário de teste foi removido.

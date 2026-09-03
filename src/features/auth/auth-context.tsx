@@ -31,6 +31,12 @@ export interface AuthIdentity {
   isLocalBypass: boolean;
 }
 
+export interface RememberedAccount {
+  name: string;
+  email: string;
+  initials: string;
+}
+
 type LoginResult = { ok: true; accessLevel: AccessLevel } | { ok: false; message: string };
 type RegisterResult =
   | { ok: true; requiresEmailConfirmation: boolean; accessLevel?: AccessLevel }
@@ -44,9 +50,12 @@ interface AuthContextValue {
   isLocalBypass: boolean;
   isLoading: boolean;
   message: string | null;
+  rememberedAccount: RememberedAccount | null;
   login: (email: string, password: string) => Promise<LoginResult>;
   register: (fullName: string, email: string, password: string) => Promise<RegisterResult>;
   logout: () => Promise<void>;
+  retryProfile: () => Promise<void>;
+  forgetRememberedAccount: () => void;
   resumeLocalAccess: () => void;
 }
 
@@ -67,6 +76,31 @@ const localIdentity: AuthIdentity = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const rememberedAccountKey = "pitgarage-last-account-v1";
+
+const initialsFor = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase("pt-BR"))
+    .join("");
+
+function readRememberedAccount(): RememberedAccount | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = JSON.parse(localStorage.getItem(rememberedAccountKey) ?? "null") as unknown;
+    if (!value || typeof value !== "object") return null;
+    const candidate = value as Record<string, unknown>;
+    return typeof candidate["name"] === "string" &&
+      typeof candidate["email"] === "string" &&
+      typeof candidate["initials"] === "string"
+      ? (candidate as unknown as RememberedAccount)
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function isLocalDevelopmentHost() {
   if (!import.meta.env.DEV || typeof window === "undefined") return false;
@@ -88,9 +122,12 @@ function translateAuthError(message: string) {
   return "Não foi possível entrar. Verifique os dados e tente novamente.";
 }
 
-function translateRegistrationError(message: string) {
+function translateRegistrationError(message: string, code?: string) {
   const normalized = message.toLocaleLowerCase("en-US");
 
+  if (code === "weak_password" || normalized.includes("weak_password")) {
+    return "Senha muito fraca. Use uma combinação menos previsível de letras, números e símbolos.";
+  }
   if (normalized.includes("already registered") || normalized.includes("already been registered")) {
     return "Este e-mail já possui cadastro. Tente entrar na sua conta.";
   }
@@ -111,6 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<AuthIdentity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [rememberedAccount, setRememberedAccount] = useState<RememberedAccount | null>(
+    readRememberedAccount,
+  );
 
   const clearAuth = useCallback((nextMessage: string | null = null) => {
     setUser(null);
@@ -129,7 +169,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", nextUser.id)
         .maybeSingle();
 
-      if (error || !data) {
+      if (error) {
+        if (import.meta.env.DEV) console.error("Falha temporária ao carregar perfil", error);
+        setUser(nextUser);
+        setIdentity(null);
+        setMessage(
+          "Não foi possível carregar seu perfil agora. Sua sessão foi mantida; tente novamente.",
+        );
+        setIsLoading(false);
+        return { ok: false, message: "Não foi possível carregar seu perfil agora." };
+      }
+
+      if (!data) {
         await supabase.auth.signOut();
         const nextMessage =
           "Sua conta ainda não possui um perfil no PitGarage. Procure o responsável pela oficina.";
@@ -156,6 +207,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setMessage(null);
       setIsLoading(false);
+      if (nextUser.email) {
+        const name = profile.full_name ?? nextUser.email.split("@")[0] ?? nextUser.email;
+        const remembered = { name, email: nextUser.email, initials: initialsFor(name) };
+        localStorage.setItem(rememberedAccountKey, JSON.stringify(remembered));
+        setRememberedAccount(remembered);
+      }
       return { ok: true, accessLevel: profile.access_level };
     },
     [clearAuth],
@@ -174,7 +231,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
-      if (error || !data.session?.user) {
+      if (error) {
+        if (import.meta.env.DEV) console.error("Falha ao restaurar sessão", error);
+        setMessage("Não foi possível verificar sua sessão agora. Tente novamente.");
+        setIsLoading(false);
+        return;
+      }
+      if (!data.session?.user) {
         clearAuth();
         return;
       }
@@ -226,10 +289,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error || !data.user || data.user.identities?.length === 0) {
+        if (error && import.meta.env.DEV) {
+          console.error("Falha no cadastro Supabase", { code: error.code, message: error.message });
+        }
         const nextMessage =
           data.user?.identities?.length === 0
             ? "Este e-mail já possui cadastro. Tente entrar na sua conta."
-            : translateRegistrationError(error?.message ?? "");
+            : translateRegistrationError(error?.message ?? "", error?.code);
         clearAuth(nextMessage);
         return { ok: false, message: nextMessage };
       }
@@ -256,6 +322,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuth();
   }, [clearAuth, identity]);
 
+  const retryProfile = useCallback(async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user)
+      return clearAuth("Sua sessão não está mais disponível. Entre novamente.");
+    await loadAuthenticatedIdentity(data.user);
+  }, [clearAuth, loadAuthenticatedIdentity]);
+
+  const forgetRememberedAccount = useCallback(() => {
+    localStorage.removeItem(rememberedAccountKey);
+    setRememberedAccount(null);
+  }, []);
+
   const resumeLocalAccess = useCallback(() => {
     if (!isLocalDevelopmentHost()) return;
     setUser(null);
@@ -273,12 +351,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLocalBypass: identity?.isLocalBypass ?? false,
       isLoading,
       message,
+      rememberedAccount,
       login,
       register,
       logout,
+      retryProfile,
+      forgetRememberedAccount,
       resumeLocalAccess,
     }),
-    [identity, isLoading, login, logout, message, register, resumeLocalAccess, user],
+    [
+      forgetRememberedAccount,
+      identity,
+      isLoading,
+      login,
+      logout,
+      message,
+      register,
+      rememberedAccount,
+      resumeLocalAccess,
+      retryProfile,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

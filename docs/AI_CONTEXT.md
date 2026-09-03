@@ -28,7 +28,9 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 O projeto está na fase **Piloto v0.1.15 — segurança e consistência histórica local**, ainda vinculada à **v2 — Entrada na fase piloto**. Documentos de uma OS passam a congelar os dados da oficina na conclusão guiada do serviço, com fallback para configurações atuais em registros antigos. Configurações oferecem exportação e importação validada de backup JSON completo do piloto, e os registros persistidos passam a declarar versão de schema sem exigir reset. A identidade clara da v0.1.14, Nova OS, workflow, stepper, regressões, exclusão lógica e demais regras permanecem intactos. As regras de fechamento e documentos continuam demonstrativas e sujeitas à validação. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
-A base de Supabase Auth está aplicada no Lovable Cloud com perfis e níveis `customer`, `staff`, `admin` e `owner`. A migration `20260902190000_prepare_auth_user_profiles.sql` e o bootstrap único do primeiro owner já foram executados; Salomão está ativo como `owner`, com cargo `Proprietário`, e o bootstrap não deve ser repetido. Novas contas podem ser criadas em `/login`, nascem como `customer` ativas e usam somente `/cliente`; o sistema interno exige `staff`, `admin` ou `owner`, e somente `owner` pode alterar `access_level`. O trigger de criação automática de perfil foi testado e o usuário usado no teste foi removido. O runtime mantém sessão, logout, proteção por área, indicador da equipe e bypass `Admin Local` restrito a desenvolvimento em localhost. Os dados operacionais continuam exclusivamente no `localStorage`, não foram migrados para o Supabase e não são expostos ao cliente. As regras de negócio mais amplas continuam sujeitas à validação; consultar [o histórico e estado da autenticação](13-proposta-autenticacao-usuarios.md).
+A base de Supabase Auth está aplicada no Lovable Cloud com perfis e níveis `customer`, `staff`, `admin` e `owner`. A migration `20260902190000_prepare_auth_user_profiles.sql` e o bootstrap único do primeiro owner já foram executados; Salomão está ativo como `owner`, com cargo `Proprietário`, e o bootstrap não deve ser repetido. Novas contas podem ser criadas em `/login`, nascem como `customer` ativas e usam somente `/cliente`; o sistema interno exige `staff`, `admin` ou `owner`, e somente `owner` pode alterar `access_level`. O runtime mantém sessão, logout, proteção por área, indicador da equipe e bypass `Admin Local` restrito a desenvolvimento em localhost.
+
+A primeira base operacional Supabase está implementada no repositório, mas sua nova migration `20260902230000_create_operational_base.sql` **ainda não foi aplicada remotamente**. Ela prepara clientes, veículos, OS, vínculo opcional conta-cliente, RLS, RPC transacional da Nova OS, portal seguro do cliente e consulta mínima de equipe. Usuários reais usam o repositório cloud; `Admin Local` usa adapter separado, vazio e sem `service_role`. As fixtures e `pitgarage-pilot-v012` não são apagadas, porém deixam de carregar como fonte real; o backup JSON legado não protege cloud. Consultar [a base operacional](14-base-operacional-supabase.md) antes de qualquer publicação.
 
 # Documentação atual
 
@@ -38,6 +40,7 @@ A base de Supabase Auth está aplicada no Lovable Cloud com perfis e níveis `cu
 - [Regras de negócio](06-regras-de-negocio.md)
 - [Perfis e permissões](07-perfis-e-permissoes.md)
 - [Proposta de MVP](08-mvp.md)
+- [Base operacional Supabase](14-base-operacional-supabase.md)
 - [Roadmap proposto](09-roadmap.md)
 - [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
 - [Escopo e limitações do Piloto v0.1](piloto/piloto-v0.1.md)

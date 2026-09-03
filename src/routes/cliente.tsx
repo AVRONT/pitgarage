@@ -1,9 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LogOut, UserRound, Wrench } from "lucide-react";
+import { CarFront, ClipboardList, LoaderCircle, LogOut, UserRound, Wrench } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { CustomerAuthGuard } from "@/features/auth/auth-guard";
+import { loadCustomerPortal } from "@/features/pilot/operational-repository";
+import type { Customer, ServiceOrder, Vehicle } from "@/features/pilot/pilot-data";
 
 export const Route = createFileRoute("/cliente")({
   component: CustomerRoute,
@@ -20,6 +23,21 @@ function CustomerRoute() {
 function CustomerArea() {
   const { identity, logout } = useAuth();
   const navigate = useNavigate();
+  const [portal, setPortal] = useState<{
+    customer: Customer;
+    vehicles: Vehicle[];
+    orders: ServiceOrder[];
+  } | null>();
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    void loadCustomerPortal()
+      .then(setPortal)
+      .catch(() => {
+        setLoadError("Não foi possível carregar seus dados agora. Tente novamente mais tarde.");
+        setPortal(null);
+      });
+  }, []);
   if (!identity) return null;
 
   const name = identity.profile.full_name ?? identity.email?.split("@")[0] ?? "Cliente";
@@ -47,11 +65,52 @@ function CustomerArea() {
             <UserRound className="h-7 w-7" />
           </span>
           <h1 className="mt-4 text-2xl font-semibold tracking-tight">Área do Cliente</h1>
-          <p className="mt-3 font-medium">{name}</p>
+          <p className="mt-3 font-medium">{portal?.customer.name ?? name}</p>
           {identity.email && <p className="text-sm text-muted-foreground">{identity.email}</p>}
-          <p className="mx-auto mt-6 max-w-md text-sm leading-6 text-muted-foreground">
-            Seus veículos e serviços aparecerão aqui futuramente.
-          </p>
+          {portal === undefined ? (
+            <LoaderCircle className="mx-auto mt-6 h-5 w-5 animate-spin text-primary" />
+          ) : loadError ? (
+            <p className="mx-auto mt-6 max-w-md text-sm text-red-700">{loadError}</p>
+          ) : !portal ? (
+            <p className="mx-auto mt-6 max-w-md text-sm leading-6 text-muted-foreground">
+              Quando sua oficina vincular seu cadastro, seus veículos e serviços aparecerão aqui.
+            </p>
+          ) : (
+            <div className="mt-7 grid gap-4 text-left sm:grid-cols-2">
+              <section className="rounded-md border p-4">
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <CarFront className="h-4 w-4" /> Veículos
+                </h2>
+                <div className="mt-3 space-y-2 text-sm">
+                  {portal.vehicles.length ? (
+                    portal.vehicles.map((vehicle) => (
+                      <p key={vehicle.id}>
+                        {vehicle.brand} {vehicle.model} · {vehicle.plate}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">Nenhum veículo vinculado.</p>
+                  )}
+                </div>
+              </section>
+              <section className="rounded-md border p-4">
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <ClipboardList className="h-4 w-4" /> Serviços
+                </h2>
+                <div className="mt-3 space-y-2 text-sm">
+                  {portal.orders.length ? (
+                    portal.orders.map((order) => (
+                      <p key={order.id}>
+                        {order.id} · {order.status}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">Nenhuma ordem de serviço vinculada.</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
         </div>
 
         <Button type="button" variant="outline" className="w-full" onClick={handleLogout}>

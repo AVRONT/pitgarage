@@ -11,8 +11,17 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { identity, isLoading, isLocalBypass, login, message, register, resumeLocalAccess } =
-    useAuth();
+  const {
+    forgetRememberedAccount,
+    identity,
+    isLoading,
+    isLocalBypass,
+    login,
+    message,
+    register,
+    rememberedAccount,
+    resumeLocalAccess,
+  } = useAuth();
   const navigate = useNavigate();
   const [isRegistering, setIsRegistering] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -116,6 +125,42 @@ function LoginPage() {
           </div>
         )}
 
+        {!isRegistering && rememberedAccount && (
+          <div className="mb-5 rounded-md border bg-slate-50 p-4">
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 text-left"
+              onClick={() => setEmail(rememberedAccount.email)}
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-primary font-semibold text-primary-foreground">
+                {rememberedAccount.initials}
+              </span>
+              <span>
+                <strong className="block text-sm">Continuar como {rememberedAccount.name}</strong>
+                <span className="text-xs text-muted-foreground">{rememberedAccount.email}</span>
+              </span>
+            </button>
+            <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0"
+                onClick={() => setEmail("")}
+              >
+                Usar outra conta
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-muted-foreground"
+                onClick={forgetRememberedAccount}
+              >
+                Esquecer esta conta neste dispositivo
+              </Button>
+            </div>
+          </div>
+        )}
+
         <form className="space-y-4" onSubmit={handleSubmit}>
           {isRegistering && (
             <label className="block text-sm font-medium" htmlFor="full-name">
@@ -156,6 +201,7 @@ function LoginPage() {
               name="password"
               type="password"
               autoComplete={isRegistering ? "new-password" : "current-password"}
+              aria-describedby={isRegistering ? "strong-password-guidance" : undefined}
               required
               minLength={6}
               value={password}
@@ -163,6 +209,14 @@ function LoginPage() {
               className="mt-1.5 h-11"
               placeholder="Digite sua senha"
             />
+            {isRegistering && (
+              <span
+                id="strong-password-guidance"
+                className="mt-1.5 block text-xs font-normal leading-5 text-muted-foreground"
+              >
+                Use uma combinação menos previsível de letras, números e símbolos.
+              </span>
+            )}
           </label>
           {isRegistering && (
             <label className="block text-sm font-medium" htmlFor="password-confirmation">

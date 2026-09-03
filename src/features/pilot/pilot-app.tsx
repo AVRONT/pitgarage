@@ -63,24 +63,16 @@ import {
 } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/features/auth/auth-context";
+import { TeamSettings } from "@/features/auth/team-settings";
+import { UserMenu } from "@/features/auth/user-menu";
 import { cn } from "@/lib/utils";
 import { WorkshopSettings } from "./workshop-settings";
-import { PilotBackupSettings } from "./pilot-backup-settings";
 import { WorkshopIdentity } from "./workshop-document-header";
 import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
-import {
-  createPilotRecord,
-  persistImportedBackup,
-  pilotStorageKey,
-  type PilotBackup,
-} from "./pilot-storage";
 import { FinalOrderSummary } from "./final-order-summary";
-import { UserMenu } from "@/features/auth/user-menu";
 import {
   formatDate,
-  initialCustomers,
-  initialOrders,
-  initialVehicles,
   logicallyDeleteCustomer,
   logicallyDeleteVehicle,
   money,
@@ -91,6 +83,7 @@ import {
   type ServiceOrder,
   type Vehicle,
 } from "./pilot-data";
+import { createOperationalRepository } from "./operational-repository";
 import {
   isBasicCpfValid,
   isBasicEmailValid,
@@ -343,13 +336,17 @@ function EmptyState({ title, text }: { title: string; text: string }) {
 }
 
 export function PilotApp() {
+  const { isLocalBypass } = useAuth();
+  const repository = useMemo(() => createOperationalRepository(isLocalBypass), [isLocalBypass]);
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [selectedCustomerId, setSelectedCustomerId] = useState("c1");
-  const [selectedVehicleId, setSelectedVehicleId] = useState("v1");
-  const [selectedOrderId, setSelectedOrderId] = useState("OS-1048");
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-  const [orders, setOrders] = useState<ServiceOrder[]>(initialOrders.map(migrateOrder));
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
@@ -364,33 +361,31 @@ export function PilotApp() {
   }, []);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(pilotStorageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved) as {
-          customers?: Customer[];
-          vehicles?: Vehicle[];
-          orders?: ServiceOrder[];
-        };
-        if (parsed.customers) setCustomers(parsed.customers);
-        if (parsed.vehicles) setVehicles(parsed.vehicles);
-        if (parsed.orders) setOrders(parsed.orders.map(migrateOrder));
-      }
-    } catch {
-      /* demonstração continua com dados iniciais */
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        pilotStorageKey,
-        JSON.stringify(createPilotRecord({ customers, vehicles, orders })),
-      );
-    } catch {
-      /* armazenamento local opcional */
-    }
-  }, [customers, vehicles, orders]);
+    let active = true;
+    setDataLoading(true);
+    setDataError("");
+    void repository
+      .load()
+      .then((data) => {
+        if (!active) return;
+        setCustomers(data.customers);
+        setVehicles(data.vehicles);
+        setOrders(data.orders.map(migrateOrder));
+        setSelectedCustomerId(data.customers[0]?.id ?? "");
+        setSelectedVehicleId(data.vehicles[0]?.id ?? "");
+        setSelectedOrderId(data.orders[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (active)
+          setDataError("Não foi possível carregar os dados operacionais. Tente novamente.");
+      })
+      .finally(() => {
+        if (active) setDataLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [repository]);
 
   useEffect(() => {
     if (!notice) return;
@@ -419,7 +414,18 @@ export function PilotApp() {
       activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
   );
   const updateOrder = (id: string, updater: OrderUpdater) =>
-    setOrders((current) => current.map((order) => (order.id === id ? updater(order) : order)));
+    setOrders((current) =>
+      current.map((order) => {
+        if (order.id !== id) return order;
+        const updated = updater(order);
+        void repository
+          .saveOrder(updated)
+          .catch(() =>
+            setNotice("A alteração não foi salva. Recarregue os dados antes de continuar."),
+          );
+        return updated;
+      }),
+    );
 
   const globalResults = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
@@ -452,6 +458,25 @@ export function PilotApp() {
     return [...orderResults, ...customerResults, ...vehicleResults].slice(0, 6);
   }, [query, activeVehicles, activeCustomers, customers, orders]);
 
+  if (dataLoading) {
+    return (
+      <main className="grid min-h-screen place-items-center">Carregando dados operacionais…</main>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <main className="grid min-h-screen place-items-center px-4 text-center">
+        <div>
+          <p className="font-semibold">{dataError}</p>
+          <Button className="mt-4" onClick={() => window.location.reload()}>
+            Tentar novamente
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <div className="pilot-shell min-h-screen bg-[#f4f3ef]">
       <Sidebar
@@ -460,6 +485,7 @@ export function PilotApp() {
         onClose={() => setMenuOpen(false)}
         onNavigate={navigate}
         onReset={() => setResetOpen(true)}
+        showDevelopmentTools={isLocalBypass}
       />
       {menuOpen && (
         <button
@@ -593,31 +619,15 @@ export function PilotApp() {
                 workshop={workshop}
                 onSave={setWorkshop}
               />
-              <PilotBackupSettings
-                customers={customers}
-                vehicles={vehicles}
-                orders={orders}
-                workshop={workshop}
-                onImport={(backup: PilotBackup) => {
-                  try {
-                    persistImportedBackup(backup);
-                    setCustomers(backup.data.customers);
-                    setVehicles(backup.data.vehicles);
-                    setOrders(backup.data.orders.map(migrateOrder));
-                    setWorkshop(backup.workshop);
-                    setSelectedCustomerId(backup.data.customers[0]?.id ?? "");
-                    setSelectedVehicleId(backup.data.vehicles[0]?.id ?? "");
-                    setSelectedOrderId(backup.data.orders[0]?.id ?? "");
-                    setNotice("Backup importado com sucesso");
-                    return true;
-                  } catch {
-                    setNotice(
-                      "Não foi possível gravar o backup; os dados anteriores foram preservados",
-                    );
-                    return false;
-                  }
-                }}
-              />
+              <section className="mt-7 rounded-lg border bg-white p-5 sm:p-6">
+                <h2 className="font-semibold">Backup dos dados operacionais</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {isLocalBypass
+                    ? "Este ambiente usa dados locais de desenvolvimento isolados. O backup legado do piloto não é carregado automaticamente."
+                    : "O backup JSON legado não inclui nem protege clientes, veículos ou ordens armazenados no Supabase. Backup cloud ainda não está disponível."}
+                </p>
+              </section>
+              <TeamSettings />
             </>
           )}
           {screen === "dashboard" && (
@@ -674,6 +684,9 @@ export function PilotApp() {
                 );
                 setCustomers(deleted.customers);
                 setVehicles(deleted.vehicles);
+                void repository
+                  .deleteCustomer(selectedCustomerId, at)
+                  .catch(() => setNotice("Não foi possível remover o cliente."));
                 setNotice("Cliente e veículos vinculados removidos das áreas operacionais");
                 navigate("customers");
               }}
@@ -695,6 +708,9 @@ export function PilotApp() {
               onDelete={() => {
                 const at = orderTimestamp();
                 setVehicles((current) => logicallyDeleteVehicle(current, selectedVehicleId, at));
+                void repository
+                  .deleteVehicle(selectedVehicleId, at)
+                  .catch(() => setNotice("Não foi possível remover o veículo."));
                 setNotice("Veículo removido das áreas operacionais; histórico preservado");
                 navigate("vehicles");
               }}
@@ -753,22 +769,28 @@ export function PilotApp() {
         allCustomers={customers}
         allVehicles={vehicles}
         orders={orders}
-        onCreate={({ customer, vehicle, order }) => {
-          if (customer) setCustomers((current) => [...current, customer]);
-          if (vehicle) setVehicles((current) => [...current, vehicle]);
-          setOrders((current) => [migrateOrder(order), ...current]);
-          setNewOrderOpen(false);
-          setNotice("Ordem de serviço criada");
-          navigate("order", order.id);
+        onCreate={(bundle) => {
+          void repository
+            .createOrder(bundle)
+            .then((data) => {
+              setCustomers(data.customers);
+              setVehicles(data.vehicles);
+              setOrders(data.orders.map(migrateOrder));
+              const createdOrder = data.orders[0];
+              setNewOrderOpen(false);
+              setNotice("Ordem de serviço criada");
+              if (createdOrder) navigate("order", createdOrder.id);
+            })
+            .catch(() => setNotice("Não foi possível criar a OS; nenhum dado parcial foi salvo."));
         }}
       />
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Restaurar dados de demonstração?</DialogTitle>
+            <DialogTitle>Limpar dados locais de desenvolvimento?</DialogTitle>
             <DialogDescription>
-              Clientes, ordens e alterações feitas neste navegador voltarão ao cenário original do
-              Piloto v0.1.15.
+              Clientes, veículos e ordens deste ambiente local isolado serão removidos. Os dados
+              cloud não serão acessados.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -778,18 +800,20 @@ export function PilotApp() {
             <Button
               variant="destructive"
               onClick={() => {
-                setCustomers(initialCustomers);
-                setVehicles(initialVehicles);
-                setOrders(initialOrders.map(migrateOrder));
-                setSelectedCustomerId("c1");
-                setSelectedVehicleId("v1");
-                setSelectedOrderId("OS-1048");
-                setResetOpen(false);
-                setNotice("Dados de demonstração restaurados");
-                navigate("dashboard");
+                void repository.reset().then((data) => {
+                  setCustomers(data.customers);
+                  setVehicles(data.vehicles);
+                  setOrders(data.orders);
+                  setSelectedCustomerId("");
+                  setSelectedVehicleId("");
+                  setSelectedOrderId("");
+                  setResetOpen(false);
+                  setNotice("Dados locais removidos");
+                  navigate("dashboard");
+                });
               }}
             >
-              Restaurar cenário original
+              Limpar dados locais
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -804,12 +828,14 @@ function Sidebar({
   onClose,
   onNavigate,
   onReset,
+  showDevelopmentTools,
 }: {
   active: Screen;
   open: boolean;
   onClose: () => void;
   onNavigate: (screen: Screen) => void;
   onReset: () => void;
+  showDevelopmentTools: boolean;
 }) {
   return (
     <aside
@@ -869,20 +895,22 @@ function Sidebar({
           </button>
         ))}
       </nav>
-      <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 p-4">
-        <div className="border-l-2 border-orange-500/70 bg-white/[.035] p-3">
-          <p className="text-sm font-medium">Ambiente de demonstração</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">
-            Dados fictícios salvos apenas neste navegador.
-          </p>
-          <button
-            onClick={onReset}
-            className="mt-3 flex items-center gap-2 text-xs font-semibold text-orange-300 hover:text-orange-200"
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> Restaurar dados
-          </button>
+      {showDevelopmentTools && (
+        <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 p-4">
+          <div className="border-l-2 border-orange-500/70 bg-white/[.035] p-3">
+            <p className="text-sm font-medium">Ambiente local isolado</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-400">
+              Dados de desenvolvimento, sem acesso ao ambiente cloud.
+            </p>
+            <button
+              onClick={onReset}
+              className="mt-3 flex items-center gap-2 text-xs font-semibold text-orange-300 hover:text-orange-200"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Limpar dados locais
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }

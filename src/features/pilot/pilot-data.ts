@@ -15,6 +15,7 @@ export type VehicleKind = "Carro" | "Moto";
 
 export interface Customer {
   id: string;
+  authUserId?: string | undefined;
   name: string;
   phone: string;
   email: string;
@@ -78,6 +79,7 @@ export interface StatusHistoryEntry {
 
 export interface ServiceOrder {
   id: string;
+  databaseId?: string | undefined;
   customerId: string;
   vehicleId: string;
   status: OrderStatus;

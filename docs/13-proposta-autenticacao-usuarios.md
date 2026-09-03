@@ -35,6 +35,8 @@ O UUID estável do perfil permitirá que tabelas futuras registrem campos como `
 - O header identifica nome, cargo/nível, e-mail da conta real e oferece logout.
 - Em build de desenvolvimento, somente nos hosts `localhost` e `127.0.0.1`, uma identidade efêmera `Admin Local`/`owner` permite trabalhar sem criar conta ou senha. O mesmo contrato de autenticação expõe `actorId: "local:admin"` e `userId: null`, evitando que auditorias futuras tentem gravar esse ator como UUID real.
 - O bypass é compilado como inativo em produção. Não depende de variável configurável, senha ou usuário remoto.
+- O dispositivo pode lembrar somente nome, e-mail e iniciais da última conta. Senha, token e segredo continuam exclusivamente sob responsabilidade do Supabase.
+- Falha transitória ao consultar `user_profiles` mantém a sessão e oferece nova tentativa; perfil comprovadamente ausente ou inativo continua bloqueado.
 - Recuperação de senha não foi exposta enquanto URL de redirecionamento e fluxo de definição da nova senha não estiverem configurados e testados no Supabase.
 
 Login passa a ser a base futura para auditoria, notificações e chat, mas esses recursos não foram implementados agora.
@@ -48,4 +50,4 @@ Concluído:
 3. Conta real de Salomão criada no Supabase Auth.
 4. Bootstrap executado uma única vez; Salomão confirmado como `owner` ativo e cargo `Proprietário`.
 
-Próximos passos permanecem separados: implementar `Configurações > Equipe`, definir convite/recuperação de senha e validar os demais fluxos remotos necessários. A migração de clientes, veículos, OS, workflow, histórico, backup e demais dados do `localStorage` continua fora deste estágio.
+`Configurações > Equipe` foi preparada para owner com consulta mínima via RPC e alteração pelos controles já protegidos no banco. A nova base operacional e seu vínculo com clientes estão documentados separadamente e ainda aguardam aplicação remota. Convite e recuperação de senha continuam posteriores.

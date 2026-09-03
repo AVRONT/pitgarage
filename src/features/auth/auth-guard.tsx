@@ -4,14 +4,18 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 
 export function AuthGuard({ children }: { children: ReactNode }) {
-  const { identity, isLoading } = useAuth();
+  const { identity, isLoading, retryProfile, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading && !identity) void navigate({ to: "/login", replace: true });
+    if (!isLoading && !identity && !user) void navigate({ to: "/login", replace: true });
     if (!isLoading && identity?.profile.access_level === "customer")
       void navigate({ to: "/cliente", replace: true });
-  }, [identity, isLoading, navigate]);
+  }, [identity, isLoading, navigate, user]);
+
+  if (!isLoading && user && !identity) {
+    return <ProfileRetry onRetry={() => void retryProfile()} />;
+  }
 
   if (isLoading || !identity || identity.profile.access_level === "customer") {
     return (
@@ -28,14 +32,18 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 }
 
 export function CustomerAuthGuard({ children }: { children: ReactNode }) {
-  const { identity, isLoading } = useAuth();
+  const { identity, isLoading, retryProfile, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading && !identity) void navigate({ to: "/login", replace: true });
+    if (!isLoading && !identity && !user) void navigate({ to: "/login", replace: true });
     if (!isLoading && identity && identity.profile.access_level !== "customer")
       void navigate({ to: "/", replace: true });
-  }, [identity, isLoading, navigate]);
+  }, [identity, isLoading, navigate, user]);
+
+  if (!isLoading && user && !identity) {
+    return <ProfileRetry onRetry={() => void retryProfile()} />;
+  }
 
   if (isLoading || !identity || identity.profile.access_level !== "customer") {
     return (
@@ -49,4 +57,18 @@ export function CustomerAuthGuard({ children }: { children: ReactNode }) {
   }
 
   return children;
+}
+
+function ProfileRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-background px-4 text-center">
+      <div>
+        <p className="font-semibold">Não foi possível carregar seu perfil.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Sua sessão foi mantida.</p>
+        <button className="mt-4 text-sm font-semibold text-primary underline" onClick={onRetry}>
+          Tentar novamente
+        </button>
+      </div>
+    </main>
+  );
 }
