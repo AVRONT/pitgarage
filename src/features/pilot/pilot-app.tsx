@@ -219,7 +219,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="outline"
-      className={cn("whitespace-nowrap", statusStyles[status] ?? statusStyles.Recebido)}
+      className={cn("whitespace-nowrap", statusStyles[status] ?? statusStyles["Recebido"])}
     >
       {status}
     </Badge>
