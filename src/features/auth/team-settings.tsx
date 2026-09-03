@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,16 +22,28 @@ export function TeamSettings() {
   const { accessLevel, isLocalBypass } = useAuth();
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
-  const load = async () => {
-    const { data, error } = await supabase.rpc("list_team_users");
-    if (error) return setMessage("Não foi possível carregar a equipe.");
-    setUsers((data ?? []) as TeamUser[]);
-  };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { data, error } = await supabase.rpc("list_team_users");
+      if (error) throw error;
+      setUsers((data ?? []) as TeamUser[]);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (accessLevel === "owner" && !isLocalBypass) void load();
-  }, [accessLevel, isLocalBypass]);
+  }, [accessLevel, isLocalBypass, load]);
 
   if (accessLevel !== "owner") return null;
   if (isLocalBypass) {
@@ -51,19 +63,33 @@ export function TeamSettings() {
     );
 
   const save = async (user: TeamUser) => {
+    if (savingRef.current || accessLevel !== "owner" || user.access_level === "owner") return;
     if (user.access_level !== "customer" && !user.operational_role?.trim()) {
       return setMessage("Informe o cargo operacional para staff ou admin.");
     }
-    const { error } = await supabase.rpc("administer_user_profile", {
-      target_user_id: user.user_id,
-      new_full_name: user.full_name,
-      new_operational_role:
-        user.access_level === "customer" ? null : user.operational_role?.trim() || null,
-      new_access_level: user.access_level,
-      new_is_active: user.is_active,
-    });
-    setMessage(error ? "Não foi possível atualizar este usuário." : "Usuário atualizado.");
-    if (!error) await load();
+    savingRef.current = true;
+    setSaving(true);
+    setMessage("");
+    try {
+      const { error } = await supabase.rpc("administer_user_profile", {
+        target_user_id: user.user_id,
+        new_full_name: user.full_name,
+        new_operational_role:
+          user.access_level === "customer" ? null : user.operational_role?.trim() || null,
+        new_access_level: user.access_level,
+        new_is_active: user.is_active,
+      });
+      if (error) throw error;
+      setMessage("Usuário atualizado.");
+      await load();
+    } catch {
+      setMessage(
+        "Não foi possível confirmar a atualização. Seus ajustes foram mantidos; confira a conexão e tente novamente.",
+      );
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   return (
@@ -72,17 +98,41 @@ export function TeamSettings() {
         Equipe
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Somente o proprietário altera níveis de acesso. Contas nunca são excluídas por esta tela.
+        Somente o proprietário altera níveis de acesso. Contas nunca são excluídas por esta tela.{" "}
+        Ajuste o nível, cargo e situação e clique em Salvar para confirmar.
       </p>
+      {loading && (
+        <p className="mt-4 text-sm text-muted-foreground" role="status">
+          Carregando equipe…
+        </p>
+      )}
+      {loadError && (
+        <div className="mt-4 text-sm" role="alert">
+          <p>Não foi possível carregar a equipe. Nenhuma conta foi removida.</p>
+          <Button
+            className="mt-2"
+            variant="outline"
+            disabled={loading || saving}
+            onClick={() => void load()}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+      {!loading && !loadError && users.length === 0 && (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Nenhuma conta disponível para gestão. Confira seu acesso de proprietário.
+        </p>
+      )}
       <div className="mt-5 space-y-3">
         {users.map((user) => {
           const isOwner = user.access_level === "owner";
           return (
             <article
               key={user.user_id}
-              className="grid gap-3 rounded-md border p-4 lg:grid-cols-6 lg:items-end"
+              className="grid gap-3 rounded-md border p-4 sm:grid-cols-2 xl:grid-cols-6 xl:items-end"
             >
-              <div className="lg:col-span-2">
+              <div className="min-w-0 break-words sm:col-span-2 xl:col-span-2">
                 <p className="font-medium">{user.full_name || "Nome não informado"}</p>
                 <p className="text-xs text-muted-foreground">{user.email}</p>
                 {user.customer_id && (
@@ -94,41 +144,56 @@ export function TeamSettings() {
                 <select
                   className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm"
                   value={user.access_level}
-                  disabled={isOwner}
+                  disabled={isOwner || saving || loading || loadError}
                   onChange={(event) =>
                     updateDraft(user.user_id, { access_level: event.target.value as AccessLevel })
                   }
                 >
                   {isOwner && <option value="owner">Owner</option>}
                   {managedLevels.map((level) => (
-                    <option key={level}>{level}</option>
+                    <option key={level} value={level}>
+                      {
+                        {
+                          customer: "Cliente",
+                          staff: "Equipe",
+                          admin: "Administrador",
+                          owner: "Proprietário",
+                        }[level]
+                      }
+                    </option>
                   ))}
                 </select>
               </label>
-              <label className="text-xs font-medium lg:col-span-2">
+              <label className="text-xs font-medium xl:col-span-2">
                 Cargo
                 <Input
                   className="mt-1"
                   value={user.operational_role ?? ""}
-                  disabled={isOwner}
+                  disabled={isOwner || saving || loading || loadError}
+                  maxLength={80}
                   placeholder="Mecânico, Atendente ou Outro"
                   onChange={(event) =>
                     updateDraft(user.user_id, { operational_role: event.target.value })
                   }
                 />
               </label>
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 xl:col-span-1">
                 {!isOwner ? (
                   <>
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={saving || loading || loadError}
                       onClick={() => updateDraft(user.user_id, { is_active: !user.is_active })}
                     >
                       {user.is_active ? "Desativar" : "Ativar"}
                     </Button>
-                    <Button type="button" onClick={() => void save(user)}>
-                      Salvar
+                    <Button
+                      type="button"
+                      disabled={saving || loading || loadError}
+                      onClick={() => void save(user)}
+                    >
+                      {saving ? "Salvando…" : "Salvar"}
                     </Button>
                   </>
                 ) : (

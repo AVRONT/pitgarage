@@ -29,15 +29,25 @@ function CustomerArea() {
     orders: ServiceOrder[];
   } | null>();
   const [loadError, setLoadError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    setPortal(undefined);
+    setLoadError("");
     void loadCustomerPortal()
-      .then(setPortal)
+      .then((data) => {
+        if (active) setPortal(data);
+      })
       .catch(() => {
+        if (!active) return;
         setLoadError("Não foi possível carregar seus dados agora. Tente novamente mais tarde.");
         setPortal(null);
       });
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [identity?.userId, attempt]);
   if (!identity) return null;
 
   const name = identity.profile.full_name ?? identity.email?.split("@")[0] ?? "Cliente";
@@ -66,11 +76,25 @@ function CustomerArea() {
           </span>
           <h1 className="mt-4 text-2xl font-semibold tracking-tight">Área do Cliente</h1>
           <p className="mt-3 font-medium">{portal?.customer.name ?? name}</p>
-          {identity.email && <p className="text-sm text-muted-foreground">{identity.email}</p>}
+          {identity.email && (
+            <p className="break-words text-sm text-muted-foreground">{identity.email}</p>
+          )}
           {portal === undefined ? (
-            <LoaderCircle className="mx-auto mt-6 h-5 w-5 animate-spin text-primary" />
+            <div role="status" className="mt-6 text-sm text-muted-foreground">
+              <LoaderCircle className="mx-auto mb-2 h-5 w-5 animate-spin text-primary" />
+              Carregando seus dados…
+            </div>
           ) : loadError ? (
-            <p className="mx-auto mt-6 max-w-md text-sm text-red-700">{loadError}</p>
+            <div role="alert" className="mt-6">
+              <p className="text-sm text-red-700">{loadError}</p>
+              <Button
+                variant="outline"
+                className="mt-3"
+                onClick={() => setAttempt((value) => value + 1)}
+              >
+                Tentar novamente
+              </Button>
+            </div>
           ) : !portal ? (
             <p className="mx-auto mt-6 max-w-md text-sm leading-6 text-muted-foreground">
               Quando sua oficina vincular seu cadastro, seus veículos e serviços aparecerão aqui.

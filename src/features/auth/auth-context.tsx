@@ -165,6 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadAuthenticatedIdentity = useCallback(
     async (nextUser: User): Promise<LoginResult> => {
       const request = ++profileRequest.current;
+      setUser(nextUser);
+      setIdentity((current) => (current?.userId === nextUser.id ? current : null));
       const { data, error } = await supabase
         .from("user_profiles")
         .select(

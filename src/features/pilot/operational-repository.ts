@@ -133,6 +133,8 @@ function mapOrder(row: {
 }
 
 class CloudOperationalRepository implements OperationalRepository {
+  private orderVersions = new Map<string, string>();
+
   async load() {
     const [customersResult, vehiclesResult, ordersResult] = await Promise.all([
       supabase.from("customers").select("*"),
@@ -141,6 +143,7 @@ class CloudOperationalRepository implements OperationalRepository {
     ]);
     const error = customersResult.error ?? vehiclesResult.error ?? ordersResult.error;
     if (error) throw error;
+    this.orderVersions = new Map((ordersResult.data ?? []).map((row) => [row.id, row.updated_at]));
     return {
       customers: (customersResult.data ?? []).map(mapCustomer),
       vehicles: (vehiclesResult.data ?? []).map(mapVehicle),
@@ -162,6 +165,7 @@ class CloudOperationalRepository implements OperationalRepository {
     if (error) throw error;
     try {
       const data = await this.load();
+      this.orderVersions.set(created.id, created.updated_at);
       // Another operator may have created a newer OS while the list was loading.
       return {
         ...data,
@@ -179,7 +183,12 @@ class CloudOperationalRepository implements OperationalRepository {
 
   async saveOrder(order: ServiceOrder) {
     if (!order.databaseId) throw new Error("OS sem identificador persistente.");
-    const { error } = await supabase
+    const expectedVersion = this.orderVersions.get(order.databaseId);
+    if (!expectedVersion) throw new Error("Recarregue a OS antes de salvar.");
+    const nextVersion = new Date(
+      Math.max(Date.now(), Date.parse(expectedVersion) + 1),
+    ).toISOString();
+    const { data, error } = await supabase
       .from("service_orders")
       .update({
         status: order.status,
@@ -195,17 +204,26 @@ class CloudOperationalRepository implements OperationalRepository {
         status_history: asJson(order.statusHistory ?? []),
         activities: asJson(order.activities ?? []),
         workshop_snapshot: order.workshopSnapshot ? asJson(order.workshopSnapshot) : null,
-        updated_at: order.updatedAt ?? new Date().toISOString(),
+        updated_at: nextVersion,
       })
-      .eq("id", order.databaseId);
-    if (error) throw error;
+      .eq("id", order.databaseId)
+      .eq("updated_at", expectedVersion)
+      .select("id, updated_at")
+      .single();
+    if (error || !data)
+      throw new Error(
+        "A OS pode ter sido alterada por outra pessoa ou seu acesso mudou. Recarregue antes de continuar.",
+      );
+    this.orderVersions.set(data.id, data.updated_at);
   }
 
   async deleteCustomer(customerId: string, deletedAt: string) {
     const { error } = await supabase
       .from("customers")
       .update({ deleted_at: deletedAt, updated_at: deletedAt })
-      .eq("id", customerId);
+      .eq("id", customerId)
+      .select("id")
+      .single();
     if (error) throw error;
   }
 
@@ -213,7 +231,9 @@ class CloudOperationalRepository implements OperationalRepository {
     const { error } = await supabase
       .from("vehicles")
       .update({ deleted_at: deletedAt, updated_at: deletedAt })
-      .eq("id", vehicleId);
+      .eq("id", vehicleId)
+      .select("id")
+      .single();
     if (error) throw error;
   }
 

@@ -109,7 +109,7 @@ function LoginPage() {
           </h1>
           <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
             {isRegistering
-              ? "Cadastre-se para acessar sua futura área de veículos e serviços."
+              ? "Crie sua conta de cliente. Os veículos e serviços aparecerão após o vínculo com seu cadastro na oficina."
               : "Entre com seu e-mail e senha."}
           </p>
         </div>
@@ -148,7 +148,7 @@ function LoginPage() {
               <span className="grid h-10 w-10 place-items-center rounded-full bg-primary font-semibold text-primary-foreground">
                 {rememberedAccount.initials}
               </span>
-              <span>
+              <span className="min-w-0 break-words">
                 <strong className="block text-sm">Continuar como {rememberedAccount.name}</strong>
                 <span className="text-xs text-muted-foreground">{rememberedAccount.email}</span>
               </span>
@@ -264,7 +264,13 @@ function LoginPage() {
           <p className="text-sm text-muted-foreground">
             {isRegistering ? "Já possui cadastro?" : "Ainda não possui cadastro?"}
           </p>
-          <Button type="button" variant="link" className="mt-1" onClick={toggleMode}>
+          <Button
+            type="button"
+            variant="link"
+            className="mt-1"
+            disabled={submitting}
+            onClick={toggleMode}
+          >
             {isRegistering ? "Entrar na conta" : "Criar conta"}
           </Button>
         </div>

@@ -245,7 +245,7 @@ function OrderProgress({
         </div>
         <span className="text-xs text-muted-foreground">Estados ainda sujeitos à validação</span>
       </div>
-      <div className="overflow-x-auto pb-1">
+      <div className="relative overflow-x-auto pb-1">
         <div className="min-w-[760px] px-2">
           <div
             role="progressbar"
@@ -345,6 +345,13 @@ export function PilotApp() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const ordersRef = useRef(orders);
+  const writeQueue = useRef(Promise.resolve());
+  const writeFailed = useRef(false);
+  const [pendingWrites, setPendingWrites] = useState(0);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [query, setQuery] = useState("");
@@ -388,10 +395,10 @@ export function PilotApp() {
   }, [repository]);
 
   useEffect(() => {
-    if (!notice) return;
+    if (!notice || pendingWrites > 0) return;
     const timeout = window.setTimeout(() => setNotice(""), 3000);
     return () => window.clearTimeout(timeout);
-  }, [notice]);
+  }, [notice, pendingWrites]);
 
   const navigate = (next: Screen, id?: string) => {
     if (next === "customer" && id) setSelectedCustomerId(id);
@@ -413,19 +420,33 @@ export function PilotApp() {
       activeCustomers.some((customer) => customer.id === order.customerId) &&
       activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
   );
-  const updateOrder = (id: string, updater: OrderUpdater) =>
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== id) return order;
-        const updated = updater(order);
-        void repository
-          .saveOrder(updated)
-          .catch(() =>
-            setNotice("A alteração não foi salva. Recarregue os dados antes de continuar."),
+  const persist = (operation: () => Promise<void>) => {
+    if (writeFailed.current) return;
+    setPendingWrites((count) => count + 1);
+    writeQueue.current = writeQueue.current
+      .then(async () => {
+        if (writeFailed.current) return;
+        try {
+          await operation();
+        } catch {
+          writeFailed.current = true;
+          setNotice("");
+          setDataError(
+            "Não foi possível confirmar a gravação. A OS pode ter mudado ou seu acesso pode ter expirado. Recarregue para conferir os dados salvos antes de continuar.",
           );
-        return updated;
-      }),
-    );
+        }
+      })
+      .finally(() => setPendingWrites((count) => count - 1));
+  };
+  const updateOrder = (id: string, updater: OrderUpdater) => {
+    if (writeFailed.current) return;
+    const order = ordersRef.current.find((item) => item.id === id);
+    if (!order) return;
+    const updated = updater(order);
+    ordersRef.current = ordersRef.current.map((item) => (item.id === id ? updated : item));
+    setOrders(ordersRef.current);
+    persist(() => repository.saveOrder(updated));
+  };
 
   const globalResults = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
@@ -437,7 +458,9 @@ export function PilotApp() {
         (customer) =>
           `${customer.name} ${customer.email}`.toLocaleLowerCase("pt-BR").includes(term) ||
           (phoneTerm.length >= 4 && normalizePhone(customer.phone).includes(phoneTerm)) ||
-          (customer.cpf && normalizeCpf(customer.cpf).includes(normalizeCpf(query))),
+          (normalizeCpf(query).length > 0 &&
+            customer.cpf &&
+            normalizeCpf(customer.cpf).includes(normalizeCpf(query))),
       )
       .map((customer) => ({ type: "customer" as const, customer }));
     const vehicleResults = activeVehicles
@@ -513,6 +536,14 @@ export function PilotApp() {
               className="h-10 border-slate-300 bg-white pl-10 shadow-none"
               placeholder="Buscar cliente, placa, veículo ou OS..."
             />
+            {query.trim() && globalResults.length === 0 && (
+              <div
+                className="absolute left-0 right-0 top-11 z-50 rounded-md border bg-white p-3 text-sm text-muted-foreground shadow-sm"
+                role="status"
+              >
+                Nenhum resultado encontrado. Tente outro nome, placa ou número da OS.
+              </div>
+            )}
             {globalResults.length > 0 && (
               <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden border bg-white shadow-lg">
                 {globalResults.map((result) => {
@@ -600,7 +631,12 @@ export function PilotApp() {
           </div>
           <UserMenu />
         </header>
-        {notice && (
+        {pendingWrites > 0 && (
+          <div className="pilot-action-feedback" role="status">
+            Salvando alterações… Aguarde a confirmação.
+          </div>
+        )}
+        {notice && pendingWrites === 0 && (
           <div
             className="pilot-action-feedback"
             role="status"
@@ -682,13 +718,13 @@ export function PilotApp() {
                   selectedCustomerId,
                   at,
                 );
-                setCustomers(deleted.customers);
-                setVehicles(deleted.vehicles);
-                void repository
-                  .deleteCustomer(selectedCustomerId, at)
-                  .catch(() => setNotice("Não foi possível remover o cliente."));
-                setNotice("Cliente e veículos vinculados removidos das áreas operacionais");
-                navigate("customers");
+                persist(async () => {
+                  await repository.deleteCustomer(selectedCustomerId, at);
+                  setCustomers(deleted.customers);
+                  setVehicles(deleted.vehicles);
+                  setNotice("Cliente e veículos vinculados removidos das áreas operacionais");
+                  navigate("customers");
+                });
               }}
             />
           )}
@@ -707,12 +743,12 @@ export function PilotApp() {
               onNewOrder={() => setNewOrderOpen(true)}
               onDelete={() => {
                 const at = orderTimestamp();
-                setVehicles((current) => logicallyDeleteVehicle(current, selectedVehicleId, at));
-                void repository
-                  .deleteVehicle(selectedVehicleId, at)
-                  .catch(() => setNotice("Não foi possível remover o veículo."));
-                setNotice("Veículo removido das áreas operacionais; histórico preservado");
-                navigate("vehicles");
+                persist(async () => {
+                  await repository.deleteVehicle(selectedVehicleId, at);
+                  setVehicles((current) => logicallyDeleteVehicle(current, selectedVehicleId, at));
+                  setNotice("Veículo removido das áreas operacionais; histórico preservado");
+                  navigate("vehicles");
+                });
               }}
             />
           )}
@@ -770,6 +806,8 @@ export function PilotApp() {
         allVehicles={vehicles}
         orders={orders}
         onCreate={async (bundle) => {
+          await writeQueue.current;
+          if (writeFailed.current) throw new Error("Recarregue os dados antes de criar outra OS.");
           await repository.createOrder(bundle).then((data) => {
             setCustomers(data.customers);
             setVehicles(data.vehicles);
@@ -1010,7 +1048,7 @@ function Dashboard({
   return (
     <>
       <PageTitle
-        eyebrow="Terça-feira, 1 de setembro"
+        eyebrow="Visão geral da oficina"
         title="Bom trabalho, equipe."
         text="Aqui está o ritmo da oficina neste momento."
         action={
@@ -1067,7 +1105,10 @@ function Dashboard({
               <span />
             </div>
             {activeOrders.length === 0 && (
-              <EmptyState title="Nenhuma OS ativa" text="As novas entradas aparecerão aqui." />
+              <EmptyState
+                title={orders.length ? "Nenhuma OS ativa" : "Nenhuma ordem de serviço cadastrada"}
+                text="Use Criar ordem de serviço para registrar um atendimento. Cliente e veículo são cadastrados no mesmo fluxo."
+              />
             )}
             {activeOrders.slice(0, 5).map((order) => {
               const vehicle = vehicles.find((v) => v.id === order.vehicleId)!;
@@ -1109,12 +1150,22 @@ function Dashboard({
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-400">
                   Atenção agora
                 </p>
-                <h2 className="mt-2 text-xl font-bold">Aprovações pendentes</h2>
+                <h2 className="mt-2 text-xl font-bold">
+                  {orders.some((order) =>
+                    order.budget.some((item) => item.approval === "Aguardando aprovação"),
+                  )
+                    ? "Aprovações pendentes"
+                    : "Nenhuma aprovação pendente"}
+                </h2>
               </div>
               <Clock3 className="h-6 w-6 text-orange-400" />
             </div>
             <p className="mt-3 text-sm leading-relaxed text-slate-300">
-              Há {money(pendingValue)} em itens aguardando retorno dos clientes.
+              {orders.some((order) =>
+                order.budget.some((item) => item.approval === "Aguardando aprovação"),
+              )
+                ? `Há ${money(pendingValue)} em itens aguardando retorno dos clientes.`
+                : "Quando um orçamento precisar de aprovação, ele aparecerá aqui."}
             </p>
             <div className="mt-6 space-y-3">
               {orders
@@ -2544,7 +2595,7 @@ function DiagnosisPanel({
         notes,
       }),
     );
-    notify("Diagnóstico salvo localmente");
+    notify("Diagnóstico salvo");
   };
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -3538,7 +3589,7 @@ function PaymentPanel({
       ),
     );
     setPaymentError("");
-    notify("Pagamento registrado localmente");
+    notify("Pagamento registrado");
   };
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -4315,7 +4366,7 @@ function NewOrderDialog({
           <div className="min-h-72 space-y-4">
             {step === 0 && (
               <>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={!newCustomer ? "default" : "outline"}
                     onClick={() => {
@@ -4444,7 +4495,7 @@ function NewOrderDialog({
                 <p className="rounded-lg bg-slate-100 p-3 text-sm">
                   <strong>Cliente:</strong> {selectedCustomer.name}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={!newVehicle ? "default" : "outline"}
                     onClick={() => {

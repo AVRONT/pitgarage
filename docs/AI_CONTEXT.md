@@ -36,6 +36,8 @@ Revisão final local de 2026-09-02: a migration operacional pendente recebeu fec
 
 # Documentação atual
 
+Estado complementar de 03/09/2026: **pré-release cloud / release candidate local**, ainda não liberado para uso real. Revisão sobre `943265c`, com detecção de conflito na escrita de OS, confirmação de linhas gravadas, fila local de escritas e correções pontuais de UX/mobile. As duas migrations e o bootstrap ficaram intocados nesta rodada; operacional continua somente local. Ver [relatório de RC e checklist obrigatório](piloto/pre-release-cloud-rc.md). A condição de liberação cloud desse relatório prevalece sobre a próxima etapa histórica de demonstração local abaixo.
+
 - [Visão e processo atual](README.md#documentos)
 - [Requisitos funcionais](04-requisitos-funcionais.md)
 - [Requisitos não funcionais](05-requisitos-nao-funcionais.md)

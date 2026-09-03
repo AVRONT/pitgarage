@@ -22,9 +22,12 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 10. [Questões pendentes](10-questoes-pendentes.md)
 11. [Decisões técnicas futuras](11-decisoes-tecnicas-futuras.md)
 12. [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
-13. [Proposta de autenticação, usuários e permissões](13-proposta-autenticacao-usuarios.md) — preparada localmente, não aplicada
+13. [Autenticação, usuários e permissões](13-proposta-autenticacao-usuarios.md) — Auth e bootstrap aplicados conforme histórico do projeto
+14. [Base operacional Supabase](14-base-operacional-supabase.md) — migration operacional somente local, aplicação pendente
 
 ## Piloto
+
+- [Pré-release cloud / release candidate](piloto/pre-release-cloud-rc.md): revisão local de segurança, integridade e primeira utilização; checklist obrigatório antes de liberar para a oficina.
 
 - [`piloto/piloto-v0.1.15.md`](piloto/piloto-v0.1.15.md): snapshot da oficina em documentos fechados, backup local completo e versionamento compatível da persistência.
 - [`piloto/piloto-v0.1.14.md`](piloto/piloto-v0.1.14.md): identidade visual da oficina piloto, paleta vigente com base clara, sidebar azul e detalhes vermelhos.

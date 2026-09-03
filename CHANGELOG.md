@@ -2,6 +2,13 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Pré-release cloud / release candidate — somente local] - 2026-09-03
+
+- UPDATE de OS verifica versão e retorno; exclusões lógicas exigem linha confirmada. Escritas da tela são serializadas e falhas interrompem continuação sobre estado incerto.
+- Retirada da identidade anterior ao carregar perfil de outra conta. Equipe e portal recebem feedback/retry; preservadas permissões, vínculo, Auth e Nova OS.
+- Corrigidos busca textual com CPF vazio, estado inicial do Dashboard, mensagens locais indevidas em cloud e cortes/largura excessiva no mobile sem mudar a identidade visual ou o workflow.
+- Registro de RC com prioridades e checklist pós-migration de 15 testes. Revisão estática SQL, testes locais com mocks e navegador isolado; migrations e bootstrap intocados, nenhum SQL remoto/commit/push.
+
 ## [Fechamento da revisão operacional/Auth — somente local] - 2026-09-02
 
 - Revisada a migration operacional ainda não aplicada: transação de aplicação, grants restritos, proteção do vínculo Auth, índices/constraints e portal por RPCs de campos permitidos, exigindo perfil customer ativo.

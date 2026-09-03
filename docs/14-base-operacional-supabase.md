@@ -34,6 +34,8 @@ Status: **implementada no repositório e ainda não aplicada remotamente**. A mi
 
 ## Aplicação remota pendente
 
+Atualização de 03/09/2026: [revisão de release candidate](piloto/pre-release-cloud-rc.md). A migration não mudou nesta rodada e continua não aplicada. O runtime passou a conferir versão/retorno de UPDATE e serializar escritas; isso atualiza o limite histórico de concorrência descrito na revisão de 02/09 abaixo, sem convertê-lo em garantia de auditoria imutável ou teste remoto. O novo checklist detalha ação, resultado esperado e falha grave para cada perfil/fluxo.
+
 Aplicar somente `supabase/migrations/20260902230000_create_operational_base.sql`, uma vez, no projeto correto. Depois validar RLS com contas isoladas, os dois sentidos do vínculo por e-mail confirmado, a transação da Nova OS, o portal do cliente e a gestão de equipe pelo owner antes de publicar o frontend.
 
 ## Fechamento da revisão local — 2026-09-02
