@@ -1,5 +1,12 @@
 # Changelog
 
+## [Evolução cloud integrada — preparada localmente] - 2026-09-03
+
+- Preparadas migrations independentes para Agenda, permissão técnica e auditoria, notificações e chat com RLS/RPCs restritas.
+- Preparados cadastro server-side com rate limit e Turnstile opcional, registro confiável de IP e convites exclusivos do owner; Edge Functions ainda dependem de deploy e secrets.
+- Adicionados Agenda, `/dev`, recuperação de senha, convites, notificações e chat ao runtime, preservando o bypass local e as regras operacionais.
+- Nenhuma migration foi aplicada, nenhuma função foi publicada e nenhum commit/push foi executado nesta rodada.
+
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
 ## [Pré-release cloud / release candidate — somente local] - 2026-09-03

@@ -7,6 +7,8 @@ import { useAuth } from "@/features/auth/auth-context";
 import { CustomerAuthGuard } from "@/features/auth/auth-guard";
 import { loadCustomerPortal } from "@/features/pilot/operational-repository";
 import type { Customer, ServiceOrder, Vehicle } from "@/features/pilot/pilot-data";
+import { ChatWidget } from "@/features/platform/chat-widget";
+import { NotificationBell } from "@/features/platform/notification-bell";
 
 export const Route = createFileRoute("/cliente")({
   component: CustomerRoute,
@@ -51,6 +53,8 @@ function CustomerArea() {
   if (!identity) return null;
 
   const name = identity.profile.full_name ?? identity.email?.split("@")[0] ?? "Cliente";
+  const openOrders = portal?.orders.filter((order) => order.status !== "Entregue").length ?? 0;
+  const completedOrders = portal?.orders.filter((order) => order.status === "Entregue").length ?? 0;
 
   const handleLogout = async () => {
     await logout();
@@ -67,6 +71,9 @@ function CustomerArea() {
           <div>
             <p className="text-lg font-semibold">PitGarage</p>
             <p className="text-sm text-muted-foreground">Área do Cliente</p>
+          </div>
+          <div className="ml-auto">
+            <NotificationBell />
           </div>
         </div>
 
@@ -135,12 +142,18 @@ function CustomerArea() {
               </section>
             </div>
           )}
+          {portal && (
+            <p className="mt-5 text-sm text-muted-foreground">
+              {openOrders} OS aberta(s) · {completedOrders} concluída(s)
+            </p>
+          )}
         </div>
 
         <Button type="button" variant="outline" className="w-full" onClick={handleLogout}>
           <LogOut /> Sair
         </Button>
       </section>
+      <ChatWidget />
     </main>
   );
 }

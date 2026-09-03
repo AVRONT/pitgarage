@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -32,6 +33,7 @@ function LoginPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
 
   useEffect(() => {
     if (identity)
@@ -77,6 +79,16 @@ function LoginPage() {
     setPassword("");
     setPasswordConfirmation("");
     setFormMessage(null);
+  };
+
+  const recoverPassword = async () => {
+    if (!email.trim()) return setFormMessage("Informe seu e-mail para receber as instruções.");
+    setRecovering(true);
+    await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setRecovering(false);
+    setFormMessage("Se existir uma conta com esse e-mail, enviaremos as instruções.");
   };
 
   if (isLoading && !submitting) {
@@ -258,6 +270,17 @@ function LoginPage() {
             )}
             {submitting ? "Aguarde…" : isRegistering ? "Criar conta" : "Entrar"}
           </Button>
+          {!isRegistering && (
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0"
+              disabled={recovering}
+              onClick={() => void recoverPassword()}
+            >
+              {recovering ? "Enviando…" : "Esqueci minha senha"}
+            </Button>
+          )}
         </form>
 
         <div className="mt-5 border-t pt-5 text-center">

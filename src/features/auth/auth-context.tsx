@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { getDeviceId, recordAccessEvent } from "@/features/platform/platform-api";
 
 export type AccessLevel = "customer" | "staff" | "admin" | "owner";
 
@@ -256,6 +257,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       void loadAuthenticatedIdentity(data.session.user);
+      const restoredKey = `pitgarage-session-restored-${data.session.user.id}`;
+      if (!sessionStorage.getItem(restoredKey)) {
+        sessionStorage.setItem(restoredKey, "1");
+        void recordAccessEvent("session_restored");
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -290,7 +296,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, message: nextMessage };
       }
 
-      return loadAuthenticatedIdentity(data.user);
+      const result = await loadAuthenticatedIdentity(data.user);
+      if (result.ok) void recordAccessEvent("login_succeeded");
+      return result;
     },
     [clearAuth, loadAuthenticatedIdentity],
   );
@@ -299,11 +307,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (fullName: string, email: string, password: string): Promise<RegisterResult> => {
       setIsLoading(true);
       setMessage(null);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
+      const { data, error } = await supabase.functions.invoke("register-account", {
+        body: { fullName, email, password, deviceId: getDeviceId() },
       });
+      const functionError =
+        error?.context instanceof Response
+          ? await error.context
+              .clone()
+              .json()
+              .catch(() => null)
+          : null;
 
       if (error || !data.user || data.user.identities?.length === 0) {
         if (error && import.meta.env.DEV) {
@@ -312,7 +325,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const nextMessage =
           data.user?.identities?.length === 0
             ? "Este e-mail já possui cadastro. Tente entrar na sua conta."
-            : translateRegistrationError(error?.message ?? "", error?.code);
+            : translateRegistrationError(
+                functionError?.message ?? error?.message ?? "",
+                functionError?.code ?? error?.code,
+              );
         clearAuth(nextMessage);
         return { ok: false, message: nextMessage };
       }
@@ -336,7 +352,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     profileRequest.current += 1;
     setIsLoading(true);
-    if (!identity?.isLocalBypass) await supabase.auth.signOut();
+    if (!identity?.isLocalBypass) {
+      void recordAccessEvent("logout");
+      await supabase.auth.signOut();
+    }
     clearAuth();
   }, [clearAuth, identity]);
 

@@ -65,7 +65,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/features/auth/auth-context";
 import { TeamSettings } from "@/features/auth/team-settings";
+import { InviteForm } from "@/features/auth/invite-form";
 import { UserMenu } from "@/features/auth/user-menu";
+import { CalendarScreen } from "@/features/platform/calendar-screen";
+import { ChatWidget } from "@/features/platform/chat-widget";
+import { NotificationBell } from "@/features/platform/notification-bell";
 import { cn } from "@/lib/utils";
 import { WorkshopSettings } from "./workshop-settings";
 import { WorkshopIdentity } from "./workshop-document-header";
@@ -169,10 +173,19 @@ const withStatusTransition = (
 };
 
 type Screen =
-  "dashboard" | "customers" | "vehicles" | "orders" | "customer" | "vehicle" | "order" | "settings";
+  | "dashboard"
+  | "calendar"
+  | "customers"
+  | "vehicles"
+  | "orders"
+  | "customer"
+  | "vehicle"
+  | "order"
+  | "settings";
 
 const navItems = [
   { id: "dashboard" as Screen, label: "Visão geral", icon: LayoutDashboard },
+  { id: "calendar" as Screen, label: "Agenda", icon: CalendarDays },
   { id: "customers" as Screen, label: "Clientes", icon: Users },
   { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
@@ -629,6 +642,7 @@ export function PilotApp() {
               </div>
             )}
           </div>
+          {!isLocalBypass && <NotificationBell />}
           <UserMenu />
         </header>
         {pendingWrites > 0 && (
@@ -666,6 +680,12 @@ export function PilotApp() {
               <TeamSettings />
             </>
           )}
+          {screen === "calendar" &&
+            (isLocalBypass ? (
+              <p className="rounded-lg border bg-white p-6">Agenda cloud requer uma sessão real.</p>
+            ) : (
+              <CalendarScreen />
+            ))}
           {screen === "dashboard" && (
             <Dashboard
               orders={operationalOrders}
@@ -853,6 +873,7 @@ export function PilotApp() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {!isLocalBypass && <ChatWidget />}
     </div>
   );
 }
@@ -1557,6 +1578,7 @@ function CustomerDetail({
   onOrder: (id: string) => void;
   onDelete: () => void;
 }) {
+  const { accessLevel, isLocalBypass } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const relatedOrders = orders.filter((o) => o.customerId === customer.id);
   return (
@@ -1581,6 +1603,16 @@ function CustomerDetail({
         }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        {accessLevel === "owner" && !isLocalBypass && (
+          <section className="rounded-lg border bg-white p-5 xl:col-span-2">
+            <h2 className="font-semibold">
+              {customer.authUserId ? "Conta vinculada" : "Sem conta"}
+            </h2>
+            {!customer.authUserId && customer.email && (
+              <InviteForm initialEmail={customer.email} fullName={customer.name} />
+            )}
+          </section>
+        )}
         <section>
           <h2 className="mb-3 text-lg font-bold">Veículos relacionados</h2>
           <div className="grid gap-3 md:grid-cols-2">

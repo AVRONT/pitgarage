@@ -1,5 +1,7 @@
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, Code2, LogOut } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { platformApi } from "@/features/platform/platform-api";
 
 import {
   DropdownMenu,
@@ -26,6 +28,15 @@ function initials(name: string) {
 export function UserMenu() {
   const { identity, logout } = useAuth();
   const navigate = useNavigate();
+  const [developer, setDeveloper] = useState(false);
+  useEffect(() => {
+    if (identity?.isLocalBypass) setDeveloper(true);
+    else if (identity)
+      void platformApi
+        .developerAccess()
+        .then(setDeveloper)
+        .catch(() => setDeveloper(false));
+  }, [identity]);
   if (!identity) return null;
 
   const { profile, email, isLocalBypass } = identity;
@@ -75,6 +86,14 @@ export function UserMenu() {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {developer && (
+          <DropdownMenuItem
+            onSelect={() => void navigate({ to: "/dev" })}
+            className="cursor-pointer"
+          >
+            <Code2 /> Área técnica
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => void handleLogout()} className="cursor-pointer">
           <LogOut />
           Sair

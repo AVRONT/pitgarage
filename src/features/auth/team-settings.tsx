@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth, type AccessLevel } from "./auth-context";
+import { InviteForm } from "./invite-form";
 
 type TeamUser = {
   user_id: string;
@@ -74,8 +75,9 @@ export function TeamSettings() {
       const { error } = await supabase.rpc("administer_user_profile", {
         target_user_id: user.user_id,
         new_full_name: user.full_name as string,
-        new_operational_role:
-          (user.access_level === "customer" ? null : user.operational_role?.trim() || null) as string,
+        new_operational_role: (user.access_level === "customer"
+          ? null
+          : user.operational_role?.trim() || null) as string,
         new_access_level: user.access_level,
         new_is_active: user.is_active,
       });
@@ -101,6 +103,7 @@ export function TeamSettings() {
         Somente o proprietário altera níveis de acesso. Contas nunca são excluídas por esta tela.{" "}
         Ajuste o nível, cargo e situação e clique em Salvar para confirmar.
       </p>
+      <InviteForm />
       {loading && (
         <p className="mt-4 text-sm text-muted-foreground" role="status">
           Carregando equipe…
