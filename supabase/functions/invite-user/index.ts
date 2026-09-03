@@ -1,12 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, json, sha256 } from "../_shared/http.ts";
+import { supabaseEnv } from "../_shared/supabase-env.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const authorization = request.headers.get("authorization") ?? "";
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const service = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { url, secretKey } = supabaseEnv();
+    const service = createClient(url, secretKey);
     const token = authorization.replace(/^Bearer\s+/i, "");
     const { data } = await service.auth.getUser(token);
     if (!data.user) return json({ message: "Não autorizado." }, 401);

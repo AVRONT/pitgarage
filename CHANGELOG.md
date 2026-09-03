@@ -5,6 +5,7 @@
 - Preparadas migrations independentes para Agenda, permissão técnica e auditoria, notificações e chat com RLS/RPCs restritas.
 - Preparados cadastro server-side com rate limit e Turnstile opcional, registro confiável de IP e convites exclusivos do owner; Edge Functions ainda dependem de deploy e secrets.
 - Fechado o bypass do signup direto com função preparada para o Auth Before User Created Hook, correlação sem dupla contagem e exceção curta para convites administrativos; ativação remota do hook e do Turnstile nativo permanece manual.
+- Revisão pré-cloud corrige `captchaToken` single-use, IP efetivo e pré-check da Edge, resposta sanitizada de cadastro, encoding, preservação histórica de Agenda/chat e configuração pública restrita a `register-account`.
 - Adicionados Agenda, `/dev`, recuperação de senha, convites, notificações e chat ao runtime, preservando o bypass local e as regras operacionais.
 - Nenhuma migration foi aplicada, nenhuma função foi publicada e nenhum commit/push foi executado nesta rodada.
 

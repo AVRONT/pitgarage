@@ -1,13 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, json, requestIp, sha256 } from "../_shared/http.ts";
+import { supabaseEnv } from "../_shared/supabase-env.ts";
 
 const allowed = new Set(["login_succeeded", "session_restored", "logout"]);
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const authorization = request.headers.get("authorization") ?? "";
-    const url = Deno.env.get("SUPABASE_URL")!;
-    const auth = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const { url, publishableKey, secretKey } = supabaseEnv();
+    const auth = createClient(url, publishableKey, {
       global: { headers: { Authorization: authorization } },
     });
     const { data } = await auth.auth.getUser();
@@ -15,7 +16,7 @@ Deno.serve(async (request) => {
     const { eventType, deviceId } = await request.json();
     if (!allowed.has(eventType) || typeof deviceId !== "string")
       return json({ message: "Evento inválido." }, 400);
-    const service = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const service = createClient(url, secretKey);
     await service.from("access_events").insert({
       user_id: data.user.id,
       event_type: eventType,

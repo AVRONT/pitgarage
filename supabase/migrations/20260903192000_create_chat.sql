@@ -6,8 +6,7 @@ create table public.conversations (
   title text,
   customer_user_id uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  check (kind <> 'support' or customer_user_id is not null)
+  updated_at timestamptz not null default now()
 );
 
 create table public.conversation_members (
@@ -21,7 +20,7 @@ create table public.conversation_members (
 create table public.messages (
   id uuid primary key default gen_random_uuid(),
   conversation_id uuid not null references public.conversations(id) on delete cascade,
-  sender_user_id uuid not null references auth.users(id),
+  sender_user_id uuid references auth.users(id) on delete set null,
   body text not null check (char_length(btrim(body)) between 1 and 4000),
   created_at timestamptz not null default now(),
   edited_at timestamptz,
@@ -78,7 +77,7 @@ returns table(id uuid, kind text, title text, unread_count bigint, updated_at ti
 language sql stable security definer set search_path = '' as $$
   select c.id, c.kind, c.title,
     count(m.id) filter (where m.created_at > coalesce(cm.last_read_at, '-infinity'::timestamptz)
-      and m.sender_user_id <> (select auth.uid())), c.updated_at
+      and m.sender_user_id is distinct from (select auth.uid())), c.updated_at
   from public.conversations c
   left join public.conversation_members cm on cm.conversation_id=c.id and cm.user_id=(select auth.uid())
   left join public.messages m on m.conversation_id=c.id and m.deleted_at is null
@@ -91,7 +90,7 @@ returns table(id uuid, sender_user_id uuid, sender_name text, body text, created
 language plpgsql stable security definer set search_path = '' as $$
 begin
   if not pitgarage_private.can_access_conversation(target_conversation) then raise exception 'access denied'; end if;
-  return query select m.id, m.sender_user_id, coalesce(p.full_name,'UsuÃ¡rio'), m.body, m.created_at
+  return query select m.id, m.sender_user_id, coalesce(p.full_name,'Usuário removido'), m.body, m.created_at
   from public.messages m left join public.user_profiles p on p.user_id=m.sender_user_id
   where m.conversation_id=target_conversation and m.deleted_at is null order by m.created_at;
 end;
@@ -101,13 +100,14 @@ create function public.send_chat_message(target_conversation uuid, message_body 
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare result uuid;
 begin
+  if (select auth.uid()) is null then raise exception 'authenticated user required'; end if;
   if not pitgarage_private.can_access_conversation(target_conversation) then raise exception 'access denied'; end if;
   if char_length(btrim(message_body)) not between 1 and 4000 then raise exception 'invalid message'; end if;
   insert into public.messages(conversation_id,sender_user_id,body)
   values(target_conversation,(select auth.uid()),btrim(message_body)) returning id into result;
   update public.conversations set updated_at=now() where id=target_conversation;
   insert into public.notifications(user_id,type,title,message,target)
-  select distinct recipient.user_id, 'chat', 'Nova mensagem', 'VocÃª recebeu uma nova mensagem.', '/'
+  select distinct recipient.user_id, 'chat', 'Nova mensagem', 'Você recebeu uma nova mensagem.', '/'
   from (
     select cm.user_id from public.conversation_members cm where cm.conversation_id=target_conversation
     union select p.user_id from public.user_profiles p
@@ -131,7 +131,7 @@ $$;
 
 create function public.list_chat_contacts()
 returns table(user_id uuid, full_name text) language sql stable security definer set search_path = '' as $$
-  select p.user_id, coalesce(p.full_name,'UsuÃ¡rio') from public.user_profiles p
+  select p.user_id, coalesce(p.full_name,'Usuário') from public.user_profiles p
   where (select pitgarage_private.is_team_member()) and p.is_active
     and p.access_level in ('staff','admin','owner') and p.user_id <> (select auth.uid())
   order by p.full_name;

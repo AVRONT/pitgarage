@@ -23,9 +23,9 @@ values ('UUID_CONFIRMADO', 'Desenvolvedor autorizado');
 
 ## Edge Functions
 
-Publicar `register-account`, `access-event` e `invite-user`. Configurar `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` somente no servidor; opcionalmente `TURNSTILE_SECRET_KEY`, `VITE_TURNSTILE_SITE_KEY` no build e `ALLOWED_ORIGIN`.
+Publicar `register-account`, `access-event` e `invite-user`. As funções preferem as chaves hospedadas atuais `SUPABASE_PUBLISHABLE_KEY(S)` e `SUPABASE_SECRET_KEY(S)`, mantendo fallback para `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`. Nenhuma chave secreta vai para o navegador. Configuração manual adicional fica limitada a `VITE_TURNSTILE_SITE_KEY` no build e, opcionalmente, `ALLOWED_ORIGIN`.
 
-Os limites ficam centralizados em `registration_rate_limits`: 3 cadastros concluídos/24h por dispositivo, 5 tentativas relevantes/1h e 10/24h por IP. O IP universal vem exclusivamente de `metadata.ip_address` do Auth Hook. O identificador aleatório do navegador é um sinal auxiliar, pode ser apagado ou trocado e é armazenado somente como hash. Senhas e tokens CAPTCHA não são registrados.
+Os limites ficam centralizados em `registration_rate_limits`: 3 cadastros concluídos/24h por dispositivo, 5 tentativas relevantes/1h e 10/24h por IP. A Edge Function faz um pré-check usando o IP observado na requisição original e falha com segurança quando ele não existe. Para o fluxo correlacionado, o hook usa esse IP server-side já persistido; em signup direto, usa exclusivamente `metadata.ip_address` do Auth Hook. O identificador aleatório do navegador é um sinal auxiliar, pode ser apagado ou trocado e é armazenado somente como hash. Senhas e tokens CAPTCHA não são registrados.
 
 ### Proteção do endpoint oficial de Auth
 
@@ -33,11 +33,11 @@ A migration cria `public.before_user_created(event jsonb)`, compatível com o Su
 
 Depois de aplicar a migration, ainda é obrigatório ativar manualmente `Authentication > Hooks > Before User Created` no Supabase e selecionar a função `public.before_user_created` (URI equivalente: `pg-functions://postgres/public/before_user_created`). Sem essa ativação, a função existe, mas não protege o endpoint.
 
-O fluxo `register-account` cria uma tentativa `pending` e envia seu UUID técnico no metadata. O hook aceita a correlação somente quando UUID, hash de e-mail, IP e janela curta coincidem; por isso Edge Function e hook atualizam a mesma linha, sem dupla contagem. O hook registra tentativas e bloqueios; a Edge Function marca `succeeded` somente após o Auth confirmar a criação.
+O fluxo `register-account` cria uma tentativa `pending` e envia seu UUID técnico no metadata, sem devolvê-lo ao navegador. O hook aceita a correlação somente quando UUID, hash de e-mail, estado `pending` e janela de até cinco minutos coincidem; por isso Edge Function e hook atualizam a mesma linha, sem dupla contagem. A igualdade com o IP observado pelo Auth não é exigida nesse caminho, pois a chamada ao Auth parte da Edge Function. O hook registra tentativas e bloqueios; a Edge Function marca `succeeded` somente quando o retorno contém uma nova identidade. Respostas sanitizadas para e-mail já existente permanecem genéricas e não consomem o limite de cadastros concluídos por dispositivo.
 
 Convites de owner criam uma exceção server-side, por hash de e-mail, válida por 15 minutos e consumida uma única vez pelo hook. O navegador não pode criar essa exceção. Se o Auth Admin rejeitar o convite, a Edge Function remove a exceção remanescente. Isso evita bloquear convites legítimos sem afrouxar o cadastro público.
 
-Também é obrigatório habilitar a proteção CAPTCHA nativa do Supabase Auth com Cloudflare Turnstile em `Authentication > Bot and Abuse Protection`, configurando a secret key no painel. O frontend usa `VITE_TURNSTILE_SITE_KEY`; a Edge Function valida com `TURNSTILE_SECRET_KEY` e encaminha o token ao Auth. Desenvolvimento local sem essas chaves continua funcionando sem CAPTCHA.
+Também é obrigatório habilitar a proteção CAPTCHA nativa do Supabase Auth com Cloudflare Turnstile em `Authentication > Bot and Abuse Protection`, configurando a secret key somente no painel do Auth. O frontend usa `VITE_TURNSTILE_SITE_KEY` e `register-account` apenas encaminha `captchaToken` ao `auth.signUp`; o token single-use é validado uma única vez pelo mecanismo nativo. `TURNSTILE_SECRET_KEY` não é necessária na Edge Function. Desenvolvimento local sem a site key continua funcionando enquanto o CAPTCHA remoto ainda não estiver habilitado.
 
 Rate limiting reduz abuso, mas não elimina ataques. IP pode ser compartilhado por famílias ou empresas, CGNAT pode agrupar muitos usuários e VPNs podem trocar o endereço observado. Os limites devem ser monitorados após a ativação para equilibrar bloqueio e falsos positivos.
 

@@ -332,17 +332,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .catch(() => null)
           : null;
 
-      if (error || !data.user || data.user.identities?.length === 0) {
+      if (error || !data.user) {
         if (error && import.meta.env.DEV) {
           console.error("Falha no cadastro Supabase", { code: error.code, message: error.message });
         }
-        const nextMessage =
-          data.user?.identities?.length === 0
-            ? "Este e-mail já possui cadastro. Tente entrar na sua conta."
-            : translateRegistrationError(
-                functionError?.message ?? error?.message ?? "",
-                functionError?.code ?? error?.code,
-              );
+        const nextMessage = translateRegistrationError(
+          functionError?.message ?? error?.message ?? "",
+          functionError?.code ?? error?.code,
+        );
         clearAuth(nextMessage);
         return { ok: false, message: nextMessage };
       }

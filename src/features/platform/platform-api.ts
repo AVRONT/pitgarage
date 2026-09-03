@@ -34,7 +34,7 @@ export type Conversation = {
 };
 export type ChatMessage = {
   id: string;
-  sender_user_id: string;
+  sender_user_id: string | null;
   sender_name: string;
   body: string;
   created_at: string;

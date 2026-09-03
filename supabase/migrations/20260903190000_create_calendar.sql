@@ -11,7 +11,7 @@ create table public.calendar_events (
   vehicle_id uuid references public.vehicles(id) on delete set null,
   service_order_id uuid references public.service_orders(id) on delete set null,
   visible_to_customer boolean not null default false,
-  created_by uuid not null references public.user_profiles(user_id),
+  created_by uuid references public.user_profiles(user_id) on delete set null,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -23,15 +23,10 @@ create index calendar_events_customer_idx on public.calendar_events(customer_id)
 
 alter table public.calendar_events enable row level security;
 revoke all on public.calendar_events from public, anon, authenticated;
-grant select, insert, update on public.calendar_events to authenticated;
+grant select on public.calendar_events to authenticated;
 
 create policy calendar_events_team_select on public.calendar_events for select to authenticated
   using ((select pitgarage_private.is_team_member()));
-create policy calendar_events_team_insert on public.calendar_events for insert to authenticated
-  with check ((select pitgarage_private.is_team_member()) and created_by = (select auth.uid()));
-create policy calendar_events_team_update on public.calendar_events for update to authenticated
-  using ((select pitgarage_private.is_team_member()))
-  with check ((select pitgarage_private.is_team_member()) and created_by is not null);
 
 create function public.list_calendar_events(range_start timestamptz, range_end timestamptz)
 returns setof public.calendar_events language sql stable security definer set search_path = '' as $$

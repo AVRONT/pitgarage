@@ -72,7 +72,8 @@ language plpgsql
 set search_path = ''
 as $$
 declare
-  source_ip inet;
+  hook_ip inet;
+  effective_ip inet;
   normalized_email text;
   hashed_email text;
   invite_token_hash text;
@@ -83,22 +84,6 @@ declare
   attempts_1h bigint;
   attempts_24h bigint;
 begin
-  begin
-    source_ip := nullif(event -> 'metadata' ->> 'ip_address', '')::inet;
-  exception when invalid_text_representation then
-    return jsonb_build_object('error', jsonb_build_object(
-      'http_code', 429,
-      'message', 'Cadastro temporariamente indisponível. Tente novamente mais tarde.'
-    ));
-  end;
-
-  if source_ip is null then
-    return jsonb_build_object('error', jsonb_build_object(
-      'http_code', 429,
-      'message', 'Cadastro temporariamente indisponível. Tente novamente mais tarde.'
-    ));
-  end if;
-
   normalized_email := lower(btrim(coalesce(event -> 'user' ->> 'email', '')));
   hashed_email := encode(extensions.digest(normalized_email, 'sha256'), 'hex');
   invite_token_hash := encode(extensions.digest(
@@ -117,15 +102,12 @@ begin
   );
   if found then return '{}'::jsonb; end if;
 
-  -- Serialize checks per trusted Auth IP so concurrent requests cannot pass together.
-  perform pg_advisory_xact_lock(hashtextextended(host(source_ip), 0));
   correlated_attempt := nullif(event -> 'user' -> 'user_metadata' ->> 'registration_attempt_id', '')::uuid;
 
   if correlated_attempt is not null then
-    select attempt.id into current_attempt
+    select attempt.id, attempt.ip_address into current_attempt, effective_ip
     from public.registration_attempts attempt
     where attempt.id = correlated_attempt
-      and attempt.ip_address = source_ip
       and attempt.email_hash = hashed_email
       and attempt.reason = 'pending'
       and attempt.created_at > now() - interval '5 minutes'
@@ -133,15 +115,41 @@ begin
   end if;
 
   if current_attempt is null then
+    begin
+      hook_ip := nullif(event -> 'metadata' ->> 'ip_address', '')::inet;
+    exception when invalid_text_representation then
+      return jsonb_build_object('error', jsonb_build_object(
+        'http_code', 429,
+        'message', 'Cadastro temporariamente indisponível. Tente novamente mais tarde.'
+      ));
+    end;
+    if hook_ip is null then
+      return jsonb_build_object('error', jsonb_build_object(
+        'http_code', 429,
+        'message', 'Cadastro temporariamente indisponível. Tente novamente mais tarde.'
+      ));
+    end if;
+    effective_ip := hook_ip;
+  elsif effective_ip is null then
+    return jsonb_build_object('error', jsonb_build_object(
+      'http_code', 429,
+      'message', 'Cadastro temporariamente indisponível. Tente novamente mais tarde.'
+    ));
+  end if;
+
+  -- Serialize by the effective client IP before inserting/counting this attempt.
+  perform pg_advisory_xact_lock(hashtextextended(host(effective_ip), 0));
+
+  if current_attempt is null then
     insert into public.registration_attempts (ip_address, email_hash, reason)
-    values (source_ip, hashed_email, 'auth_hook_pending') returning id into current_attempt;
+    values (effective_ip, hashed_email, 'auth_hook_pending') returning id into current_attempt;
   end if;
 
   select ip_1h, ip_24h into limit_1h, limit_24h from public.registration_rate_limits where singleton;
   select count(*) into attempts_1h from public.registration_attempts
-    where ip_address = source_ip and created_at > now() - interval '1 hour';
+    where ip_address = effective_ip and created_at > now() - interval '1 hour';
   select count(*) into attempts_24h from public.registration_attempts
-    where ip_address = source_ip and created_at > now() - interval '24 hours';
+    where ip_address = effective_ip and created_at > now() - interval '24 hours';
 
   -- The current row is already included, hence strictly greater than the configured maximum.
   if attempts_1h > limit_1h or attempts_24h > limit_24h then
@@ -248,9 +256,9 @@ declare recipient uuid;
 begin
   if old.status is not distinct from new.status then return new; end if;
   select c.auth_user_id into recipient from public.customers c where c.id=new.customer_id;
-  if recipient is not null and new.status in ('Aguardando aprovaÃ§Ã£o','ServiÃ§o concluÃ­do','Aguardando retirada','Entregue') then
+  if recipient is not null and new.status in ('Aguardando aprovação','Serviço concluído','Aguardando retirada','Entregue') then
     insert into public.notifications(user_id,type,title,message,target,metadata)
-    values(recipient,'service_order','AtualizaÃ§Ã£o da OS',format('A OS %s agora estÃ¡ em %s.',new.order_number,new.status),'/cliente',jsonb_build_object('service_order_id',new.id));
+    values(recipient,'service_order','Atualização da OS',format('A OS %s agora está em %s.',new.order_number,new.status),'/cliente',jsonb_build_object('service_order_id',new.id));
   end if;
   return new;
 end;
