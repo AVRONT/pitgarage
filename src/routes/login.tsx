@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LoaderCircle, LockKeyhole, Wrench } from "lucide-react";
+import { LoaderCircle, LockKeyhole, UserPlus, Wrench } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,16 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { identity, isLoading, isLocalBypass, login, message, resumeLocalAccess } = useAuth();
+  const { identity, isLoading, isLocalBypass, login, message, register, resumeLocalAccess } =
+    useAuth();
   const navigate = useNavigate();
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (identity)
@@ -27,14 +32,40 @@ function LoginPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFormMessage(null);
+
+    if (isRegistering && password !== passwordConfirmation) {
+      setFormMessage("As senhas não coincidem.");
+      return;
+    }
+
     setSubmitting(true);
-    const result = await login(email.trim(), password);
+    const result = isRegistering
+      ? await register(fullName.trim(), email.trim(), password)
+      : await login(email.trim(), password);
     setSubmitting(false);
-    if (result.ok)
+
+    if (!result.ok) return;
+    if ("requiresEmailConfirmation" in result && result.requiresEmailConfirmation) {
+      setIsRegistering(false);
+      setPassword("");
+      setPasswordConfirmation("");
+      setFormMessage("Conta criada. Confirme seu e-mail para entrar.");
+      return;
+    }
+
+    if ("accessLevel" in result && result.accessLevel)
       await navigate({
         to: result.accessLevel === "customer" ? "/cliente" : "/",
         replace: true,
       });
+  };
+
+  const toggleMode = () => {
+    setIsRegistering((current) => !current);
+    setPassword("");
+    setPasswordConfirmation("");
+    setFormMessage(null);
   };
 
   if (isLoading && !submitting) {
@@ -62,22 +93,48 @@ function LoginPage() {
         </div>
 
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">Acesse sua conta</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {isRegistering ? "Crie sua conta" : "Acesse sua conta"}
+          </h1>
           <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-            Entre com as credenciais fornecidas pelo responsável da oficina.
+            {isRegistering
+              ? "Cadastre-se para acessar sua futura área de veículos e serviços."
+              : "Entre com seu e-mail e senha."}
           </p>
         </div>
 
-        {message && (
+        {(message || formMessage) && (
           <div
-            className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800"
-            role="alert"
+            className={`mb-5 rounded-md border px-3 py-2.5 text-sm ${
+              formMessage?.startsWith("Conta criada")
+                ? "border-green-200 bg-green-50 text-green-800"
+                : "border-red-200 bg-red-50 text-red-800"
+            }`}
+            role="status"
           >
-            {message}
+            {formMessage ?? message}
           </div>
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {isRegistering && (
+            <label className="block text-sm font-medium" htmlFor="full-name">
+              Nome
+              <Input
+                id="full-name"
+                name="fullName"
+                type="text"
+                autoComplete="name"
+                required
+                minLength={2}
+                maxLength={120}
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                className="mt-1.5 h-11"
+                placeholder="Seu nome"
+              />
+            </label>
+          )}
           <label className="block text-sm font-medium" htmlFor="email">
             E-mail
             <Input
@@ -98,19 +155,52 @@ function LoginPage() {
               id="password"
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete={isRegistering ? "new-password" : "current-password"}
               required
+              minLength={6}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-1.5 h-11"
               placeholder="Digite sua senha"
             />
           </label>
+          {isRegistering && (
+            <label className="block text-sm font-medium" htmlFor="password-confirmation">
+              Confirmar senha
+              <Input
+                id="password-confirmation"
+                name="passwordConfirmation"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={passwordConfirmation}
+                onChange={(event) => setPasswordConfirmation(event.target.value)}
+                className="mt-1.5 h-11"
+                placeholder="Digite a senha novamente"
+              />
+            </label>
+          )}
           <Button className="h-11 w-full" type="submit" disabled={submitting}>
-            {submitting ? <LoaderCircle className="animate-spin" /> : <LockKeyhole />}
-            {submitting ? "Entrando…" : "Entrar"}
+            {submitting ? (
+              <LoaderCircle className="animate-spin" />
+            ) : isRegistering ? (
+              <UserPlus />
+            ) : (
+              <LockKeyhole />
+            )}
+            {submitting ? "Aguarde…" : isRegistering ? "Criar conta" : "Entrar"}
           </Button>
         </form>
+
+        <div className="mt-5 border-t pt-5 text-center">
+          <p className="text-sm text-muted-foreground">
+            {isRegistering ? "Já possui cadastro?" : "Ainda não possui cadastro?"}
+          </p>
+          <Button type="button" variant="link" className="mt-1" onClick={toggleMode}>
+            {isRegistering ? "Entrar na conta" : "Criar conta"}
+          </Button>
+        </div>
 
         {import.meta.env.DEV &&
           typeof window !== "undefined" &&

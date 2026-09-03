@@ -26,7 +26,8 @@ O UUID estável do perfil permitirá que tabelas futuras registrem campos como `
 
 ## Runtime local preparado
 
-- `/login` usa Supabase Auth por e-mail e senha, sem cadastro público e sem armazenamento de senha pelo PitGarage.
+- `/login` usa Supabase Auth por e-mail e senha e permite criar uma conta de cliente. O PitGarage não armazena senhas; novos usuários recebem o perfil `customer` pelo trigger da migration.
+- Quando a confirmação de e-mail estiver habilitada no Supabase, o cadastro orienta o cliente a confirmar o endereço antes do primeiro login; sem essa exigência, a sessão segue diretamente para `/cliente`.
 - A rota principal exige sessão, perfil ativo e nível `staff`, `admin` ou `owner`. Sessão válida é restaurada pelo Supabase após reload; perfil ausente ou inativo encerra a sessão e mostra orientação clara.
 - Perfil `customer` autenticado é direcionado exclusivamente para `/cliente`, que exibe somente identidade, aviso de conteúdo futuro e logout, sem montar a aplicação interna ou acessar seus dados locais.
 - O header identifica nome, cargo/nível, e-mail da conta real e oferece logout.

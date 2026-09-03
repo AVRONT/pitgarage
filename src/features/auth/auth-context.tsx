@@ -32,6 +32,9 @@ export interface AuthIdentity {
 }
 
 type LoginResult = { ok: true; accessLevel: AccessLevel } | { ok: false; message: string };
+type RegisterResult =
+  | { ok: true; requiresEmailConfirmation: boolean; accessLevel?: AccessLevel }
+  | { ok: false; message: string };
 
 interface AuthContextValue {
   user: User | null;
@@ -42,6 +45,7 @@ interface AuthContextValue {
   isLoading: boolean;
   message: string | null;
   login: (email: string, password: string) => Promise<LoginResult>;
+  register: (fullName: string, email: string, password: string) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   resumeLocalAccess: () => void;
 }
@@ -82,6 +86,24 @@ function translateAuthError(message: string) {
     return "Muitas tentativas. Aguarde um pouco e tente novamente.";
   }
   return "Não foi possível entrar. Verifique os dados e tente novamente.";
+}
+
+function translateRegistrationError(message: string) {
+  const normalized = message.toLocaleLowerCase("en-US");
+
+  if (normalized.includes("already registered") || normalized.includes("already been registered")) {
+    return "Este e-mail já possui cadastro. Tente entrar na sua conta.";
+  }
+  if (normalized.includes("password") && normalized.includes("least")) {
+    return "A senha não atende ao tamanho mínimo exigido.";
+  }
+  if (normalized.includes("invalid") && normalized.includes("email")) {
+    return "Informe um e-mail válido.";
+  }
+  if (normalized.includes("too many requests")) {
+    return "Muitas tentativas. Aguarde um pouco e tente novamente.";
+  }
+  return "Não foi possível criar a conta. Verifique os dados e tente novamente.";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -193,6 +215,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clearAuth, loadAuthenticatedIdentity],
   );
 
+  const register = useCallback(
+    async (fullName: string, email: string, password: string): Promise<RegisterResult> => {
+      setIsLoading(true);
+      setMessage(null);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      });
+
+      if (error || !data.user || data.user.identities?.length === 0) {
+        const nextMessage =
+          data.user?.identities?.length === 0
+            ? "Este e-mail já possui cadastro. Tente entrar na sua conta."
+            : translateRegistrationError(error?.message ?? "");
+        clearAuth(nextMessage);
+        return { ok: false, message: nextMessage };
+      }
+
+      if (!data.session) {
+        clearAuth();
+        return { ok: true, requiresEmailConfirmation: true };
+      }
+
+      const identityResult = await loadAuthenticatedIdentity(data.user);
+      if (!identityResult.ok) return identityResult;
+      return {
+        ok: true,
+        requiresEmailConfirmation: false,
+        accessLevel: identityResult.accessLevel,
+      };
+    },
+    [clearAuth, loadAuthenticatedIdentity],
+  );
+
   const logout = useCallback(async () => {
     setIsLoading(true);
     if (!identity?.isLocalBypass) await supabase.auth.signOut();
@@ -217,10 +274,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       message,
       login,
+      register,
       logout,
       resumeLocalAccess,
     }),
-    [identity, isLoading, login, logout, message, resumeLocalAccess, user],
+    [identity, isLoading, login, logout, message, register, resumeLocalAccess, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

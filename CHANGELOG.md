@@ -2,6 +2,12 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Cadastro de clientes na autenticação — não publicado] - 2026-09-02
+
+- Adicionado cadastro por nome, e-mail e senha na tela de login, usando diretamente o Supabase Auth.
+- Novas contas seguem o perfil automático `customer` da migration e são direcionadas para `/cliente`; quando exigida, a confirmação do e-mail é informada antes do primeiro acesso.
+- Mantidos o login existente, o bypass local e o isolamento entre a Área do Cliente e o sistema interno.
+
 ## [Separação de clientes e equipe na autenticação — não publicado] - 2026-09-02
 
 - Adicionado nível `customer`; novos perfis da migration ainda não aplicada passam a nascer ativos nesse nível e sem obrigação de cargo operacional.
