@@ -75,6 +75,7 @@ import {
   type PilotBackup,
 } from "./pilot-storage";
 import { FinalOrderSummary } from "./final-order-summary";
+import { UserMenu } from "@/features/auth/user-menu";
 import {
   formatDate,
   initialCustomers,
@@ -571,15 +572,7 @@ export function PilotApp() {
               </div>
             )}
           </div>
-          <div className="ml-auto hidden items-center gap-3 sm:flex">
-            <div className="text-right">
-              <p className="max-w-48 truncate text-sm font-semibold">{workshop.name}</p>
-              <p className="text-xs text-muted-foreground">Ambiente piloto</p>
-            </div>
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-              <Wrench className="h-5 w-5" />
-            </div>
-          </div>
+          <UserMenu />
         </header>
         {notice && (
           <div

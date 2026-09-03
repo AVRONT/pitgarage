@@ -2,6 +2,14 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Runtime local de autenticação — não publicado] - 2026-09-02
+
+- Implementados login por e-mail/senha com Supabase Auth, restauração de sessão, exigência de perfil ativo e logout, sem cadastro público ou armazenamento próprio de senha.
+- Contexto central de autenticação fornece usuário, perfil, nível de acesso e identidade de auditoria para evoluções futuras.
+- Header passa a identificar o usuário logado e adaptar o indicador ao mobile.
+- Desenvolvimento em `localhost` ou `127.0.0.1` recebe bypass efêmero `Admin Local`, sem conta, senha ou funcionamento no build de produção.
+- Migration existente revisada sem necessidade de correção e não aplicada remotamente. Clientes, veículos, OS, backup, workflow e demais dados locais permanecem intactos.
+
 ## [Proposta não aplicada — autenticação e permissões] - 2026-09-02
 
 - Preparada migration local, sem execução, para perfis ligados ao Supabase Auth, com cargo separado de `owner`, `admin` e `staff`.

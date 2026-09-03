@@ -115,6 +115,18 @@
   }
 }
 
+.auth-page {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 20% 15%, #dce8ff 0, transparent 30%),
+    linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+.auth-card {
+  border-top: 3px solid var(--brand-red);
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

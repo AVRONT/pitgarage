@@ -1,6 +1,6 @@
 # Proposta de autenticação, usuários e permissões
 
-Status: **preparada localmente e não aplicada**. Supabase Auth é a proposta técnica desta rodada, não uma arquitetura definitiva aprovada. A migration não foi executada e nenhum dado remoto foi alterado.
+Status: **runtime implementado localmente; migration ainda não aplicada**. Supabase Auth continua sendo a proposta técnica, não uma arquitetura definitiva aprovada. Nenhum dado remoto foi alterado.
 
 ## Recorte proposto
 
@@ -24,7 +24,16 @@ Essas regras ainda dependem da validação da oficina. Em especial, continuam pe
 
 O UUID estável do perfil permitirá que tabelas futuras registrem campos como `performed_by_user_id`, ligados a `user_profiles.user_id`. Clientes, veículos, OS, workflow, histórico e exclusão lógica continuam no piloto local e não foram alterados nesta rodada. Antes de migrar dados operacionais, deverá ser definida a retenção de autoria; usuários com histórico deverão ser desativados em vez de excluídos fisicamente.
 
-Login será a base futura para auditoria, notificações e chat, mas nenhum desses fluxos foi implementado agora.
+## Runtime local preparado
+
+- `/login` usa Supabase Auth por e-mail e senha, sem cadastro público e sem armazenamento de senha pelo PitGarage.
+- A rota principal exige sessão e perfil ativo em ambientes normais. Sessão válida é restaurada pelo Supabase após reload; perfil ausente ou inativo encerra a sessão e mostra orientação clara.
+- O header identifica nome, cargo/nível, e-mail da conta real e oferece logout.
+- Em build de desenvolvimento, somente nos hosts `localhost` e `127.0.0.1`, uma identidade efêmera `Admin Local`/`owner` permite trabalhar sem criar conta ou senha. O mesmo contrato de autenticação expõe `actorId: "local:admin"` e `userId: null`, evitando que auditorias futuras tentem gravar esse ator como UUID real.
+- O bypass é compilado como inativo em produção. Não depende de variável configurável, senha ou usuário remoto.
+- Recuperação de senha não foi exposta enquanto URL de redirecionamento e fluxo de definição da nova senha não estiverem configurados e testados no Supabase.
+
+Login passa a ser a base futura para auditoria, notificações e chat, mas esses recursos não foram implementados agora.
 
 ## Aplicação futura controlada
 
@@ -34,6 +43,7 @@ Login será a base futura para auditoria, notificações e chat, mas nenhum dess
 4. Criar a conta real de Salomão pelo Supabase Auth, sem inserir ou copiar senha em SQL.
 5. Confirmar o UUID real, nome e cargo; substituir os placeholders e executar uma única vez o bootstrap manual como operador de banco privilegiado.
 6. Verificar que existe exatamente um owner ativo e que tentativas de autoelevação, administração por staff e alteração de owner por admin falham.
-7. Somente em rodada posterior integrar telas de login/administração e definir a estratégia de convite. A migração de `localStorage` permanece fora deste escopo.
+7. Publicar o runtime já preparado e validar login, persistência da sessão, perfil inativo e logout no ambiente conectado.
+8. Somente em rodada posterior implementar Configurações > Equipe e definir convite/recuperação de senha. A migração de `localStorage` permanece fora deste escopo.
 
 Antes da aplicação remota, a migration deve ser validada em um projeto Supabase local ou descartável. O trigger de criação de perfil participa do cadastro Auth; falhas nele podem bloquear novas contas.
