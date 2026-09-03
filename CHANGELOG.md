@@ -2,6 +2,13 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Aplicação da base de autenticação no Lovable Cloud] - 2026-09-02
+
+- Migration `20260902190000_prepare_auth_user_profiles.sql` aplicada no Supabase do Lovable Cloud; o trigger foi validado criando perfil `customer` ativo e o usuário de teste foi removido.
+- Conta real de Salomão criada e promovida uma única vez pelo bootstrap para `owner` ativo, com cargo `Proprietário`; o bootstrap não deve ser repetido.
+- Somente `owner` pode alterar `access_level`. Cadastro público em `/login` mantém novos usuários como `customer`, restritos a `/cliente`.
+- Dados operacionais permanecem no `localStorage` e não foram migrados. As entradas anteriores abaixo preservam o histórico das fases em que migration, runtime e bootstrap ainda eram apenas preparação local.
+
 ## [Cadastro de clientes na autenticação — não publicado] - 2026-09-02
 
 - Adicionado cadastro por nome, e-mail e senha na tela de login, usando diretamente o Supabase Auth.
@@ -10,11 +17,11 @@ Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alteraç�
 
 ## [Separação de clientes e equipe na autenticação — não publicado] - 2026-09-02
 
-- Adicionado nível `customer`; novos perfis da migration ainda não aplicada passam a nascer ativos nesse nível e sem obrigação de cargo operacional.
+- Adicionado nível `customer`; na etapa anterior à aplicação remota, a migration foi preparada para criar novos perfis ativos nesse nível e sem obrigação de cargo operacional.
 - Sistema interno limitado a `staff`, `admin` e `owner`; clientes autenticados são direcionados para `/cliente`, sem renderização dos dados internos ou do piloto local.
 - Área do Cliente inicial exibe somente nome/e-mail, mensagem de evolução futura e logout.
 - RLS mantém customer/staff sem administração de permissões, limita admin a customer/staff e permite ao owner administrar customer/staff/admin sem criar novo owner pela API normal.
-- Login, bypass local como owner, workflow, dados operacionais, backup e `localStorage` foram preservados. Nenhuma migration ou ação remota foi executada.
+- Login, bypass local como owner, workflow, dados operacionais, backup e `localStorage` foram preservados. Naquela rodada, nenhuma migration ou ação remota foi executada.
 
 ## [Runtime local de autenticação — não publicado] - 2026-09-02
 
@@ -22,14 +29,14 @@ Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alteraç�
 - Contexto central de autenticação fornece usuário, perfil, nível de acesso e identidade de auditoria para evoluções futuras.
 - Header passa a identificar o usuário logado e adaptar o indicador ao mobile.
 - Desenvolvimento em `localhost` ou `127.0.0.1` recebe bypass efêmero `Admin Local`, sem conta, senha ou funcionamento no build de produção.
-- Migration existente revisada sem necessidade de correção e não aplicada remotamente. Clientes, veículos, OS, backup, workflow e demais dados locais permanecem intactos.
+- Naquela etapa, a migration existente foi revisada sem aplicação remota. Clientes, veículos, OS, backup, workflow e demais dados locais permaneceram intactos.
 
 ## [Proposta não aplicada — autenticação e permissões] - 2026-09-02
 
-- Preparada migration local, sem execução, para perfis ligados ao Supabase Auth, com cargo separado de `owner`, `admin` e `staff`.
+- Na fase inicial, foi preparada uma migration local, ainda sem execução, para perfis ligados ao Supabase Auth, com cargo separado de `owner`, `admin` e `staff`.
 - Incluídos constraints, índice, grants mínimos, RLS, bloqueio de autoelevação, administração provisória de perfis e bootstrap manual do primeiro owner.
-- Nenhuma senha, conta, e-mail, dado remoto, login, convite, notificação, chat ou migração do `localStorage` foi criada.
-- Supabase permanece proposta técnica, e a matriz de permissões continua pendente de validação.
+- Naquela fase de preparação, nenhuma senha, conta, e-mail, dado remoto, login, convite, notificação, chat ou migração do `localStorage` foi criada.
+- Naquele momento, Supabase permanecia uma proposta técnica e a matriz de permissões continuava pendente de validação.
 
 ## [Piloto v0.1.15] - 2026-09-02
 
