@@ -4000,7 +4000,11 @@ function NewOrderDialog({
   allCustomers: Customer[];
   allVehicles: Vehicle[];
   orders: ServiceOrder[];
-  onCreate: (result: { customer?: Customer; vehicle?: Vehicle; order: ServiceOrder }) => void;
+  onCreate: (result: {
+    customer?: Customer | undefined;
+    vehicle?: Vehicle | undefined;
+    order: ServiceOrder;
+  }) => void;
 }) {
   const [step, setStep] = useState(0);
   const [customerSearch, setCustomerSearch] = useState("");
