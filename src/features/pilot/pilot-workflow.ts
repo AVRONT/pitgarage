@@ -39,8 +39,8 @@ export interface WorkflowEvaluation {
   blockers: string[];
   warnings: string[];
   nextAction: WorkflowAction;
-  recommendedStatus?: OrderStatus;
-  inconsistency?: string;
+  recommendedStatus?: OrderStatus | undefined;
+  inconsistency?: string | undefined;
 }
 
 export interface WorkflowReversalPlan {
