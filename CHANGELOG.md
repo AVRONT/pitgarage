@@ -2,6 +2,13 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Proposta não aplicada — autenticação e permissões] - 2026-09-02
+
+- Preparada migration local, sem execução, para perfis ligados ao Supabase Auth, com cargo separado de `owner`, `admin` e `staff`.
+- Incluídos constraints, índice, grants mínimos, RLS, bloqueio de autoelevação, administração provisória de perfis e bootstrap manual do primeiro owner.
+- Nenhuma senha, conta, e-mail, dado remoto, login, convite, notificação, chat ou migração do `localStorage` foi criada.
+- Supabase permanece proposta técnica, e a matriz de permissões continua pendente de validação.
+
 ## [Piloto v0.1.15] - 2026-09-02
 
 ### Segurança e consistência histórica local

@@ -14,3 +14,7 @@
 - É desejável identificar futuramente quem realizou cada diagnóstico e serviço.
 - Nenhuma matriz definitiva de permissões foi aprovada.
 - Autenticação e controle de acesso não devem ser implementados antes dessa validação.
+
+## Proposta técnica preparada, não aplicada
+
+Foi preparada uma [proposta de autenticação, usuários e permissões](13-proposta-autenticacao-usuarios.md) com Supabase Auth, níveis `owner`, `admin` e `staff` separados dos cargos operacionais. Ela não foi aplicada ao banco, não bloqueia o piloto e não transforma a matriz pendente em regra definitiva.

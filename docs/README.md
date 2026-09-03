@@ -22,6 +22,7 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 10. [Questões pendentes](10-questoes-pendentes.md)
 11. [Decisões técnicas futuras](11-decisoes-tecnicas-futuras.md)
 12. [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
+13. [Proposta de autenticação, usuários e permissões](13-proposta-autenticacao-usuarios.md) — preparada localmente, não aplicada
 
 ## Piloto
 

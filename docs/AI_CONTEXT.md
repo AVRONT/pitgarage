@@ -28,6 +28,8 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 O projeto está na fase **Piloto v0.1.15 — segurança e consistência histórica local**, ainda vinculada à **v2 — Entrada na fase piloto**. Documentos de uma OS passam a congelar os dados da oficina na conclusão guiada do serviço, com fallback para configurações atuais em registros antigos. Configurações oferecem exportação e importação validada de backup JSON completo do piloto, e os registros persistidos passam a declarar versão de schema sem exigir reset. A identidade clara da v0.1.14, Nova OS, workflow, stepper, regressões, exclusão lógica e demais regras permanecem intactos. As regras de fechamento e documentos continuam demonstrativas e sujeitas à validação. O piloto não é o MVP aprovado e não define arquitetura, banco ou infraestrutura de produção.
 
+Existe uma proposta local, ainda não aplicada, de Supabase Auth com perfis e níveis `owner`, `admin` e `staff`. Ela não bloqueia o piloto, não migra o `localStorage` e não torna Supabase definitivo. As permissões continuam provisórias até validação; consultar [a proposta](13-proposta-autenticacao-usuarios.md).
+
 # Documentação atual
 
 - [Visão e processo atual](README.md#documentos)
