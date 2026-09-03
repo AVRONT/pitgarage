@@ -109,6 +109,13 @@ begin
     raise exception 'user_id cannot be changed';
   end if;
 
+  if new.access_level is distinct from old.access_level
+    and (select auth.uid()) is not null
+    and (select pitgarage_private.current_access_level()) is distinct from 'owner'
+  then
+    raise exception 'only owner can change access_level';
+  end if;
+
   if old.access_level = 'owner'
     and (new.access_level <> 'owner' or not new.is_active)
   then
@@ -160,19 +167,6 @@ with check (
       and (select pitgarage_private.is_existing_owner(user_id))
     )
   )
-);
-
-create policy user_profiles_admin_update_customer_or_staff
-on public.user_profiles
-for update
-to authenticated
-using (
-  (select pitgarage_private.current_access_level()) = 'admin'
-  and access_level in ('customer', 'staff')
-)
-with check (
-  (select pitgarage_private.current_access_level()) = 'admin'
-  and access_level in ('customer', 'staff')
 );
 
 create function public.administer_user_profile(
