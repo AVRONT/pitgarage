@@ -5,16 +5,16 @@ Status: **runtime implementado localmente; migration ainda não aplicada**. Supa
 ## Recorte proposto
 
 - Supabase Auth mantém identidade, sessão e senha. O PitGarage não terá sistema próprio de senhas nem armazenará senhas em tabelas da aplicação.
-- `public.user_profiles` liga cada perfil a `auth.users.id` e guarda apenas nome, cargo operacional, nível de acesso, estado ativo/inativo e timestamps.
+- `public.user_profiles` liga cada perfil a `auth.users.id` e guarda apenas nome, cargo operacional quando aplicável, nível de acesso, estado ativo/inativo e timestamps.
 - Cargo operacional e nível de acesso são independentes. Cargos iniciais conhecidos: Dono, Atendente e Mecânico; outros poderão ser definidos depois.
-- Novas contas recebem perfil `staff` inativo. Não existe regra automática de “primeiro usuário vira owner”.
+- Novas contas recebem perfil `customer` ativo e não exigem cargo operacional. Não existe regra automática de “primeiro usuário vira owner”.
 - A migration proposta está em `supabase/migrations/20260902190000_prepare_auth_user_profiles.sql` e o bootstrap manual separado em `supabase/bootstrap/promote-first-owner.sql`.
 
 ## Regras provisórias codificadas
 
-- `owner`: consulta e administra perfis; pode promover ou rebaixar `admin` e administrar `staff`.
-- `admin`: consulta perfis e administra somente usuários que continuam `staff`.
-- `staff`: consulta apenas o próprio perfil e não altera usuários nem permissões.
+- `owner`: consulta e administra perfis `customer`, `staff` e `admin`; owner existente continua protegido contra alteração pela API normal.
+- `admin`: consulta perfis e administra somente usuários que permanecem `customer` ou `staff`; não alcança `admin` nem `owner`.
+- `staff` e `customer`: consultam apenas o próprio perfil e não alteram usuários nem permissões.
 - Nenhum usuário pode promover alguém a `owner` pela API normal. Owner existente não pode ser desativado ou rebaixado pela API normal.
 - Escritas usam grants mínimos, RLS e uma função `security invoker`; campos de identidade e segurança não podem ser substituídos fora das colunas permitidas.
 
@@ -27,7 +27,8 @@ O UUID estável do perfil permitirá que tabelas futuras registrem campos como `
 ## Runtime local preparado
 
 - `/login` usa Supabase Auth por e-mail e senha, sem cadastro público e sem armazenamento de senha pelo PitGarage.
-- A rota principal exige sessão e perfil ativo em ambientes normais. Sessão válida é restaurada pelo Supabase após reload; perfil ausente ou inativo encerra a sessão e mostra orientação clara.
+- A rota principal exige sessão, perfil ativo e nível `staff`, `admin` ou `owner`. Sessão válida é restaurada pelo Supabase após reload; perfil ausente ou inativo encerra a sessão e mostra orientação clara.
+- Perfil `customer` autenticado é direcionado exclusivamente para `/cliente`, que exibe somente identidade, aviso de conteúdo futuro e logout, sem montar a aplicação interna ou acessar seus dados locais.
 - O header identifica nome, cargo/nível, e-mail da conta real e oferece logout.
 - Em build de desenvolvimento, somente nos hosts `localhost` e `127.0.0.1`, uma identidade efêmera `Admin Local`/`owner` permite trabalhar sem criar conta ou senha. O mesmo contrato de autenticação expõe `actorId: "local:admin"` e `userId: null`, evitando que auditorias futuras tentem gravar esse ator como UUID real.
 - O bypass é compilado como inativo em produção. Não depende de variável configurável, senha ou usuário remoto.
@@ -39,10 +40,10 @@ Login passa a ser a base futura para auditoria, notificações e chat, mas esses
 
 1. Validar a proposta e as regras provisórias com os responsáveis da oficina.
 2. No projeto Supabase correto, revisar backup e ambiente antes de aplicar a migration versionada.
-3. Aplicar a migration uma única vez e testar criação de conta, grants, RLS e bloqueios com usuários isolados `owner`, `admin` e `staff`.
+3. Aplicar a migration uma única vez e testar criação de conta, grants, RLS e bloqueios com usuários isolados `customer`, `staff`, `admin` e `owner`.
 4. Criar a conta real de Salomão pelo Supabase Auth, sem inserir ou copiar senha em SQL.
 5. Confirmar o UUID real, nome e cargo; substituir os placeholders e executar uma única vez o bootstrap manual como operador de banco privilegiado.
-6. Verificar que existe exatamente um owner ativo e que tentativas de autoelevação, administração por staff e alteração de owner por admin falham.
+6. Verificar que existe exatamente um owner ativo e que tentativas de autoelevação, administração por customer/staff e alteração de owner por admin falham.
 7. Publicar o runtime já preparado e validar login, persistência da sessão, perfil inativo e logout no ambiente conectado.
 8. Somente em rodada posterior implementar Configurações > Equipe e definir convite/recuperação de senha. A migração de `localStorage` permanece fora deste escopo.
 

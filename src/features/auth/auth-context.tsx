@@ -11,7 +11,7 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type AccessLevel = "owner" | "admin" | "staff";
+export type AccessLevel = "customer" | "staff" | "admin" | "owner";
 
 export interface UserProfile {
   user_id: string;
@@ -31,7 +31,7 @@ export interface AuthIdentity {
   isLocalBypass: boolean;
 }
 
-type LoginResult = { ok: true } | { ok: false; message: string };
+type LoginResult = { ok: true; accessLevel: AccessLevel } | { ok: false; message: string };
 
 interface AuthContextValue {
   user: User | null;
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setMessage(null);
       setIsLoading(false);
-      return { ok: true };
+      return { ok: true, accessLevel: profile.access_level };
     },
     [clearAuth],
   );

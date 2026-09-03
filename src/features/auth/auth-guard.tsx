@@ -9,9 +9,35 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !identity) void navigate({ to: "/login", replace: true });
+    if (!isLoading && identity?.profile.access_level === "customer")
+      void navigate({ to: "/cliente", replace: true });
   }, [identity, isLoading, navigate]);
 
-  if (isLoading || !identity) {
+  if (isLoading || !identity || identity.profile.access_level === "customer") {
+    return (
+      <main className="grid min-h-screen place-items-center bg-background px-4">
+        <div className="text-center" role="status" aria-live="polite">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="mt-3 text-sm text-muted-foreground">Verificando acesso…</p>
+        </div>
+      </main>
+    );
+  }
+
+  return children;
+}
+
+export function CustomerAuthGuard({ children }: { children: ReactNode }) {
+  const { identity, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !identity) void navigate({ to: "/login", replace: true });
+    if (!isLoading && identity && identity.profile.access_level !== "customer")
+      void navigate({ to: "/", replace: true });
+  }, [identity, isLoading, navigate]);
+
+  if (isLoading || !identity || identity.profile.access_level !== "customer") {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-4">
         <div className="text-center" role="status" aria-live="polite">

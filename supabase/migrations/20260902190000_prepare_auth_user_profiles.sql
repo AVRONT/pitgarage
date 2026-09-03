@@ -1,14 +1,14 @@
 -- PROPOSAL ONLY: this migration must not be applied until the architecture and
 -- provisional permission rules have been validated with the workshop.
 
-create type public.access_level as enum ('owner', 'admin', 'staff');
+create type public.access_level as enum ('customer', 'staff', 'admin', 'owner');
 
 create table public.user_profiles (
   user_id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
   operational_role text,
-  access_level public.access_level not null default 'staff',
-  is_active boolean not null default false,
+  access_level public.access_level not null default 'customer',
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint user_profiles_full_name_length check (
@@ -18,7 +18,11 @@ create table public.user_profiles (
     operational_role is null or (char_length(btrim(operational_role)) between 1 and 80)
   ),
   constraint user_profiles_active_identity_required check (
-    not is_active or (full_name is not null and operational_role is not null)
+    not is_active
+    or (
+      full_name is not null
+      and (access_level = 'customer' or operational_role is not null)
+    )
   )
 );
 
@@ -75,8 +79,16 @@ security definer
 set search_path = ''
 as $$
 begin
-  insert into public.user_profiles (user_id)
-  values (new.id);
+  insert into public.user_profiles (user_id, full_name)
+  values (
+    new.id,
+    coalesce(
+      nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''),
+      nullif(btrim(new.raw_user_meta_data ->> 'name'), ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      'Cliente'
+    )
+  );
   return new;
 end;
 $$;
@@ -142,7 +154,7 @@ using (
 with check (
   (select pitgarage_private.current_access_level()) = 'owner'
   and (
-    access_level in ('staff', 'admin')
+    access_level in ('customer', 'staff', 'admin')
     or (
       access_level = 'owner'
       and (select pitgarage_private.is_existing_owner(user_id))
@@ -150,17 +162,17 @@ with check (
   )
 );
 
-create policy user_profiles_admin_update_staff
+create policy user_profiles_admin_update_customer_or_staff
 on public.user_profiles
 for update
 to authenticated
 using (
   (select pitgarage_private.current_access_level()) = 'admin'
-  and access_level = 'staff'
+  and access_level in ('customer', 'staff')
 )
 with check (
   (select pitgarage_private.current_access_level()) = 'admin'
-  and access_level = 'staff'
+  and access_level in ('customer', 'staff')
 );
 
 create function public.administer_user_profile(

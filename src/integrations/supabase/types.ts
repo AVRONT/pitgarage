@@ -46,7 +46,7 @@ export type Database = {
       [_ in never]: never;
     };
     Enums: {
-      access_level: "owner" | "admin" | "staff";
+      access_level: "customer" | "staff" | "admin" | "owner";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -168,7 +168,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      access_level: ["owner", "admin", "staff"],
+      access_level: ["customer", "staff", "admin", "owner"],
     },
   },
 } as const;

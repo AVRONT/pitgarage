@@ -12,6 +12,7 @@ import {
 import { useAuth, type AccessLevel } from "./auth-context";
 
 const accessLabels: Record<AccessLevel, string> = {
+  customer: "Cliente",
   owner: "Owner",
   admin: "Administrador",
   staff: "Equipe",

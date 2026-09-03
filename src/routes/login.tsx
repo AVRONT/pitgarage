@@ -18,7 +18,11 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (identity) void navigate({ to: "/", replace: true });
+    if (identity)
+      void navigate({
+        to: identity.profile.access_level === "customer" ? "/cliente" : "/",
+        replace: true,
+      });
   }, [identity, navigate]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -26,7 +30,11 @@ function LoginPage() {
     setSubmitting(true);
     const result = await login(email.trim(), password);
     setSubmitting(false);
-    if (result.ok) await navigate({ to: "/", replace: true });
+    if (result.ok)
+      await navigate({
+        to: result.accessLevel === "customer" ? "/cliente" : "/",
+        replace: true,
+      });
   };
 
   if (isLoading && !submitting) {
@@ -119,7 +127,7 @@ function LoginPage() {
           )}
 
         <p className="mt-7 text-center text-xs text-muted-foreground">
-          Acesso restrito à equipe autorizada.
+          Acesso seguro para clientes e equipe autorizada.
         </p>
       </section>
     </main>

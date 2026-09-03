@@ -2,6 +2,14 @@
 
 Este arquivo registra mudanças relevantes na evolução do PITGARAGE. Alterações futuras devem preservar decisões anteriores e explicar qualquer substituição, descarte ou adiamento.
 
+## [Separação de clientes e equipe na autenticação — não publicado] - 2026-09-02
+
+- Adicionado nível `customer`; novos perfis da migration ainda não aplicada passam a nascer ativos nesse nível e sem obrigação de cargo operacional.
+- Sistema interno limitado a `staff`, `admin` e `owner`; clientes autenticados são direcionados para `/cliente`, sem renderização dos dados internos ou do piloto local.
+- Área do Cliente inicial exibe somente nome/e-mail, mensagem de evolução futura e logout.
+- RLS mantém customer/staff sem administração de permissões, limita admin a customer/staff e permite ao owner administrar customer/staff/admin sem criar novo owner pela API normal.
+- Login, bypass local como owner, workflow, dados operacionais, backup e `localStorage` foram preservados. Nenhuma migration ou ação remota foi executada.
+
 ## [Runtime local de autenticação — não publicado] - 2026-09-02
 
 - Implementados login por e-mail/senha com Supabase Auth, restauração de sessão, exigência de perfil ativo e logout, sem cadastro público ou armazenamento próprio de senha.
