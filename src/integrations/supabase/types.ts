@@ -14,6 +14,145 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          auth_user_id: string | null
+          cpf: string | null
+          created_at: string
+          deleted_at: string | null
+          email: string
+          email_normalized: string | null
+          id: string
+          name: string
+          phone: string
+          since: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          email: string
+          email_normalized?: string | null
+          id?: string
+          name: string
+          phone: string
+          since?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          email?: string
+          email_normalized?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          since?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      service_orders: {
+        Row: {
+          activities: Json
+          budget: Json
+          complaint: string
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          deleted_at: string | null
+          diagnosis: string
+          entry_mileage: number
+          evidence: Json
+          findings: string
+          id: string
+          notes: string
+          opened_at: string
+          order_number: number
+          payment: Json | null
+          status: string
+          status_history: Json
+          team: Json
+          updated_at: string
+          vehicle_id: string
+          workshop_snapshot: Json | null
+        }
+        Insert: {
+          activities?: Json
+          budget?: Json
+          complaint: string
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          deleted_at?: string | null
+          diagnosis?: string
+          entry_mileage: number
+          evidence?: Json
+          findings?: string
+          id?: string
+          notes?: string
+          opened_at?: string
+          order_number?: number
+          payment?: Json | null
+          status: string
+          status_history?: Json
+          team?: Json
+          updated_at?: string
+          vehicle_id: string
+          workshop_snapshot?: Json | null
+        }
+        Update: {
+          activities?: Json
+          budget?: Json
+          complaint?: string
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          deleted_at?: string | null
+          diagnosis?: string
+          entry_mileage?: number
+          evidence?: Json
+          findings?: string
+          id?: string
+          notes?: string
+          opened_at?: string
+          order_number?: number
+          payment?: Json | null
+          status?: string
+          status_history?: Json
+          team?: Json
+          updated_at?: string
+          vehicle_id?: string
+          workshop_snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_vehicle_customer_match"
+            columns: ["vehicle_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id", "customer_id"]
+          },
+          {
+            foreignKeyName: "service_orders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           access_level: Database["public"]["Enums"]["access_level"]
@@ -44,6 +183,59 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          brand: string
+          color: string
+          created_at: string
+          customer_id: string
+          deleted_at: string | null
+          id: string
+          kind: string
+          mileage: number
+          model: string
+          plate: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          brand: string
+          color: string
+          created_at?: string
+          customer_id: string
+          deleted_at?: string | null
+          id?: string
+          kind: string
+          mileage?: number
+          model: string
+          plate: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          brand?: string
+          color?: string
+          created_at?: string
+          customer_id?: string
+          deleted_at?: string | null
+          id?: string
+          kind?: string
+          mileage?: number
+          model?: string
+          plate?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -73,6 +265,94 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_service_order_atomic: {
+        Args: {
+          existing_customer_id: string
+          existing_vehicle_id: string
+          new_customer: Json
+          new_vehicle: Json
+          order_data: Json
+        }
+        Returns: {
+          activities: Json
+          budget: Json
+          complaint: string
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          deleted_at: string | null
+          diagnosis: string
+          entry_mileage: number
+          evidence: Json
+          findings: string
+          id: string
+          notes: string
+          opened_at: string
+          order_number: number
+          payment: Json | null
+          status: string
+          status_history: Json
+          team: Json
+          updated_at: string
+          vehicle_id: string
+          workshop_snapshot: Json | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "service_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_my_customer: {
+        Args: never
+        Returns: {
+          cpf: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          since: string
+        }[]
+      }
+      get_my_service_orders: {
+        Args: never
+        Returns: {
+          completed_at: string
+          id: string
+          opened_at: string
+          order_number: number
+          status: string
+          vehicle_id: string
+        }[]
+      }
+      get_my_vehicles: {
+        Args: never
+        Returns: {
+          brand: string
+          color: string
+          customer_id: string
+          id: string
+          kind: string
+          mileage: number
+          model: string
+          plate: string
+          year: number
+        }[]
+      }
+      list_team_users: {
+        Args: never
+        Returns: {
+          access_level: Database["public"]["Enums"]["access_level"]
+          customer_id: string
+          email: string
+          full_name: string
+          is_active: boolean
+          operational_role: string
+          user_id: string
+        }[]
+      }
+      try_link_my_customer: { Args: never; Returns: string }
     }
     Enums: {
       access_level: "customer" | "staff" | "admin" | "owner"
