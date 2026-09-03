@@ -73,9 +73,9 @@ export function TeamSettings() {
     try {
       const { error } = await supabase.rpc("administer_user_profile", {
         target_user_id: user.user_id,
-        new_full_name: user.full_name,
+        new_full_name: user.full_name as string,
         new_operational_role:
-          user.access_level === "customer" ? null : user.operational_role?.trim() || null,
+          (user.access_level === "customer" ? null : user.operational_role?.trim() || null) as string,
         new_access_level: user.access_level,
         new_is_active: user.is_active,
       });

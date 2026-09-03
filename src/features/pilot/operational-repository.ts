@@ -153,9 +153,9 @@ class CloudOperationalRepository implements OperationalRepository {
 
   async createOrder(bundle: NewOrderBundle) {
     const { data: created, error } = await supabase.rpc("create_service_order_atomic", {
-      existing_customer_id: bundle.customer ? null : bundle.order.customerId,
+      existing_customer_id: (bundle.customer ? null : bundle.order.customerId) as string,
       new_customer: bundle.customer ? asJson(bundle.customer) : null,
-      existing_vehicle_id: bundle.vehicle ? null : bundle.order.vehicleId,
+      existing_vehicle_id: (bundle.vehicle ? null : bundle.order.vehicleId) as string,
       new_vehicle: bundle.vehicle ? asJson(bundle.vehicle) : null,
       order_data: asJson({
         entryMileage: bundle.order.entryMileage,
