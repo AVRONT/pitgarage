@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, json, requestIp, sha256 } from "../_shared/http.ts";
 
-const LIMITS = { device24h: 3, ip1h: 5, ip24h: 10 } as const;
+const FALLBACK_LIMITS = { device24h: 3, ip1h: 5, ip24h: 10 } as const;
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -32,40 +32,32 @@ Deno.serve(async (request) => {
       if (!verification.success)
         return json({ message: "Confirme a verificação de segurança." }, 403);
     }
-    const since1h = new Date(Date.now() - 3_600_000).toISOString();
     const since24h = new Date(Date.now() - 86_400_000).toISOString();
-    const [{ count: device24h }, { count: ip1h }, { count: ip24h }] = await Promise.all([
+    const [{ data: configuredLimits }, { count: device24h }] = await Promise.all([
+      service
+        .from("registration_rate_limits")
+        .select("device_24h,ip_1h,ip_24h")
+        .eq("singleton", true)
+        .single(),
       service
         .from("registration_attempts")
         .select("id", { count: "exact", head: true })
         .eq("device_id_hash", deviceHash)
+        .eq("succeeded", true)
         .gte("created_at", since24h),
-      ip
-        ? service
-            .from("registration_attempts")
-            .select("id", { count: "exact", head: true })
-            .eq("ip_address", ip)
-            .gte("created_at", since1h)
-        : Promise.resolve({ count: 0 }),
-      ip
-        ? service
-            .from("registration_attempts")
-            .select("id", { count: "exact", head: true })
-            .eq("ip_address", ip)
-            .gte("created_at", since24h)
-        : Promise.resolve({ count: 0 }),
     ]);
-    const blocked =
-      (device24h ?? 0) >= LIMITS.device24h ||
-      (ip1h ?? 0) >= LIMITS.ip1h ||
-      (ip24h ?? 0) >= LIMITS.ip24h;
-    if (blocked) {
+    const limits = {
+      device24h: configuredLimits?.device_24h ?? FALLBACK_LIMITS.device24h,
+      ip1h: configuredLimits?.ip_1h ?? FALLBACK_LIMITS.ip1h,
+      ip24h: configuredLimits?.ip_24h ?? FALLBACK_LIMITS.ip24h,
+    };
+    if ((device24h ?? 0) >= limits.device24h) {
       await service.from("registration_attempts").insert({
         ip_address: ip,
         device_id_hash: deviceHash,
         email_hash: emailHash,
         blocked: true,
-        reason: "rate_limit",
+        reason: "device_limit",
       });
       await service.from("access_events").insert({
         event_type: "registration_blocked",
@@ -78,19 +70,32 @@ Deno.serve(async (request) => {
         429,
       );
     }
+    const { data: pending, error: pendingError } = await service
+      .from("registration_attempts")
+      .insert({
+        ip_address: ip,
+        device_id_hash: deviceHash,
+        email_hash: emailHash,
+        reason: "pending",
+      })
+      .select("id")
+      .single();
+    if (pendingError || !pending)
+      return json({ message: "Cadastro temporariamente indisponível." }, 503);
     const auth = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data, error } = await auth.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { full_name: fullName.trim() } },
+      options: {
+        captchaToken: turnstileToken,
+        data: { full_name: fullName.trim(), registration_attempt_id: pending.id },
+      },
     });
-    await service.from("registration_attempts").insert({
-      ip_address: ip,
-      device_id_hash: deviceHash,
-      email_hash: emailHash,
-      succeeded: !error,
-      reason: error?.code ?? null,
-    });
+    await service
+      .from("registration_attempts")
+      .update({ succeeded: !error, reason: error ? (error.code ?? "auth_error") : "created" })
+      .eq("id", pending.id)
+      .eq("blocked", false);
     if (error || !data.user)
       return json({ code: error?.code, message: error?.message ?? "Cadastro indisponível." }, 400);
     await service.from("access_events").insert({

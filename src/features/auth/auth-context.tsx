@@ -53,8 +53,13 @@ interface AuthContextValue {
   isLoading: boolean;
   message: string | null;
   rememberedAccount: RememberedAccount | null;
-  login: (email: string, password: string) => Promise<LoginResult>;
-  register: (fullName: string, email: string, password: string) => Promise<RegisterResult>;
+  login: (email: string, password: string, captchaToken?: string) => Promise<LoginResult>;
+  register: (
+    fullName: string,
+    email: string,
+    password: string,
+    captchaToken?: string,
+  ) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   retryProfile: () => Promise<void>;
   forgetRememberedAccount: () => void;
@@ -285,10 +290,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearAuth, loadAuthenticatedIdentity]);
 
   const login = useCallback(
-    async (email: string, password: string): Promise<LoginResult> => {
+    async (email: string, password: string, captchaToken?: string): Promise<LoginResult> => {
       setIsLoading(true);
       setMessage(null);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: captchaToken ? { captchaToken } : {},
+      });
 
       if (error || !data.user) {
         const nextMessage = translateAuthError(error?.message ?? "");
@@ -304,11 +313,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (fullName: string, email: string, password: string): Promise<RegisterResult> => {
+    async (
+      fullName: string,
+      email: string,
+      password: string,
+      captchaToken?: string,
+    ): Promise<RegisterResult> => {
       setIsLoading(true);
       setMessage(null);
       const { data, error } = await supabase.functions.invoke("register-account", {
-        body: { fullName, email, password, deviceId: getDeviceId() },
+        body: { fullName, email, password, deviceId: getDeviceId(), captchaToken },
       });
       const functionError =
         error?.context instanceof Response

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, json } from "../_shared/http.ts";
+import { corsHeaders, json, sha256 } from "../_shared/http.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -20,10 +20,26 @@ Deno.serve(async (request) => {
     const { email, fullName } = await request.json();
     if (typeof email !== "string" || !email.includes("@"))
       return json({ message: "Informe um e-mail válido." }, 400);
+    const emailHash = await sha256(email.trim().toLowerCase());
+    const inviteToken = crypto.randomUUID();
+    const inviteTokenHash = await sha256(inviteToken);
+    const { data: exemption, error: exemptionError } = await service
+      .from("registration_invite_exemptions")
+      .insert({ email_hash: emailHash, token_hash: inviteTokenHash, created_by: data.user.id })
+      .select("id")
+      .single();
+    if (exemptionError || !exemption)
+      return json({ message: "Não foi possível preparar o convite." }, 500);
     const { error } = await service.auth.admin.inviteUserByEmail(email.trim(), {
-      data: { full_name: typeof fullName === "string" ? fullName.trim() : "" },
+      data: {
+        full_name: typeof fullName === "string" ? fullName.trim() : "",
+        pitgarage_invite_token: inviteToken,
+      },
     });
-    if (error) return json({ message: error.message }, error.status ?? 400);
+    if (error) {
+      await service.from("registration_invite_exemptions").delete().eq("id", exemption.id);
+      return json({ message: error.message }, error.status ?? 400);
+    }
     return json({ ok: true });
   } catch {
     return json({ message: "Não foi possível enviar o convite." }, 500);

@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
+import { TurnstileWidget } from "@/features/auth/turnstile-widget";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/login")({
@@ -34,6 +35,9 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [recovering, setRecovering] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const turnstileEnabled = Boolean(import.meta.env["VITE_TURNSTILE_SITE_KEY"]);
 
   useEffect(() => {
     if (identity)
@@ -54,9 +58,11 @@ function LoginPage() {
 
     setSubmitting(true);
     const result = isRegistering
-      ? await register(fullName.trim(), email.trim(), password)
-      : await login(email.trim(), password);
+      ? await register(fullName.trim(), email.trim(), password, captchaToken ?? undefined)
+      : await login(email.trim(), password, captchaToken ?? undefined);
     setSubmitting(false);
+    setCaptchaToken(null);
+    setCaptchaKey((current) => current + 1);
 
     if (!result.ok) return;
     if ("requiresEmailConfirmation" in result && result.requiresEmailConfirmation) {
@@ -79,6 +85,7 @@ function LoginPage() {
     setPassword("");
     setPasswordConfirmation("");
     setFormMessage(null);
+    setCaptchaToken(null);
   };
 
   const recoverPassword = async () => {
@@ -86,8 +93,11 @@ function LoginPage() {
     setRecovering(true);
     await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
     setRecovering(false);
+    setCaptchaToken(null);
+    setCaptchaKey((current) => current + 1);
     setFormMessage("Se existir uma conta com esse e-mail, enviaremos as instruções.");
   };
 
@@ -260,7 +270,12 @@ function LoginPage() {
               />
             </label>
           )}
-          <Button className="h-11 w-full" type="submit" disabled={submitting}>
+          {turnstileEnabled && <TurnstileWidget key={captchaKey} onToken={setCaptchaToken} />}
+          <Button
+            className="h-11 w-full"
+            type="submit"
+            disabled={submitting || (turnstileEnabled && !captchaToken)}
+          >
             {submitting ? (
               <LoaderCircle className="animate-spin" />
             ) : isRegistering ? (
@@ -275,7 +290,7 @@ function LoginPage() {
               type="button"
               variant="link"
               className="h-auto p-0"
-              disabled={recovering}
+              disabled={recovering || (turnstileEnabled && !captchaToken)}
               onClick={() => void recoverPassword()}
             >
               {recovering ? "Enviando…" : "Esqueci minha senha"}
