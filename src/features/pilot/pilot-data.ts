@@ -82,7 +82,7 @@ export interface ServiceOrder {
   vehicleId: string;
   status: OrderStatus;
   openedAt: string;
-  completedAt?: string;
+  completedAt?: string | undefined;
   workshopSnapshot?: {
     name: string;
     legalName: string;
