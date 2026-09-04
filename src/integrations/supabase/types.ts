@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_events: {
+        Row: {
+          created_at: string
+          device_id_hash: string | null
+          event_type: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id_hash?: string | null
+          event_type: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id_hash?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           category: string
@@ -133,6 +166,144 @@ export type Database = {
           phone?: string
           since?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      developer_access: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          label: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          label?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          label?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          read_at: string | null
+          target: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          read_at?: string | null
+          target?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          read_at?: string | null
+          target?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      registration_attempts: {
+        Row: {
+          blocked: boolean
+          created_at: string
+          device_id_hash: string | null
+          email_hash: string | null
+          id: string
+          ip_address: unknown
+          reason: string | null
+          succeeded: boolean
+        }
+        Insert: {
+          blocked?: boolean
+          created_at?: string
+          device_id_hash?: string | null
+          email_hash?: string | null
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
+          succeeded?: boolean
+        }
+        Update: {
+          blocked?: boolean
+          created_at?: string
+          device_id_hash?: string | null
+          email_hash?: string | null
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
+          succeeded?: boolean
+        }
+        Relationships: []
+      }
+      registration_invite_exemptions: {
+        Row: {
+          created_at: string
+          created_by: string
+          email_hash: string
+          expires_at: string
+          id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email_hash: string
+          expires_at?: string
+          id?: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email_hash?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+        }
+        Relationships: []
+      }
+      registration_rate_limits: {
+        Row: {
+          device_24h: number
+          ip_1h: number
+          ip_24h: number
+          singleton: boolean
+        }
+        Insert: {
+          device_24h: number
+          ip_1h: number
+          ip_24h: number
+          singleton?: boolean
+        }
+        Update: {
+          device_24h?: number
+          ip_1h?: number
+          ip_24h?: number
+          singleton?: boolean
         }
         Relationships: []
       }
@@ -345,6 +516,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      before_user_created: { Args: { event: Json }; Returns: Json }
       cancel_calendar_event: { Args: { event_id: string }; Returns: undefined }
       create_service_order_atomic: {
         Args: {
@@ -385,6 +557,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_developer_dashboard: { Args: never; Returns: Json }
       get_my_customer: {
         Args: never
         Returns: {
@@ -421,6 +594,7 @@ export type Database = {
           year: number
         }[]
       }
+      has_developer_access: { Args: never; Returns: boolean }
       list_calendar_events: {
         Args: { range_end: string; range_start: string }
         Returns: {
@@ -446,6 +620,26 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      list_my_notifications: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          read_at: string | null
+          target: string | null
+          title: string
+          type: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_team_users: {
         Args: never
         Returns: {
@@ -457,6 +651,10 @@ export type Database = {
           operational_role: string
           user_id: string
         }[]
+      }
+      mark_my_notifications_read: {
+        Args: { notification_id?: string }
+        Returns: undefined
       }
       save_calendar_event: {
         Args: {
