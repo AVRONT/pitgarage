@@ -782,6 +782,15 @@ export type Database = {
         Args: { notification_id?: string }
         Returns: undefined
       }
+      reserve_invite_budget: { Args: { owner_id: string }; Returns: boolean }
+      reserve_registration_attempt: {
+        Args: {
+          client_ip: unknown
+          device_hash: string
+          email_hash_value: string
+        }
+        Returns: string
+      }
       save_calendar_event: {
         Args: {
           event_category: string
