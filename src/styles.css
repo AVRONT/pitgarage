@@ -783,6 +783,41 @@ button:hover > .brand-mark::after {
   font-size: 0.875rem;
 }
 
+/* Scoped finishing for the operational overview; other screens keep their current visual rules. */
+.dashboard-premium .dashboard-surface {
+  border-color: #dce2eb;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.055);
+}
+.dashboard-premium .dashboard-interactive,
+.dashboard-premium .dashboard-action,
+.dashboard-premium .dashboard-context {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+.dashboard-premium .dashboard-interactive:hover,
+.dashboard-premium .dashboard-context:hover {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  box-shadow: 0 7px 18px rgb(15 23 42 / 0.07);
+  transform: translateY(-1px);
+}
+.dashboard-premium .dashboard-action:hover {
+  background: #f8fafc;
+}
+.dashboard-premium :is(.bg-slate-50, .bg-slate-100) {
+  background-color: #f8fafc;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-premium .dashboard-interactive,
+  .dashboard-premium .dashboard-action,
+  .dashboard-premium .dashboard-context {
+    transition: none;
+    transform: none;
+  }
+}
+
 @media print {
   @page {
     size: A4;

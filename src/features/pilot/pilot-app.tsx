@@ -72,6 +72,7 @@ import { ChatWidget } from "@/features/platform/chat-widget";
 import { NotificationBell } from "@/features/platform/notification-bell";
 import { cn } from "@/lib/utils";
 import { WorkshopSettings } from "./workshop-settings";
+import { OperationalDashboard } from "./operational-dashboard";
 import { vehicleHistory } from "./vehicle-history";
 import { VehicleHistory } from "./vehicle-history-timeline";
 import { WorkshopIdentity } from "./workshop-document-header";
@@ -357,6 +358,7 @@ export function PilotApp() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [selectedOrderTab, setSelectedOrderTab] = useState("overview");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -415,10 +417,13 @@ export function PilotApp() {
     return () => window.clearTimeout(timeout);
   }, [notice, pendingWrites]);
 
-  const navigate = (next: Screen, id?: string) => {
+  const navigate = (next: Screen, id?: string, orderTab?: string) => {
     if (next === "customer" && id) setSelectedCustomerId(id);
     if (next === "vehicle" && id) setSelectedVehicleId(id);
-    if (next === "order" && id) setSelectedOrderId(id);
+    if (next === "order" && id) {
+      setSelectedOrderId(id);
+      setSelectedOrderTab(orderTab ?? "overview");
+    }
     setScreen(next);
     setMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -498,15 +503,27 @@ export function PilotApp() {
 
   if (dataLoading) {
     return (
-      <main className="grid min-h-screen place-items-center">Carregando dados operacionais…</main>
+      <main className="dashboard-premium min-h-screen bg-background p-5 md:p-10">
+        <div className="mx-auto max-w-6xl" role="status" aria-label="Carregando Visão Geral">
+          <div className="h-7 w-56 animate-pulse rounded bg-slate-200 motion-reduce:animate-none" />
+          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+          <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1fr)_23rem]">
+            <div className="h-96 animate-pulse rounded-lg border bg-white shadow-sm motion-reduce:animate-none" />
+            <div className="h-80 animate-pulse rounded-lg border bg-white shadow-sm motion-reduce:animate-none" />
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">Carregando dados operacionais…</p>
+        </div>
+      </main>
     );
   }
 
   if (dataError) {
     return (
-      <main className="grid min-h-screen place-items-center px-4 text-center">
-        <div>
-          <p className="font-semibold">{dataError}</p>
+      <main className="dashboard-premium grid min-h-screen place-items-center bg-background px-4 text-center">
+        <div className="dashboard-surface max-w-md rounded-lg border bg-white p-7 shadow-sm">
+          <AlertTriangle className="mx-auto h-7 w-7 text-rose-600" />
+          <h1 className="mt-4 text-xl font-bold">Visão Geral indisponível</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{dataError}</p>
           <Button className="mt-4" onClick={() => window.location.reload()}>
             Tentar novamente
           </Button>
@@ -689,11 +706,17 @@ export function PilotApp() {
               <CalendarScreen />
             ))}
           {screen === "dashboard" && (
-            <Dashboard
+            <OperationalDashboard
               orders={operationalOrders}
               vehicles={activeVehicles}
               customers={activeCustomers}
-              onNavigate={navigate}
+              onNavigate={(target) =>
+                navigate(
+                  target.screen,
+                  "id" in target ? target.id : undefined,
+                  "tab" in target ? target.tab : undefined,
+                )
+              }
               onNewOrder={() => setNewOrderOpen(true)}
             />
           )}
@@ -776,7 +799,9 @@ export function PilotApp() {
           )}
           {screen === "order" && selectedOrder && (
             <OrderDetail
+              key={`${selectedOrder.id}-${selectedOrderTab}`}
               order={selectedOrder}
+              initialTab={selectedOrderTab}
               workshop={workshop}
               vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
               customer={customers.find((item) => item.id === selectedOrder.customerId)!}
@@ -1009,211 +1034,6 @@ function PageTitle({
       </div>
       {action}
     </div>
-  );
-}
-
-function Dashboard({
-  orders,
-  vehicles,
-  customers,
-  onNavigate,
-  onNewOrder,
-}: {
-  orders: ServiceOrder[];
-  vehicles: Vehicle[];
-  customers: Customer[];
-  onNavigate: (screen: Screen, id?: string) => void;
-  onNewOrder: () => void;
-}) {
-  const activeOrders = orders.filter((order) => order.status !== "Entregue");
-  const cards = [
-    {
-      label: "Na oficina",
-      value: activeOrders.length,
-      icon: CarFront,
-      tone: "bg-slate-900 text-white",
-    },
-    {
-      label: "Em diagnóstico",
-      value: countOrdersByStatus(orders, ["Em diagnóstico"]),
-      icon: Gauge,
-      tone: "bg-sky-50 text-sky-700",
-    },
-    {
-      label: "Aguardando aprovação",
-      value: countOrdersByStatus(orders, ["Aguardando aprovação"]),
-      icon: Clock3,
-      tone: "bg-amber-50 text-amber-700",
-    },
-    {
-      label: "Aguardando peça",
-      value: countOrdersByStatus(orders, ["Aguardando peça"]),
-      icon: PackageCheck,
-      tone: "status-warning",
-    },
-    {
-      label: "Em manutenção",
-      value: countOrdersByStatus(orders, ["Em manutenção"]),
-      icon: Wrench,
-      tone: "status-active",
-    },
-    {
-      label: "Prontos para retirada",
-      value: countOrdersByStatus(orders, ["Serviço concluído", "Aguardando retirada"]),
-      icon: CheckCircle2,
-      tone: "status-success",
-    },
-  ];
-  const pendingValue = orders
-    .flatMap((o) => o.budget)
-    .filter((item) => item.approval === "Aguardando aprovação")
-    .reduce((sum, item) => sum + item.price, 0);
-  return (
-    <>
-      <PageTitle
-        eyebrow="Visão geral da oficina"
-        title="Bom trabalho, equipe."
-        text="Aqui está o ritmo da oficina neste momento."
-        action={
-          <Button
-            onClick={onNewOrder}
-            className="h-10 gap-2 bg-orange-600 px-5 hover:bg-orange-700"
-          >
-            <Plus className="h-4 w-4" /> Criar ordem de serviço
-          </Button>
-        }
-      />
-      <section className="grid grid-cols-2 gap-2 xl:grid-cols-3 2xl:grid-cols-6">
-        {cards.map((item) => (
-          <button
-            key={item.label}
-            onClick={() => onNavigate("orders")}
-            className="border border-slate-200 bg-white text-left transition-colors hover:border-orange-300 hover:bg-orange-50/30"
-          >
-            <CardContent className="flex min-w-0 items-center gap-3 p-3.5 sm:p-4">
-              <div className={cn("grid h-9 w-9 place-items-center rounded-md", item.tone)}>
-                <item.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <strong className="block text-xl tracking-tight">{item.value}</strong>
-                <span className="block text-[11px] leading-tight text-muted-foreground sm:text-xs">
-                  {item.label}
-                </span>
-              </div>
-            </CardContent>
-          </button>
-        ))}
-      </section>
-      <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="overflow-hidden bg-white">
-          <div className="flex items-center justify-between border-b p-4 md:px-5">
-            <div>
-              <h2 className="text-lg font-bold">Serviços em andamento</h2>
-              <p className="text-sm text-muted-foreground">Prioridades e últimas movimentações</p>
-            </div>
-            <Button
-              variant="ghost"
-              onClick={() => onNavigate("orders")}
-              className="gap-1 text-orange-600"
-            >
-              Ver todas <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          <div>
-            <div className="pilot-table-header hidden grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_150px_24px] px-5 md:grid">
-              <span>Veículo</span>
-              <span>Placa</span>
-              <span>Cliente</span>
-              <span>Status</span>
-              <span />
-            </div>
-            {activeOrders.length === 0 && (
-              <EmptyState
-                title={orders.length ? "Nenhuma OS ativa" : "Nenhuma ordem de serviço cadastrada"}
-                text="Use Criar ordem de serviço para registrar um atendimento. Cliente e veículo são cadastrados no mesmo fluxo."
-              />
-            )}
-            {activeOrders.slice(0, 5).map((order) => {
-              const vehicle = vehicles.find((v) => v.id === order.vehicleId)!;
-              const customer = customers.find((c) => c.id === order.customerId)!;
-              return (
-                <button
-                  key={order.id}
-                  onClick={() => onNavigate("order", order.id)}
-                  className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_150px_24px] md:px-5"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-600">
-                      <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <strong className="block truncate text-sm">
-                        {vehicle.brand} {vehicle.model} {vehicle.year}
-                      </strong>
-                      <p className="truncate text-xs text-muted-foreground">{order.id}</p>
-                    </div>
-                  </div>
-                  <span className="hidden font-mono text-xs font-semibold md:block">
-                    {vehicle.plate}
-                  </span>
-                  <span className="hidden truncate text-sm md:block">{customer.name}</span>
-                  <div className="hidden md:block">
-                    <StatusBadge status={order.status} />
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-        <Card className="attention-panel border-slate-800 bg-slate-900 text-white">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-400">
-                  Atenção agora
-                </p>
-                <h2 className="mt-2 text-xl font-bold">
-                  {orders.some((order) =>
-                    order.budget.some((item) => item.approval === "Aguardando aprovação"),
-                  )
-                    ? "Aprovações pendentes"
-                    : "Nenhuma aprovação pendente"}
-                </h2>
-              </div>
-              <Clock3 className="h-6 w-6 text-orange-400" />
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300">
-              {orders.some((order) =>
-                order.budget.some((item) => item.approval === "Aguardando aprovação"),
-              )
-                ? `Há ${money(pendingValue)} em itens aguardando retorno dos clientes.`
-                : "Quando um orçamento precisar de aprovação, ele aparecerá aqui."}
-            </p>
-            <div className="mt-6 space-y-3">
-              {orders
-                .filter((o) => o.budget.some((i) => i.approval === "Aguardando aprovação"))
-                .slice(0, 2)
-                .map((order) => {
-                  const vehicle = vehicles.find((v) => v.id === order.vehicleId)!;
-                  return (
-                    <button
-                      key={order.id}
-                      onClick={() => onNavigate("order", order.id)}
-                      className="w-full border-l-2 border-orange-500 bg-white/[.055] p-3 text-left hover:bg-white/10"
-                    >
-                      <p className="text-sm font-semibold">
-                        {vehicle.brand} {vehicle.model} · {vehicle.plate}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-400">{order.id} · revisar orçamento</p>
-                    </button>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-    </>
   );
 }
 
@@ -1819,6 +1639,7 @@ function VehicleDetail({
 
 function OrderDetail({
   order,
+  initialTab,
   workshop,
   vehicle,
   customer,
@@ -1828,6 +1649,7 @@ function OrderDetail({
   notify,
 }: {
   order: ServiceOrder;
+  initialTab?: string;
   workshop: Workshop;
   vehicle: Vehicle;
   customer: Customer;
@@ -1836,7 +1658,7 @@ function OrderDetail({
   onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(initialTab ?? "overview");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [manualStatusOpen, setManualStatusOpen] = useState(false);
   const [manualStatus, setManualStatus] = useState<ServiceOrder["status"]>(order.status);

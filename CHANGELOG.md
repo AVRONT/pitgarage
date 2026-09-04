@@ -1,5 +1,12 @@
 # Changelog
 
+## [Visão Geral operacional — evolução local] - 2026-09-04
+
+- Visão Geral redesenhada isoladamente como central operacional, com OS ativas em cards compactos, bloqueios reais, ações derivadas do workflow e prioridade visual explícita.
+- Atalhos abrem veículo/histórico, OS e sua aba de diagnóstico, orçamento, execução ou pagamento usando a navegação existente.
+- Contexto operacional substitui estatísticas genéricas. Agenda de hoje usa a API existente; entregas exigem evento do dia categorizado como `delivery`, sem inferir previsão pelo status.
+- Estados de carregamento, vazio e erro, responsividade e microinterações escopadas ao dashboard. Workflow, Agenda, demais telas, dados, banco, Auth, RLS e paleta global preservados.
+
 ## [Proteção antiabuso — preparada localmente] - 2026-09-04
 
 - Migration adicional com cotas atômicas por ator para Chat, Nova OS, convites e Equipe; triggers preservam RPCs atuais e cobrem escrita direta.

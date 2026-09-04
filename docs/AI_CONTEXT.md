@@ -26,6 +26,14 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Visão Geral operacional — evolução local de 04/09/2026
+
+- Somente a Visão Geral foi redesenhada como central operacional. “Em atendimento” usa OS não entregues e mostra veículo, placa, OS, status, responsáveis registrados, próxima ação derivada de `evaluateOrderWorkflow` e bloqueios reais; não cria box, previsão, atraso ou notificação.
+- “Próximas ações” reutiliza o workflow e abre a OS diretamente na aba indicada pela ação. A ordenação é determinística por inconsistência real, sequência dos estados e data de entrada mais antiga; não representa urgência comercial, SLA ou tempo parado.
+- Veículo abre seu detalhe/histórico; número/ação abre a OS; indicadores abrem a única OS correspondente ou a lista existente. Nenhuma rota ou regra operacional foi criada.
+- “Hoje” consulta os eventos do dia pela API existente da Agenda, sem alterar sua tela ou lógica. “Entregas de hoje” aceita somente eventos do dia com categoria `delivery`; status da OS não é tratado como previsão. Eventos vinculados abrem a OS, demais abrem a Agenda.
+- Estilos e microinterações estão limitados a `.dashboard-premium`, com redução de movimento. Estados preenchido, vazio e erro da Agenda foram validados em 1366×768, 768×1024 e 390×844, sem overflow horizontal; atalhos de orçamento e veículo também foram exercitados com APIs simuladas. Nenhum dado remoto foi acessado.
+
 ## Antiabuso — preparação local de 04/09/2026
 
 Nova migration `20260904020000_harden_abuse_protection.sql` preparada para cotas atômicas de Chat, Nova OS, convites e Equipe, proteção adicional do owner e reserva de cadastro reaproveitando os registros existentes. Atualizadas localmente as Edge Functions `register-account` e `invite-user`; publicar somente depois da migration. Auth nativo/CAPTCHA e limites no painel continuam dependendo de configuração remota. Ver [limites, implantação e validações pendentes](16-protecao-antiabuso.md). Nada aplicado remotamente; Agenda e histórico preservados. Esta nova pendência é adicional às registradas abaixo, não substitui as bases já publicadas.
