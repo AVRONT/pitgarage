@@ -1,5 +1,12 @@
 # Changelog
 
+## [Proteção antiabuso — preparada localmente] - 2026-09-04
+
+- Migration adicional com cotas atômicas por ator para Chat, Nova OS, convites e Equipe; triggers preservam RPCs atuais e cobrem escrita direta.
+- Defesa adicional do owner e reserva concorrente de cadastro reutilizando infraestrutura existente. Edge Functions de cadastro/convite falham fechadas se a reserva estiver indisponível.
+- Limites nativos de Auth propostos na configuração local; ativação de Hook/CAPTCHA e configuração hospedada documentadas separadamente. Testes direcionados dos handlers com mocks e contratos estáticos; validação PostgreSQL/remota ainda pendente.
+- Agenda, versões antigas e dados intactos. Nenhuma migration aplicada, Edge publicada, commit ou push.
+
 ## [Histórico veicular interno — evolução local] - 2026-09-04
 
 - Detalhe do veículo com proprietário, última quilometragem conhecida e sua origem, última passagem e quantidade de OS vinculadas.

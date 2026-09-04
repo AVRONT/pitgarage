@@ -12,6 +12,8 @@ Estado canônico de 03/09/2026: frontend cloud funcional, Auth/base operacional,
 
 ## Documentos
 
+- [Proteção antiabuso](16-protecao-antiabuso.md) — preparação local, limites propostos e dependências remotas.
+
 1. [Visão do projeto](01-visao-projeto.md)
 2. [Processo atual](02-processo-atual.md)
 3. [Problemas identificados](03-problemas-identificados.md)

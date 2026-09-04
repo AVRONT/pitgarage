@@ -1,4 +1,13 @@
 project_id = "vzvwprzmlhvfehwykstx"
 
+# Local proposal only; hosted Auth settings must be reviewed/applied separately.
+[auth.rate_limit]
+sign_in_sign_ups = 60
+# Requires custom SMTP; does not raise the hosted built-in provider's limit.
+email_sent = 100
+
+[auth.email]
+max_frequency = "1m"
+
 [functions.register-account]
 verify_jwt = false

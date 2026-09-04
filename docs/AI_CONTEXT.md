@@ -26,6 +26,10 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Antiabuso — preparação local de 04/09/2026
+
+Nova migration `20260904020000_harden_abuse_protection.sql` preparada para cotas atômicas de Chat, Nova OS, convites e Equipe, proteção adicional do owner e reserva de cadastro reaproveitando os registros existentes. Atualizadas localmente as Edge Functions `register-account` e `invite-user`; publicar somente depois da migration. Auth nativo/CAPTCHA e limites no painel continuam dependendo de configuração remota. Ver [limites, implantação e validações pendentes](16-protecao-antiabuso.md). Nada aplicado remotamente; Agenda e histórico preservados. Esta nova pendência é adicional às registradas abaixo, não substitui as bases já publicadas.
+
 ## Cloud/produção em 03/09/2026
 
 Estado canônico atualizado conforme a confirmação do responsável pelo projeto nesta rodada documental; não houve consulta ao ambiente remoto. O PitGarage já tem frontend cloud funcional, Supabase Auth real, Salomão como `owner`, níveis `customer`, `staff`, `admin` e `owner`, base operacional de clientes/veículos/OS, Agenda, notificações e Chat publicados. Realtime está ativo para `notifications` e `messages`.

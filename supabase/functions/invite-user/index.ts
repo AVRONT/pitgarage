@@ -4,6 +4,7 @@ import { supabaseEnv } from "../_shared/supabase-env.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (request.method !== "POST") return json({ message: "Método inválido." }, 405);
   try {
     const authorization = request.headers.get("authorization") ?? "";
     const { url, secretKey } = supabaseEnv();
@@ -21,6 +22,12 @@ Deno.serve(async (request) => {
     const { email, fullName } = await request.json();
     if (typeof email !== "string" || !email.includes("@"))
       return json({ message: "Informe um e-mail válido." }, 400);
+    const { data: allowed, error: limitError } = await service.rpc("reserve_invite_budget", {
+      owner_id: data.user.id,
+    });
+    if (limitError) return json({ message: "Convites temporariamente indisponíveis." }, 503);
+    if (!allowed)
+      return json({ message: "Limite temporário de convites atingido. Tente mais tarde." }, 429);
     const emailHash = await sha256(email.trim().toLowerCase());
     const inviteToken = crypto.randomUUID();
     const inviteTokenHash = await sha256(inviteToken);
