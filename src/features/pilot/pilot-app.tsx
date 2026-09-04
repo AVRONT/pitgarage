@@ -67,6 +67,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { TeamSettings } from "@/features/auth/team-settings";
 import { InviteForm } from "@/features/auth/invite-form";
 import { UserMenu } from "@/features/auth/user-menu";
+import { supabase } from "@/integrations/supabase/client";
 import { CalendarScreen } from "@/features/platform/calendar-screen";
 import { ChatWidget } from "@/features/platform/chat-widget";
 import { NotificationBell } from "@/features/platform/notification-bell";
@@ -115,6 +116,16 @@ type PendingWorkflowConfirmation = {
   title: string;
   description: string;
   onConfirm: () => void;
+};
+
+type AssignableTeamMember = {
+  user_id: string;
+  full_name: string | null;
+  email: string;
+  access_level: "customer" | "staff" | "admin" | "owner";
+  operational_role: string | null;
+  is_active: boolean;
+  customer_id: string | null;
 };
 
 const orderTimestamp = () => new Date().toISOString();
@@ -1637,6 +1648,161 @@ function VehicleDetail({
   );
 }
 
+function OrderTeamAssignment({
+  team,
+  onSave,
+}: {
+  team: string[];
+  onSave: (team: string[]) => void;
+}) {
+  const { accessLevel, isLocalBypass, profile } = useAuth();
+  const [members, setMembers] = useState<AssignableTeamMember[]>([]);
+  const [draft, setDraft] = useState<string[]>(team);
+  const [loading, setLoading] = useState(accessLevel === "owner");
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => setDraft(team), [team]);
+
+  const loadMembers = async () => {
+    if (accessLevel !== "owner") return;
+    setLoading(true);
+    setLoadError(false);
+    if (isLocalBypass) {
+      setMembers(
+        profile
+          ? [
+              {
+                ...profile,
+                email: "Acesso local isolado",
+                customer_id: null,
+              },
+            ]
+          : [],
+      );
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await supabase.rpc("list_team_users");
+    if (error) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setMembers(
+      ((data ?? []) as AssignableTeamMember[]).filter(
+        (member) =>
+          member.is_active &&
+          member.access_level !== "customer" &&
+          !member.customer_id &&
+          Boolean(member.full_name?.trim()),
+      ),
+    );
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadMembers();
+    // The directory is loaded only when the authenticated identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessLevel, isLocalBypass, profile?.user_id]);
+
+  const availableNames = new Set(members.map((member) => member.full_name!.trim()));
+  const legacyNames = draft.filter((name) => !availableNames.has(name));
+  const changed = draft.length !== team.length || draft.some((name, index) => name !== team[index]);
+  const toggle = (name: string) =>
+    setDraft((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+    );
+
+  return (
+    <section className="mb-5 rounded-lg border bg-white p-4" aria-labelledby="order-team-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="order-team-title" className="flex items-center gap-2 font-semibold">
+            <Users className="h-4 w-4 text-primary" /> Responsáveis pela OS
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {team.length ? team.join(", ") : "A definir"}
+          </p>
+        </div>
+        {accessLevel === "owner" && (
+          <Button
+            size="sm"
+            disabled={!changed || loading || loadError}
+            onClick={() => onSave(draft)}
+          >
+            Salvar responsáveis
+          </Button>
+        )}
+      </div>
+
+      {accessLevel !== "owner" && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          A edição usa o diretório protegido da equipe e está disponível ao proprietário da oficina.
+        </p>
+      )}
+      {accessLevel === "owner" && loading && (
+        <p className="mt-3 text-sm text-muted-foreground" role="status">
+          Carregando membros ativos…
+        </p>
+      )}
+      {accessLevel === "owner" && loadError && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="alert">
+          <span>Não foi possível carregar a equipe. Os responsáveis atuais foram preservados.</span>
+          <Button size="sm" variant="outline" onClick={() => void loadMembers()}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+      {accessLevel === "owner" && !loading && !loadError && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {members.map((member) => {
+            const name = member.full_name!.trim();
+            return (
+              <label
+                key={member.user_id}
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:border-primary/50",
+                  draft.includes(name) && "border-primary bg-primary/5",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-primary"
+                  checked={draft.includes(name)}
+                  onChange={() => toggle(name)}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">{name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {member.operational_role || "Função não informada"}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+          {members.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhum membro ativo disponível.</p>
+          )}
+        </div>
+      )}
+      {accessLevel === "owner" && legacyNames.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-muted-foreground">Responsáveis já registrados</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {legacyNames.map((name) => (
+              <Button key={name} size="sm" variant="outline" onClick={() => toggle(name)}>
+                {name} <X className="ml-2 h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">Remover {name}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function OrderDetail({
   order,
   initialTab,
@@ -1791,6 +1957,13 @@ function OrderDetail({
           {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
+      <OrderTeamAssignment
+        team={order.team}
+        onSave={(team) => {
+          onUpdate((current) => ({ ...current, team }));
+          notify(team.length ? "Responsáveis atualizados" : "OS sem responsável definido");
+        }}
+      />
       <dl
         className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border lg:grid-cols-4"
         aria-label="Valores da ordem"
