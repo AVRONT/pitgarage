@@ -1,10 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 type RpcResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
-const rpc = supabase.rpc as unknown as <T>(
-  name: string,
-  args?: Record<string, unknown>,
-) => RpcResult<T>;
+const rpc = <T>(name: string, args?: Record<string, unknown>) =>
+  supabase.rpc(name as never, args as never) as unknown as RpcResult<T>;
 
 export type CalendarEvent = {
   id: string;
