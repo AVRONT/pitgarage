@@ -28,6 +28,7 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 ## Visão Geral operacional — evolução local de 04/09/2026
 
+- Polimento final exclusivamente visual: cabeçalho e gaps menores, empty states horizontais compactos, contagem e destino contextual em Próximas ações, indicadores semânticos reduzidos e Agenda em timeline. Entregas mostram veículo/placa/OS somente quando os vínculos já existem. Ordenação, dados, API e navegação permanecem iguais.
 - Somente a Visão Geral foi redesenhada como central operacional. “Em atendimento” usa OS não entregues e mostra veículo, placa, OS, status, responsáveis registrados, próxima ação derivada de `evaluateOrderWorkflow` e bloqueios reais; não cria box, previsão, atraso ou notificação.
 - “Próximas ações” reutiliza o workflow e abre a OS diretamente na aba indicada pela ação. A ordenação é determinística por inconsistência real, sequência dos estados e data de entrada mais antiga; não representa urgência comercial, SLA ou tempo parado.
 - Veículo abre seu detalhe/histórico; número/ação abre a OS; indicadores abrem a única OS correspondente ou a lista existente. Nenhuma rota ou regra operacional foi criada.

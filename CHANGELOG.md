@@ -1,5 +1,11 @@
 # Changelog
 
+## [Polimento visual da Visão Geral] - 2026-09-04
+
+- Reduzidos paddings, gaps e estados vazios; reforçada a hierarquia de Próximas ações com contagem e destino contextual.
+- Contexto do dia compactado com sinais semânticos pontuais. Hoje recebeu timeline e Entregas passou a exibir vínculos existentes de veículo, placa e OS.
+- Alteração restrita ao componente da Visão Geral; nenhuma lógica, prioridade, API, tela externa ou estilo global foi alterado.
+
 ## [Visão Geral operacional — evolução local] - 2026-09-04
 
 - Visão Geral redesenhada isoladamente como central operacional, com OS ativas em cards compactos, bloqueios reais, ações derivadas do workflow e prioridade visual explícita.

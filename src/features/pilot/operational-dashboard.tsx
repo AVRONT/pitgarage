@@ -101,13 +101,23 @@ function formatEventTime(value: string) {
     : "Horário não informado";
 }
 
+const tabLabel: Record<string, string> = {
+  overview: "Resumo",
+  diagnosis: "Diagnóstico",
+  budget: "Orçamento",
+  execution: "Execução",
+  payment: "Pagamento",
+};
+
 function TodayPanel({
   localOnly,
   orders,
+  vehicles,
   onNavigate,
 }: {
   localOnly: boolean;
   orders: ServiceOrder[];
+  vehicles: Vehicle[];
   onNavigate: (target: DashboardTarget) => void;
 }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -139,7 +149,7 @@ function TodayPanel({
   return (
     <>
       <Card className="dashboard-surface h-full bg-white">
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold">
@@ -154,73 +164,91 @@ function TodayPanel({
             </Button>
           </div>
           {state === "loading" && (
-            <div className="mt-5 space-y-3" role="status" aria-label="Carregando agenda de hoje">
-              {[1, 2, 3].map((item) => (
+            <div className="mt-3 space-y-2" role="status" aria-label="Carregando agenda de hoje">
+              {[1, 2].map((item) => (
                 <div
                   key={item}
-                  className="h-12 animate-pulse rounded bg-slate-100 motion-reduce:animate-none"
+                  className="h-10 animate-pulse rounded bg-slate-100 motion-reduce:animate-none"
                 />
               ))}
             </div>
           )}
           {state === "error" && (
-            <p className="mt-5 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
               Não foi possível carregar os compromissos de hoje. Consulte a Agenda.
             </p>
           )}
           {state === "ready" && !events.length && (
-            <p className="mt-5 rounded-md border border-dashed bg-slate-50 p-5 text-sm text-muted-foreground">
+            <p className="mt-3 rounded-md border border-dashed bg-slate-50 p-3 text-sm text-muted-foreground">
               {localOnly
                 ? "A Agenda requer uma sessão cloud para mostrar compromissos."
                 : "Nenhum compromisso registrado para hoje."}
             </p>
           )}
           {state === "ready" && events.length > 0 && (
-            <ol className="mt-4 divide-y">
+            <ol className="dashboard-agenda mt-3 ml-2 border-l border-blue-200 pl-4">
               {events
                 .slice()
                 .sort((a, b) => knownDate(a.starts_at) - knownDate(b.starts_at))
                 .slice(0, 5)
-                .map((event) => (
-                  <li key={event.id} className="flex gap-3 py-3">
-                    <time className="w-12 shrink-0 text-sm font-bold text-primary">
-                      {formatEventTime(event.starts_at)}
-                    </time>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{event.title}</p>
-                      {event.notes && (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                          {event.notes}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                .map((event) => {
+                  const linkedOrder = orders.find(
+                    (order) => order.databaseId === event.service_order_id,
+                  );
+                  const vehicle = vehicles.find((item) => item.id === event.vehicle_id);
+                  return (
+                    <li key={event.id} className="relative flex gap-3 py-2.5">
+                      <span className="absolute -left-[21px] top-4 h-2.5 w-2.5 rounded-full border-2 border-white bg-primary" />
+                      <time className="w-12 shrink-0 text-sm font-bold text-primary">
+                        {formatEventTime(event.starts_at)}
+                      </time>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{event.title}</p>
+                        {(vehicle || linkedOrder) && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : ""}
+                            {vehicle && linkedOrder ? " · " : ""}
+                            {linkedOrder?.id ?? ""}
+                          </p>
+                        )}
+                        {event.notes && (
+                          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                            {event.notes}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
             </ol>
           )}
         </CardContent>
       </Card>
       <Card className="dashboard-surface h-full bg-white">
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <h2 className="text-lg font-bold">Entregas de hoje</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Somente eventos registrados como entrega na Agenda.
           </p>
           {state === "loading" && (
-            <div className="mt-5 h-20 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+            <div className="mt-3 h-14 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
           )}
           {state === "error" && (
-            <p className="mt-5 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
               Não foi possível confirmar as entregas de hoje.
             </p>
           )}
           {state === "ready" && !deliveries.length && (
-            <div className="mt-5 rounded-md border border-dashed bg-slate-50 p-6 text-center">
-              <CarFront className="mx-auto h-6 w-6 text-muted-foreground" />
-              <p className="mt-3 text-sm font-semibold">Nenhuma entrega programada com horário</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                O status da OS não é usado para inventar uma previsão de entrega.
-              </p>
+            <div className="mt-3 flex items-center gap-3 rounded-md border border-dashed bg-slate-50 p-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-muted-foreground">
+                <CarFront className="h-4.5 w-4.5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">Nenhuma entrega programada com horário</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Somente registros reais da Agenda aparecem aqui.
+                </p>
+              </div>
             </div>
           )}
           {state === "ready" && deliveries.length > 0 && (
@@ -232,6 +260,7 @@ function TodayPanel({
                   const linkedOrder = orders.find(
                     (order) => order.databaseId === event.service_order_id,
                   );
+                  const vehicle = vehicles.find((item) => item.id === event.vehicle_id);
                   return (
                     <li key={event.id}>
                       <button
@@ -249,8 +278,16 @@ function TodayPanel({
                           <strong className="block truncate text-sm">{event.title}</strong>
                           <span className="text-xs text-muted-foreground">
                             {formatEventTime(event.starts_at)}
-                            {linkedOrder ? ` · ${linkedOrder.id}` : ""}
                           </span>
+                          {(vehicle || linkedOrder) && (
+                            <span className="mt-0.5 block truncate text-xs font-medium text-slate-700">
+                              {vehicle
+                                ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
+                                : ""}
+                              {vehicle && linkedOrder ? " · " : ""}
+                              {linkedOrder?.id ?? ""}
+                            </span>
+                          )}
                         </span>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </button>
@@ -313,25 +350,25 @@ export function OperationalDashboard({
 
   return (
     <div className="dashboard-premium">
-      <header className="mb-5 flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">Visão geral</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
+          <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
             Central operacional
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Situação atual da oficina e caminhos diretos para o próximo passo.
           </p>
         </div>
-        <Button onClick={onNewOrder} className="h-11 gap-2 px-5 shadow-sm">
+        <Button onClick={onNewOrder} className="h-10 gap-2 px-5 shadow-sm">
           <Plus className="h-4 w-4" /> Nova ordem de serviço
         </Button>
       </header>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <section className="order-2 min-w-0 xl:order-1" aria-labelledby="active-orders-title">
           <Card className="dashboard-surface overflow-hidden bg-white">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
               <div>
                 <h2 id="active-orders-title" className="text-lg font-bold">
                   Em atendimento
@@ -347,17 +384,21 @@ export function OperationalDashboard({
               </Button>
             </div>
             {!queue.length ? (
-              <div className="p-5">
-                <div className="rounded-md border border-dashed bg-slate-50 p-7 text-center">
-                  <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600" />
-                  <h3 className="mt-3 font-semibold">Nenhum atendimento em andamento</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Uma nova OS aparecerá aqui assim que for registrada.
-                  </p>
+              <div className="p-3">
+                <div className="flex items-center gap-3 rounded-md border border-dashed bg-slate-50 p-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-semibold">Nenhum atendimento em andamento</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Uma nova OS aparecerá aqui assim que for registrada.
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="grid gap-3 p-4 md:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid gap-2.5 p-3 md:grid-cols-2 2xl:grid-cols-3">
                 {queue.slice(0, 9).map(({ order, workflow }) => {
                   const vehicle = byVehicle(order);
                   const customer = byCustomer(order);
@@ -366,12 +407,12 @@ export function OperationalDashboard({
                   return (
                     <article
                       key={order.id}
-                      className="dashboard-interactive flex min-w-0 flex-col rounded-md border bg-white p-4"
+                      className="dashboard-interactive flex min-w-0 flex-col rounded-md border bg-white p-3.5"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <span
                           className={cn(
-                            "grid h-10 w-10 place-items-center rounded-md border",
+                            "grid h-9 w-9 place-items-center rounded-md border",
                             statusTone[order.status],
                           )}
                         >
@@ -385,7 +426,7 @@ export function OperationalDashboard({
                         </Badge>
                       </div>
                       <button
-                        className="mt-4 min-h-11 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="mt-3 min-h-10 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         onClick={() => vehicle && onNavigate({ screen: "vehicle", id: vehicle.id })}
                         disabled={!vehicle}
                       >
@@ -408,7 +449,7 @@ export function OperationalDashboard({
                       >
                         {order.id} · abrir ordem
                       </button>
-                      <dl className="mt-4 space-y-3 border-t pt-3 text-sm">
+                      <dl className="mt-3 space-y-2 border-t pt-2.5 text-sm">
                         <div>
                           <dt className="text-xs text-muted-foreground">Responsável</dt>
                           <dd className="mt-0.5 font-medium">
@@ -437,7 +478,7 @@ export function OperationalDashboard({
                       </dl>
                       <Button
                         variant="outline"
-                        className="mt-4 min-h-10 w-full justify-between"
+                        className="mt-3 min-h-9 w-full justify-between"
                         onClick={() =>
                           onNavigate({
                             screen: "order",
@@ -463,18 +504,29 @@ export function OperationalDashboard({
 
         <section className="order-1 min-w-0 xl:order-2" aria-labelledby="next-actions-title">
           <Card className="dashboard-surface overflow-hidden border-primary/20 bg-white xl:sticky xl:top-20">
-            <div className="border-b bg-primary/[.035] px-5 py-4">
-              <h2 id="next-actions-title" className="text-lg font-bold">
-                Próximas ações
-              </h2>
+            <div className="border-b border-l-4 border-l-primary bg-primary/[.035] px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="next-actions-title" className="text-lg font-bold">
+                  Próximas ações
+                </h2>
+                <Badge className="bg-primary text-primary-foreground">
+                  {plural(queue.length, "pendente")}
+                </Badge>
+              </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 Ordenadas por etapa do workflow, não por urgência ou atraso.
               </p>
             </div>
             {!queue.length ? (
-              <p className="p-6 text-sm text-muted-foreground">
-                Nenhuma próxima ação operacional no momento.
-              </p>
+              <div className="flex items-center gap-3 p-4 text-sm">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="font-semibold text-foreground">Tudo em dia</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nenhuma ação operacional pendente.
+                  </p>
+                </div>
+              </div>
             ) : (
               <ol className="divide-y">
                 {queue.slice(0, 6).map(({ order, workflow }, index) => {
@@ -491,7 +543,7 @@ export function OperationalDashboard({
                             tab: workflow.nextAction.tab,
                           })
                         }
-                        className="dashboard-action group flex min-h-20 w-full items-start gap-3 p-4 text-left"
+                        className="dashboard-action group flex min-h-18 w-full items-start gap-3 border-l-2 border-l-transparent px-4 py-3 text-left hover:border-l-primary"
                       >
                         <span
                           className={cn(
@@ -507,9 +559,9 @@ export function OperationalDashboard({
                         </span>
                         <span className="min-w-0 flex-1">
                           <strong className="block text-sm">{workflow.nextAction.label}</strong>
-                          <span className="mt-1 block truncate text-xs text-muted-foreground">
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                             {vehicle
-                              ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
+                              ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate} · ${order.id}`
                               : order.id}
                           </span>
                           <span
@@ -525,6 +577,9 @@ export function OperationalDashboard({
                             )}
                           >
                             {workflow.inconsistency ? "Inconsistência real do fluxo" : order.status}
+                          </span>
+                          <span className="mt-1 block text-[11px] font-bold text-primary">
+                            Abrir em {tabLabel[workflow.nextAction.tab] ?? "Resumo"}
                           </span>
                         </span>
                         <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
@@ -547,27 +602,41 @@ export function OperationalDashboard({
         </section>
       </div>
 
-      <section className="order-3 mt-5" aria-labelledby="day-context-title">
+      <section className="order-3 mt-4" aria-labelledby="day-context-title">
         <Card className="dashboard-surface bg-white">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <h2 id="day-context-title" className="text-lg font-bold">
               Contexto do dia
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Estados operacionais das ordens ativas.
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
-              {context.map((item) => (
+            <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {context.map((item, index) => (
                 <button
                   key={item.label}
                   onClick={() => openContext(item.orders)}
-                  className="dashboard-context flex min-h-20 items-center gap-3 rounded-md border bg-slate-50 p-3 text-left"
+                  className={cn(
+                    "dashboard-context flex min-h-14 items-center gap-2.5 rounded-md border bg-slate-50 px-3 py-2 text-left",
+                    index < 2 && "border-l-2 border-l-amber-400",
+                    index === 2 && "border-l-2 border-l-blue-500",
+                    index === 3 && "border-l-2 border-l-emerald-500",
+                  )}
                 >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-white text-primary shadow-sm">
+                  <span
+                    className={cn(
+                      "grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white shadow-sm",
+                      index < 2 && "text-amber-700",
+                      index === 2 && "text-primary",
+                      index === 3 && "text-emerald-700",
+                    )}
+                  >
                     <item.icon className="h-4.5 w-4.5" />
                   </span>
                   <span>
-                    <strong className="block text-xl tabular-nums">{item.orders.length}</strong>
+                    <strong className="block text-lg leading-none tabular-nums">
+                      {item.orders.length}
+                    </strong>
                     <span className="block text-xs text-muted-foreground">{item.label}</span>
                   </span>
                 </button>
@@ -577,8 +646,13 @@ export function OperationalDashboard({
         </Card>
       </section>
 
-      <div className="order-4 mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,.8fr)]">
-        <TodayPanel localOnly={isLocalBypass} orders={orders} onNavigate={onNavigate} />
+      <div className="order-4 mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(20rem,.8fr)]">
+        <TodayPanel
+          localOnly={isLocalBypass}
+          orders={orders}
+          vehicles={vehicles}
+          onNavigate={onNavigate}
+        />
       </div>
     </div>
   );
