@@ -22,12 +22,16 @@ export type Notification = {
   target: string | null;
   read_at: string | null;
   created_at: string;
+  metadata?: Record<string, unknown>;
 };
 export type Conversation = {
   id: string;
   kind: "team" | "direct" | "support";
   title: string | null;
+  display_name?: string | null;
   unread_count: number;
+  last_message?: string | null;
+  last_message_at?: string | null;
   updated_at: string;
 };
 export type ChatMessage = {

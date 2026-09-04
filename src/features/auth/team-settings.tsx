@@ -18,6 +18,10 @@ type TeamUser = {
 };
 
 const managedLevels: AccessLevel[] = ["customer", "staff", "admin"];
+const standardRoles = ["Mecânico", "Atendente", "Gestor da oficina", "Administrativo"] as const;
+
+const roleSelection = (role: string | null) =>
+  standardRoles.includes(role as (typeof standardRoles)[number]) ? role : role ? "Outro" : "";
 
 export function TeamSettings() {
   const { accessLevel, isLocalBypass } = useAuth();
@@ -26,6 +30,7 @@ export function TeamSettings() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [customRoleUsers, setCustomRoleUsers] = useState<Set<string>>(new Set());
   const savingRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -34,7 +39,17 @@ export function TeamSettings() {
     try {
       const { data, error } = await supabase.rpc("list_team_users");
       if (error) throw error;
-      setUsers((data ?? []) as TeamUser[]);
+      const loaded = (data ?? []) as TeamUser[];
+      setUsers(loaded);
+      setCustomRoleUsers(
+        new Set(
+          loaded
+            .filter(
+              (user) => user.operational_role && roleSelection(user.operational_role) === "Outro",
+            )
+            .map((user) => user.user_id),
+        ),
+      );
     } catch {
       setLoadError(true);
     } finally {
@@ -167,19 +182,64 @@ export function TeamSettings() {
                   ))}
                 </select>
               </label>
-              <label className="text-xs font-medium xl:col-span-2">
-                Cargo
-                <Input
-                  className="mt-1"
-                  value={user.operational_role ?? ""}
-                  disabled={isOwner || saving || loading || loadError}
-                  maxLength={80}
-                  placeholder="Mecânico, Atendente ou Outro"
-                  onChange={(event) =>
-                    updateDraft(user.user_id, { operational_role: event.target.value })
+              <div className="text-xs font-medium xl:col-span-2">
+                <label htmlFor={`role-${user.user_id}`}>Cargo</label>
+                <select
+                  id={`role-${user.user_id}`}
+                  className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm"
+                  value={
+                    isOwner
+                      ? "Proprietário"
+                      : customRoleUsers.has(user.user_id)
+                        ? "Outro"
+                        : (roleSelection(user.operational_role) ?? "")
                   }
-                />
-              </label>
+                  disabled={
+                    isOwner || user.access_level === "customer" || saving || loading || loadError
+                  }
+                  onChange={(event) => {
+                    const custom = event.target.value === "Outro";
+                    setCustomRoleUsers((current) => {
+                      const next = new Set(current);
+                      if (custom) next.add(user.user_id);
+                      else next.delete(user.user_id);
+                      return next;
+                    });
+                    updateDraft(user.user_id, {
+                      operational_role: custom ? "" : event.target.value,
+                    });
+                  }}
+                >
+                  {isOwner ? (
+                    <option value="Proprietário">Proprietário</option>
+                  ) : (
+                    <>
+                      <option value="">Selecione o cargo</option>
+                      {standardRoles.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                      <option value="Outro">Outro</option>
+                    </>
+                  )}
+                </select>
+                {!isOwner &&
+                  user.access_level !== "customer" &&
+                  customRoleUsers.has(user.user_id) && (
+                    <Input
+                      className="mt-2"
+                      aria-label="Cargo personalizado"
+                      value={user.operational_role ?? ""}
+                      disabled={saving || loading || loadError}
+                      maxLength={80}
+                      placeholder="Informe o cargo"
+                      onChange={(event) =>
+                        updateDraft(user.user_id, { operational_role: event.target.value })
+                      }
+                    />
+                  )}
+              </div>
               <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 xl:col-span-1">
                 {!isOwner ? (
                   <>
