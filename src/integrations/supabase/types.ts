@@ -127,6 +127,62 @@ export type Database = {
           },
         ]
       }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          joined_at: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          customer_user_id: string | null
+          id: string
+          kind: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_user_id?: string | null
+          id?: string
+          kind: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_user_id?: string | null
+          id?: string
+          kind?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           auth_user_id: string | null
@@ -189,6 +245,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          sender_user_id: string | null
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          sender_user_id?: string | null
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          sender_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -557,6 +651,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_my_chat: { Args: never; Returns: string }
       get_developer_dashboard: { Args: never; Returns: Json }
       get_my_customer: {
         Args: never
@@ -620,6 +715,33 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      list_chat_contacts: {
+        Args: never
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
+      list_chat_messages: {
+        Args: { target_conversation: string }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          sender_name: string
+          sender_user_id: string
+        }[]
+      }
+      list_my_conversations: {
+        Args: never
+        Returns: {
+          id: string
+          kind: string
+          title: string
+          unread_count: number
+          updated_at: string
+        }[]
+      }
       list_my_notifications: {
         Args: never
         Returns: {
@@ -652,6 +774,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      mark_chat_read: {
+        Args: { target_conversation: string }
+        Returns: undefined
+      }
       mark_my_notifications_read: {
         Args: { notification_id?: string }
         Returns: undefined
@@ -668,6 +794,14 @@ export type Database = {
           related_service_order: string
           related_vehicle: string
         }
+        Returns: string
+      }
+      send_chat_message: {
+        Args: { message_body: string; target_conversation: string }
+        Returns: string
+      }
+      start_direct_conversation: {
+        Args: { target_user: string }
         Returns: string
       }
       try_link_my_customer: { Args: never; Returns: string }
