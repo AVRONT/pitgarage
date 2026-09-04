@@ -113,7 +113,7 @@ Deno.serve(async (request) => {
     if (!created)
       return json({ user: { identities: [] }, session: null, requiresEmailConfirmation: true });
     await service.from("access_events").insert({
-      user_id: data.user.id,
+      user_id: data.user?.id ?? null,
       event_type: "registration_completed",
       ip_address: ip,
       user_agent: request.headers.get("user-agent"),
