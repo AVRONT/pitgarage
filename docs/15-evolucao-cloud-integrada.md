@@ -23,7 +23,7 @@ values ('UUID_CONFIRMADO', 'Desenvolvedor autorizado');
 
 ## Edge Functions
 
-Publicar `register-account`, `access-event` e `invite-user`. As funções preferem as chaves hospedadas atuais `SUPABASE_PUBLISHABLE_KEY(S)` e `SUPABASE_SECRET_KEY(S)`, mantendo fallback para `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`. Nenhuma chave secreta vai para o navegador. Configuração manual adicional fica limitada a `VITE_TURNSTILE_SITE_KEY` no build e, opcionalmente, `ALLOWED_ORIGIN`.
+Publicar `register-account`, `access-event` e `invite-user`. As funções preferem as variáveis singulares `SUPABASE_PUBLISHABLE_KEY` e `SUPABASE_SECRET_KEY`; nas variáveis hospedadas `SUPABASE_PUBLISHABLE_KEYS` e `SUPABASE_SECRET_KEYS`, resolvem com segurança a entrada `default` do JSON dictionary. Permanecem os fallbacks `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`. JSON inválido nunca é usado como chave e nenhuma chave secreta vai para o navegador. Configuração manual adicional fica limitada a `VITE_TURNSTILE_SITE_KEY` no build e, opcionalmente, `ALLOWED_ORIGIN`.
 
 Os limites ficam centralizados em `registration_rate_limits`: 3 cadastros concluídos/24h por dispositivo, 5 tentativas relevantes/1h e 10/24h por IP. A Edge Function faz um pré-check usando o IP observado na requisição original e falha com segurança quando ele não existe. Para o fluxo correlacionado, o hook usa esse IP server-side já persistido; em signup direto, usa exclusivamente `metadata.ip_address` do Auth Hook. O identificador aleatório do navegador é um sinal auxiliar, pode ser apagado ou trocado e é armazenado somente como hash. Senhas e tokens CAPTCHA não são registrados.
 
