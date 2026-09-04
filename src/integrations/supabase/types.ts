@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_events: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          ends_at: string | null
+          id: string
+          notes: string | null
+          service_order_id: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+          vehicle_id: string | null
+          visible_to_customer: boolean
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          ends_at?: string | null
+          id?: string
+          notes?: string | null
+          service_order_id?: string | null
+          starts_at: string
+          title: string
+          updated_at?: string
+          vehicle_id?: string | null
+          visible_to_customer?: boolean
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          ends_at?: string | null
+          id?: string
+          notes?: string | null
+          service_order_id?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "calendar_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           auth_user_id: string | null
@@ -265,6 +345,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_calendar_event: { Args: { event_id: string }; Returns: undefined }
       create_service_order_atomic: {
         Args: {
           existing_customer_id: string
@@ -340,6 +421,31 @@ export type Database = {
           year: number
         }[]
       }
+      list_calendar_events: {
+        Args: { range_end: string; range_start: string }
+        Returns: {
+          category: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          ends_at: string | null
+          id: string
+          notes: string | null
+          service_order_id: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+          vehicle_id: string | null
+          visible_to_customer: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "calendar_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_team_users: {
         Args: never
         Returns: {
@@ -351,6 +457,20 @@ export type Database = {
           operational_role: string
           user_id: string
         }[]
+      }
+      save_calendar_event: {
+        Args: {
+          event_category: string
+          event_ends_at: string
+          event_id: string
+          event_notes: string
+          event_starts_at: string
+          event_title: string
+          related_customer: string
+          related_service_order: string
+          related_vehicle: string
+        }
+        Returns: string
       }
       try_link_my_customer: { Args: never; Returns: string }
     }
