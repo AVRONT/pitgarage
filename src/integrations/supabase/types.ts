@@ -14,6 +14,175 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_events: {
+        Row: {
+          created_at: string
+          device_id_hash: string | null
+          event_type: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id_hash?: string | null
+          event_type: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id_hash?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      calendar_events: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          ends_at: string | null
+          id: string
+          notes: string | null
+          service_order_id: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+          vehicle_id: string | null
+          visible_to_customer: boolean
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          ends_at?: string | null
+          id?: string
+          notes?: string | null
+          service_order_id?: string | null
+          starts_at: string
+          title: string
+          updated_at?: string
+          vehicle_id?: string | null
+          visible_to_customer?: boolean
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          ends_at?: string | null
+          id?: string
+          notes?: string | null
+          service_order_id?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "calendar_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          joined_at: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          customer_user_id: string | null
+          id: string
+          kind: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_user_id?: string | null
+          id?: string
+          kind: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_user_id?: string | null
+          id?: string
+          kind?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           auth_user_id: string | null
@@ -53,6 +222,182 @@ export type Database = {
           phone?: string
           since?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      developer_access: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          label: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          label?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          label?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          sender_user_id: string | null
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          sender_user_id?: string | null
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          sender_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          read_at: string | null
+          target: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          read_at?: string | null
+          target?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          read_at?: string | null
+          target?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      registration_attempts: {
+        Row: {
+          blocked: boolean
+          created_at: string
+          device_id_hash: string | null
+          email_hash: string | null
+          id: string
+          ip_address: unknown
+          reason: string | null
+          succeeded: boolean
+        }
+        Insert: {
+          blocked?: boolean
+          created_at?: string
+          device_id_hash?: string | null
+          email_hash?: string | null
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
+          succeeded?: boolean
+        }
+        Update: {
+          blocked?: boolean
+          created_at?: string
+          device_id_hash?: string | null
+          email_hash?: string | null
+          id?: string
+          ip_address?: unknown
+          reason?: string | null
+          succeeded?: boolean
+        }
+        Relationships: []
+      }
+      registration_invite_exemptions: {
+        Row: {
+          created_at: string
+          created_by: string
+          email_hash: string
+          expires_at: string
+          id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email_hash: string
+          expires_at?: string
+          id?: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email_hash?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+        }
+        Relationships: []
+      }
+      registration_rate_limits: {
+        Row: {
+          device_24h: number
+          ip_1h: number
+          ip_24h: number
+          singleton: boolean
+        }
+        Insert: {
+          device_24h: number
+          ip_1h: number
+          ip_24h: number
+          singleton?: boolean
+        }
+        Update: {
+          device_24h?: number
+          ip_1h?: number
+          ip_24h?: number
+          singleton?: boolean
         }
         Relationships: []
       }
@@ -265,6 +610,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      before_user_created: { Args: { event: Json }; Returns: Json }
+      cancel_calendar_event: { Args: { event_id: string }; Returns: undefined }
       create_service_order_atomic: {
         Args: {
           existing_customer_id: string
@@ -304,6 +651,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_my_chat: { Args: never; Returns: string }
+      get_developer_dashboard: { Args: never; Returns: Json }
       get_my_customer: {
         Args: never
         Returns: {
@@ -340,6 +689,79 @@ export type Database = {
           year: number
         }[]
       }
+      has_developer_access: { Args: never; Returns: boolean }
+      list_calendar_events: {
+        Args: { range_end: string; range_start: string }
+        Returns: {
+          category: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          ends_at: string | null
+          id: string
+          notes: string | null
+          service_order_id: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+          vehicle_id: string | null
+          visible_to_customer: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "calendar_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      list_chat_contacts: {
+        Args: never
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
+      list_chat_messages: {
+        Args: { target_conversation: string }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          sender_name: string
+          sender_user_id: string
+        }[]
+      }
+      list_my_conversations: {
+        Args: never
+        Returns: {
+          id: string
+          kind: string
+          title: string
+          unread_count: number
+          updated_at: string
+        }[]
+      }
+      list_my_notifications: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          read_at: string | null
+          target: string | null
+          title: string
+          type: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_team_users: {
         Args: never
         Returns: {
@@ -351,6 +773,36 @@ export type Database = {
           operational_role: string
           user_id: string
         }[]
+      }
+      mark_chat_read: {
+        Args: { target_conversation: string }
+        Returns: undefined
+      }
+      mark_my_notifications_read: {
+        Args: { notification_id?: string }
+        Returns: undefined
+      }
+      save_calendar_event: {
+        Args: {
+          event_category: string
+          event_ends_at: string
+          event_id: string
+          event_notes: string
+          event_starts_at: string
+          event_title: string
+          related_customer: string
+          related_service_order: string
+          related_vehicle: string
+        }
+        Returns: string
+      }
+      send_chat_message: {
+        Args: { message_body: string; target_conversation: string }
+        Returns: string
+      }
+      start_direct_conversation: {
+        Args: { target_user: string }
+        Returns: string
       }
       try_link_my_customer: { Args: never; Returns: string }
     }
