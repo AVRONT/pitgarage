@@ -1,5 +1,15 @@
 # Autenticação, usuários e permissões
 
+## Estado atual — 03/09/2026
+
+Supabase Auth real, Salomão owner, perfis customer/staff/admin/owner, recuperação de senha, convites, gestão de Equipe e cargos estruturados já estão em cloud, juntamente com a base operacional e o frontend funcional, conforme confirmação do responsável. Auth e bootstrap não devem ser repetidos. `developer_access` e `/dev` existem; faltam os UUIDs reais dos desenvolvedores.
+
+`public.before_user_created` já existe no banco, mas o Before User Created Hook ainda exige ativação manual. Turnstile está preparado sem chaves configuradas; Redirect URLs, incluindo `/reset-password`, precisam de conferência. Consultar [pendências canônicas](AI_CONTEXT.md#pendências). Não houve validação remota nesta tarefa documental.
+
+## Registro histórico — preparação e primeiras aplicações de Auth
+
+Os textos abaixo mantêm as decisões e o estado de cada fase anterior. Menções a operação local, portal inicial e recuperação/convites futuros não descrevem o estado de publicação atual.
+
 Status: **base de autenticação aplicada no Supabase do Lovable Cloud**. Este documento nasceu como proposta e preserva as decisões preparatórias, mas a migration, o trigger e o primeiro owner já estão efetivamente configurados. Os dados operacionais ainda não foram migrados.
 
 ## Base preparada e aplicada

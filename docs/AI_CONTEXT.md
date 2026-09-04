@@ -26,6 +26,24 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Cloud/produção em 03/09/2026
+
+Estado canônico atualizado conforme a confirmação do responsável pelo projeto nesta rodada documental; não houve consulta ao ambiente remoto. O PitGarage já tem frontend cloud funcional, Supabase Auth real, Salomão como `owner`, níveis `customer`, `staff`, `admin` e `owner`, base operacional de clientes/veículos/OS, Agenda, notificações e Chat publicados. Realtime está ativo para `notifications` e `messages`.
+
+Também estão publicados os Edge Functions `register-account`, `access-event` e `invite-user`, recuperação de senha, convites, gestão de Equipe, cargos estruturados, estrutura `developer_access`, rota `/dev`, mecanismos de antiabuso, RLS e preservação de histórico. A existência desses recursos não significa que as configurações manuais pendentes abaixo tenham sido concluídas. Auth e bootstrap do primeiro owner não devem ser reaplicados.
+
+O vínculo técnico `developer_access` existe, mas ainda não recebeu os UUIDs reais dos desenvolvedores. `public.before_user_created` existe no banco, porém o Before User Created Hook ainda não está ativado no Auth; portanto não se deve afirmar que esse hook já protege signup direto. Turnstile está preparado, mas suas chaves não estão configuradas. Redirect URLs, incluindo `/reset-password`, ainda precisam de conferência manual.
+
+Somente a evolução de Chat `supabase/migrations/20260904010000_improve_chat_experience.sql` permanece explicitamente pendente de aplicação remota nesta atualização. Até sua aplicação/validação, podem aparecer “Conversa direta” sem nome e “Nenhuma mensagem ainda”, faltar `display_name`, `last_message` e `last_message_at`, e o novo agrupamento de notificações não está validado remotamente. Não confundir essa pendência com ausência da base de Chat já publicada.
+
+Há migrations semanticamente equivalentes: preservar todas, não remover nem fazer migration repair sem conferir antes `supabase_migrations.schema_migrations`. Publicação dos recursos não comprova quais identificadores de migration constam no histórico remoto.
+
+Referências: `fae6fa3` (Agenda/segurança/notificações/Chat), `5264532` (Auth Hook/Turnstile), `88014cb` (inconsistências pré-cloud), `5ed74c4` (dictionaries de chaves Edge), `56e45c2` (preserva contexto de `supabase.rpc`) e `ee732fd` (cargos/experiência do Chat, informado pelo responsável). Neste checkout, HEAD é `56e45c2`; `ee732fd` e o arquivo `20260904010000_improve_chat_experience.sql` não estavam disponíveis na conferência local. Isso não altera o estado cloud informado, mas exige obter/conferir o arquivo correto antes da futura aplicação, sem recriá-lo por suposição.
+
+# Registros históricos de preparação — não representam o estado atual de deploy
+
+Os textos abaixo preservam o que era verdadeiro em cada rodada local. Instruções antigas de publicar Auth/base operacional/Agenda/Chat/Edge Functions não são a próxima ação atual. O estado vigente está acima e as pendências/etapas vigentes estão ao final deste documento.
+
 ## Evolução cloud preparada em 03/09/2026
 
 A base operacional Supabase já foi aplicada no Lovable Cloud. A rodada atual prepara, apenas localmente, três migrations posteriores para Agenda, segurança/notificações e chat. Elas ainda não foram aplicadas. Também foram preparados os Edge Functions `register-account`, `access-event` e `invite-user`, ainda sem deploy.
@@ -44,7 +62,7 @@ Revisão final local de 2026-09-02: a migration operacional pendente recebeu fec
 
 # Documentação atual
 
-Estado complementar de 03/09/2026: **pré-release cloud / release candidate local**, ainda não liberado para uso real. Revisão sobre `943265c`, com detecção de conflito na escrita de OS, confirmação de linhas gravadas, fila local de escritas e correções pontuais de UX/mobile. As duas migrations e o bootstrap ficaram intocados nesta rodada; operacional continua somente local. Ver [relatório de RC e checklist obrigatório](piloto/pre-release-cloud-rc.md). A condição de liberação cloud desse relatório prevalece sobre a próxima etapa histórica de demonstração local abaixo.
+Registro histórico do RC de 03/09/2026: **pré-release cloud / release candidate local**, ainda não liberado naquela rodada. Revisão sobre `943265c`, com detecção de conflito na escrita de OS, confirmação de linhas gravadas, fila local de escritas e correções pontuais de UX/mobile. As duas migrations e o bootstrap ficaram intocados naquela rodada; a operacional era somente local. Ver [relatório histórico de RC e checklist](piloto/pre-release-cloud-rc.md). Essa descrição registra a etapa anterior à publicação; não substitui o estado canônico cloud acima nem determina reaplicação de migrations.
 
 - [Visão e processo atual](README.md#documentos)
 - [Requisitos funcionais](04-requisitos-funcionais.md)
@@ -75,6 +93,8 @@ Estado complementar de 03/09/2026: **pré-release cloud / release candidate loca
 
 # Decisões atuais importantes
 
+As referências versionadas abaixo preservam decisões e limitações do piloto; não são um inventário de deploy. Em particular, backup JSON/localStorage legado não é backup dos dados cloud, e menções antigas a recursos locais não anulam a publicação registrada no estado atual.
+
 - A v0.1.15 cria o snapshot imutável dos dados da oficina somente na primeira conclusão guiada da OS. Esta escolha reutiliza o fechamento funcional já existente e é provisória até validação da oficina. OS anteriores ou ajustadas manualmente sem snapshot continuam usando as configurações atuais. Regressão e nova conclusão não substituem snapshot existente.
 - O backup v1 contém clientes, veículos, ordens e configurações, além de identificador do formato, versão e data de exportação. A importação aceita somente formato compatível, valida estrutura e vínculos antes da confirmação e preserva os valores anteriores se a gravação falhar. Os registros locais conhecidos declaram `schemaVersion: 1`; formatos legados continuam legíveis.
 - A v0.1.14 substitui o tema grafite da v0.1.13 por base clara, sidebar azul e vermelho pontual. Paleta vigente documentada na v0.1.14; os registros da v0.1.13, inclusive seu patch, são históricos e permanecem intactos. Mudanças limitadas a CSS e identificação visual da versão, sem migração de dados nem personalização cadastral da oficina.
@@ -103,9 +123,28 @@ Estado complementar de 03/09/2026: **pré-release cloud / release candidate loca
 
 # Pendências
 
+Pendências operacionais atuais em 03/09/2026:
+
+1. Aplicar `20260904010000_improve_chat_experience.sql` e validar nomes das conversas/Atendimento, última mensagem, horário, unread, agrupamento de notificações e `mark_chat_read`.
+2. Ativar manualmente Before User Created Hook usando a função `public.before_user_created` já existente.
+3. Configurar as chaves de Turnstile; integração preparada não significa CAPTCHA ativo.
+4. Conferir Auth Redirect URLs, incluindo `/reset-password`.
+5. Cadastrar os UUIDs reais e confirmados dos desenvolvedores em `developer_access`.
+6. Conferir `supabase_migrations.schema_migrations` antes de qualquer tratamento de migrations semanticamente equivalentes. Não remover arquivos nem executar migration repair nesta rodada.
+
 Consultar as perguntas originais em [`10-questoes-pendentes.md`](10-questoes-pendentes.md) e sua classificação em [`12-priorizacao-questoes-pendentes.md`](12-priorizacao-questoes-pendentes.md). Nenhuma pendência deve ser resolvida por suposição.
 
 # Próxima etapa
+
+1. Obter/conferir o arquivo correto da evolução de Chat, ausente neste checkout, e aplicar remotamente **somente** `supabase/migrations/20260904010000_improve_chat_experience.sql` em uma próxima tarefa autorizada.
+2. Validar nome real da conversa, nome do cliente em Atendimento, última mensagem, horário, unread, agrupamento de notificações e `mark_chat_read`.
+3. Depois, conferir o histórico remoto de migrations; ativar Before User Created Hook; configurar Turnstile; revisar Redirect URLs; cadastrar `developer_access`. Nenhuma remoção/repair de migrations antes de conferir o histórico remoto.
+
+Esta atualização é somente documental: nenhuma dessas ações foi executada.
+
+## Próxima etapa histórica do piloto local
+
+O roteiro abaixo é preservado como registro anterior, não como próxima ação cloud:
 
 Demonstrar o Piloto v0.1.15 aos responsáveis pela oficina. Validar o momento provisório do snapshot, a recuperação por backup e o comportamento esperado para correções/reemissões, além do conforto visual nos dispositivos reais. Integração fiscal permanece sem implementação.
 

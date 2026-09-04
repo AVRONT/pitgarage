@@ -8,6 +8,8 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 - **Para IA:** [`AI_CONTEXT.md`](AI_CONTEXT.md) resume o contexto e as regras obrigatórias de trabalho.
 - **Evolução do projeto:** o [`CHANGELOG.md`](../CHANGELOG.md) registra as alterações relevantes em ordem cronológica.
 
+Estado canônico de 03/09/2026: frontend cloud funcional, Auth/base operacional, Agenda, notificações, Chat/Realtime e Edge Functions publicados, conforme confirmação do responsável. As pendências reais estão em [AI_CONTEXT.md](AI_CONTEXT.md#pendências); registros de preparação local/RC são históricos e não indicam reaplicação das bases.
+
 ## Documentos
 
 1. [Visão do projeto](01-visao-projeto.md)
@@ -23,11 +25,12 @@ Esta documentação organiza o levantamento inicial do sistema. Ela distingue fa
 11. [Decisões técnicas futuras](11-decisoes-tecnicas-futuras.md)
 12. [Priorização das questões pendentes](12-priorizacao-questoes-pendentes.md)
 13. [Autenticação, usuários e permissões](13-proposta-autenticacao-usuarios.md) — Auth e bootstrap aplicados conforme histórico do projeto
-14. [Base operacional Supabase](14-base-operacional-supabase.md) — migration operacional somente local, aplicação pendente
+14. [Base operacional Supabase](14-base-operacional-supabase.md) — clientes, veículos e OS aplicados em cloud; preparação e revisão local preservadas como histórico
+15. [Evolução cloud integrada](15-evolucao-cloud-integrada.md) — Agenda, notificações, Chat/Realtime, Edge Functions e acesso técnico publicados; evolução adicional do Chat e configurações manuais ainda pendentes
 
 ## Piloto
 
-- [Pré-release cloud / release candidate](piloto/pre-release-cloud-rc.md): revisão local de segurança, integridade e primeira utilização; checklist obrigatório antes de liberar para a oficina.
+- [Pré-release cloud / release candidate](piloto/pre-release-cloud-rc.md): registro histórico da revisão local anterior à publicação cloud; preserva achados e checklist daquela fase, sem indicar estado atual de deploy.
 
 - [`piloto/piloto-v0.1.15.md`](piloto/piloto-v0.1.15.md): snapshot da oficina em documentos fechados, backup local completo e versionamento compatível da persistência.
 - [`piloto/piloto-v0.1.14.md`](piloto/piloto-v0.1.14.md): identidade visual da oficina piloto, paleta vigente com base clara, sidebar azul e detalhes vermelhos.

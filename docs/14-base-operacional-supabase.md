@@ -1,5 +1,15 @@
 # Base operacional Supabase
 
+## Estado atual — 03/09/2026
+
+Base operacional de clientes, veículos e OS **já aplicada em cloud**, com frontend funcional, RLS e preservação de histórico, conforme confirmação do responsável. Auth e bootstrap do primeiro owner também já foram executados. Não reaplicar a base operacional com base nas instruções antigas abaixo.
+
+A próxima migration pendente é `20260904010000_improve_chat_experience.sql`, não a criação da base operacional. Consultar [estado canônico e pendências](AI_CONTEXT.md#estado-atual). Não houve verificação remota nesta atualização documental; antes de qualquer tratamento de migrations equivalentes, conferir `supabase_migrations.schema_migrations`, sem remover arquivos ou fazer repair por suposição.
+
+## Registro histórico — preparação e revisão da base operacional
+
+Todo o registro abaixo descreve as fases anteriores à publicação, incluindo seus status e instruções de aplicação. Foi preservado para rastreabilidade; não é o estado de deploy vigente nem a próxima tarefa.
+
 Status: **implementada no repositório e ainda não aplicada remotamente**. A migration de autenticação anterior permanece aplicada; a nova migration operacional deve ser revisada e executada uma única vez no Lovable Cloud antes de publicar este runtime.
 
 ## Modelo

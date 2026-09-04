@@ -1,5 +1,17 @@
 # Evolução cloud integrada
 
+## Estado atual — 03/09/2026
+
+Agenda, notificações, Chat, Realtime para `notifications`/`messages`, Edge Functions `register-account`, `access-event` e `invite-user`, recuperação de senha, convites, Equipe/cargos estruturados, antiabuso, RLS, estrutura `developer_access` e rota `/dev` já estão publicados em cloud, conforme confirmação do responsável. Não tratar as instruções antigas de aplicar as bases/publicar as funções como pendência atual.
+
+A evolução `20260904010000_improve_chat_experience.sql` ainda não foi aplicada remotamente. Até aplicar e validar, “Conversa direta” sem nome, “Nenhuma mensagem ainda” e ausência de `display_name`, `last_message` e `last_message_at` podem permanecer; o novo agrupamento de notificações também aguarda validação. Próxima validação: nome real da conversa/cliente em Atendimento, última mensagem, horário, unread, agrupamento e `mark_chat_read`.
+
+Pendências manuais: ativação do Before User Created Hook (a função `public.before_user_created` já existe), chaves Turnstile, conferência de Redirect URLs incluindo `/reset-password` e UUIDs reais em `developer_access`. Existência da função/integração não equivale à proteção ativada. Migrations equivalentes devem permanecer intactas até conferir `supabase_migrations.schema_migrations`; não remover nem executar repair. Consultar [contexto canônico](AI_CONTEXT.md#estado-atual), inclusive a indisponibilidade local do arquivo da próxima migration e de `ee732fd` nesta conferência.
+
+## Registro histórico — preparação local
+
+O texto abaixo preserva arquitetura, limites e instruções da rodada de preparação. Seus status “não publicado” e comandos para aplicar as bases/publicar funções são históricos, não uma lista atual de ações pendentes. Esta atualização não executou deploy nem consultou o banco remoto.
+
 Estado: preparada localmente em 03/09/2026; migrations e Edge Functions ainda não publicados.
 
 ## Banco e segurança

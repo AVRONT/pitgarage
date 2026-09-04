@@ -1,5 +1,15 @@
 # Changelog
 
+## [Estado cloud publicado — consolidação documental] - 2026-09-03
+
+- Registrado o estado cloud/produção informado pelo responsável: frontend funcional, Supabase Auth real, Salomão owner, níveis customer/staff/admin/owner e base operacional de clientes, veículos e OS já aplicados, com RLS e preservação de histórico.
+- Agenda, notificações e Chat publicados; Realtime para `notifications` e `messages` ativo. Edge Functions `register-account`, `access-event` e `invite-user` publicadas; recuperação de senha, convites, gestão de Equipe, cargos estruturados, antiabuso, `developer_access` e rota `/dev` existentes.
+- Registradas correções das chaves Edge em dictionaries (`5ed74c4`) e do bug de contexto de `supabase.rpc` (`56e45c2`), sem modificar código nesta atualização.
+- Referências da evolução: `fae6fa3`, `5264532`, `88014cb`, `5ed74c4`, `56e45c2` e `ee732fd` (cargos/experiência do Chat, referência fornecida pelo responsável). O último não está disponível neste checkout; não houve fetch, alteração de commits ou verificação remota.
+- Continua pendente a aplicação de `20260904010000_improve_chat_experience.sql`: nomes/preview de conversa, `display_name`, `last_message`, `last_message_at` e novo agrupamento de notificações não devem ser tratados como validados remotamente. O arquivo também não estava disponível neste checkout; obter a versão correta antes da próxima aplicação.
+- Pendências manuais: ativar Before User Created Hook (função já existe), configurar Turnstile, conferir Redirect URLs incluindo `/reset-password` e cadastrar UUIDs reais em `developer_access`. Conferir `supabase_migrations.schema_migrations` antes de qualquer tratamento de migrations equivalentes; nenhuma remoção ou migration repair autorizada.
+- Estado atual separado dos registros históricos de preparação local/RC. Nesta rodada houve somente edição documental; nenhum código, migration, banco ou deploy foi alterado, e nenhuma próxima ação foi executada.
+
 ## [Evolução cloud integrada — preparada localmente] - 2026-09-03
 
 - Preparadas migrations independentes para Agenda, permissão técnica e auditoria, notificações e chat com RLS/RPCs restritas.
