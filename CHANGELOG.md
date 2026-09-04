@@ -1,5 +1,13 @@
 # Changelog
 
+## [Histórico veicular interno — evolução local] - 2026-09-04
+
+- Detalhe do veículo com proprietário, última quilometragem conhecida e sua origem, última passagem e quantidade de OS vinculadas.
+- Timeline por data de entrada, estados de atendimento explícitos, detalhes expansíveis e acesso à ordem completa pela navegação existente.
+- Execução apresentada somente quando registrada; serviços/peças não são inferidos de aprovação. Total aprovado rotulado separadamente de execução/pagamento, evidências contabilizadas e ausência de garantia específica informada sem simular vigência.
+- Tratamento neutro de registros antigos incompletos; dados, workflow, exclusão lógica, documentos, portal, RLS, armazenamento e versões anteriores preservados. Sem schema, migration, dependência nova ou alteração remota.
+- Adicionados 8 testes locais de projeção e validação em navegador isolado com APIs simuladas nas resoluções desktop, tablet e mobile. Estado preparado localmente; não representa publicação.
+
 ## [Estado cloud publicado — consolidação documental] - 2026-09-03
 
 - Registrado o estado cloud/produção informado pelo responsável: frontend funcional, Supabase Auth real, Salomão owner, níveis customer/staff/admin/owner e base operacional de clientes, veículos e OS já aplicados, com RLS e preservação de histórico.

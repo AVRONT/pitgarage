@@ -40,6 +40,16 @@ Há migrations semanticamente equivalentes: preservar todas, não remover nem fa
 
 Referências: `fae6fa3` (Agenda/segurança/notificações/Chat), `5264532` (Auth Hook/Turnstile), `88014cb` (inconsistências pré-cloud), `5ed74c4` (dictionaries de chaves Edge), `56e45c2` (preserva contexto de `supabase.rpc`) e `ee732fd` (cargos/experiência do Chat, informado pelo responsável). Neste checkout, HEAD é `56e45c2`; `ee732fd` e o arquivo `20260904010000_improve_chat_experience.sql` não estavam disponíveis na conferência local. Isso não altera o estado cloud informado, mas exige obter/conferir o arquivo correto antes da futura aplicação, sem recriá-lo por suposição.
 
+# Histórico veicular interno — evolução local de 04/09/2026
+
+- Detalhe do veículo reutiliza as OS do repositório operacional já carregadas, filtradas por veículo; nenhum acesso direto ao Supabase no componente, schema novo ou ampliação do portal `/cliente`.
+- Timeline ordenada pela data de entrada, da mais recente à mais antiga; datas ausentes/inválidas ficam ao final, preservando a ordem recebida em empates. Última passagem usa a entrada mais recente disponível.
+- Última km conhecida usa a entrada válida da OS datada mais recente com quilometragem registrada; sem essa informação, usa o cadastro do veículo. A origem é mostrada, pois o cadastro não possui data específica da medição. Não usa o maior hodômetro nem inventa atualização.
+- Serviços/peças exibidos como executados somente com `executed === true`. Total é explicitamente **aprovado no orçamento**, não pago/executado; sem itens aprovados ou com preços incompletos, aparece indisponível.
+- Não há registro específico de garantia no modelo operacional atual. O histórico não calcula vigência a partir da simulação de 30 dias; garantia demonstrativa da OS e dos documentos permanece intacta.
+- Campos antigos ausentes recebem mensagens neutras. Status atual distingue atendimento em andamento das três etapas finais, sem inferir execução nem mudar workflow/regressão. Detalhes expansíveis e “Ver ordem completa” usam a navegação existente.
+- Validação local: 8 testes de projeção (`node --test tests/vehicle-history.test.mjs`) e navegador com APIs simuladas, sem OS, em andamento, múltiplas concluídas, campos ausentes, ordenação, navegação e resoluções 1366×768, 768×1024 e 390×844. Nenhuma validação remota, migration, deploy, commit ou push nesta rodada.
+
 # Registros históricos de preparação — não representam o estado atual de deploy
 
 Os textos abaixo preservam o que era verdadeiro em cada rodada local. Instruções antigas de publicar Auth/base operacional/Agenda/Chat/Edge Functions não são a próxima ação atual. O estado vigente está acima e as pendências/etapas vigentes estão ao final deste documento.

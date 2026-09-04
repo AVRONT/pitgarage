@@ -72,6 +72,8 @@ import { ChatWidget } from "@/features/platform/chat-widget";
 import { NotificationBell } from "@/features/platform/notification-bell";
 import { cn } from "@/lib/utils";
 import { WorkshopSettings } from "./workshop-settings";
+import { vehicleHistory } from "./vehicle-history";
+import { VehicleHistory } from "./vehicle-history-timeline";
 import { WorkshopIdentity } from "./workshop-document-header";
 import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
 import { FinalOrderSummary } from "./final-order-summary";
@@ -1704,14 +1706,14 @@ function VehicleDetail({
   onDelete: () => void;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const current = orders.find((o) => o.status !== "Entregue");
+  const history = useMemo(() => vehicleHistory(vehicle, orders), [vehicle, orders]);
   return (
     <>
       <PageTitle
         back={onBack}
         eyebrow={vehicle.kind}
-        title={`${vehicle.brand} ${vehicle.model} ${vehicle.year}`}
-        text={`${vehicle.plate} · ${vehicle.mileage.toLocaleString("pt-BR")} km · ${vehicle.color}`}
+        title={`${vehicle.brand} ${vehicle.model}${vehicle.year ? ` ${vehicle.year}` : ""}`}
+        text={`${vehicle.plate} · Proprietário: ${customer.name}`}
         action={
           <div className="flex flex-wrap gap-2">
             {vehicle.deletedAt ? (
@@ -1750,15 +1752,24 @@ function VehicleDetail({
                 </div>
                 <div>
                   <dt className="text-slate-400">Ano</dt>
-                  <dd className="mt-1 font-bold">{vehicle.year}</dd>
+                  <dd className="mt-1 font-bold">{vehicle.year || "Não informado"}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-400">Quilometragem</dt>
-                  <dd className="mt-1 font-bold">{vehicle.mileage.toLocaleString("pt-BR")} km</dd>
+                  <dt className="text-slate-400">Última km conhecida</dt>
+                  <dd className="mt-1 font-bold">{history.mileage}</dd>
+                  <dd className="mt-1 text-xs text-slate-400">{history.mileageSource}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-400">Cor</dt>
-                  <dd className="mt-1 font-bold">{vehicle.color}</dd>
+                  <dd className="mt-1 font-bold">{vehicle.color || "Não informada"}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">Última passagem</dt>
+                  <dd className="mt-1 font-bold">{history.lastVisit}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">Ordens vinculadas</dt>
+                  <dd className="mt-1 font-bold">{history.orders.length}</dd>
                 </div>
               </dl>
             </CardContent>
@@ -1777,105 +1788,11 @@ function VehicleDetail({
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        <section>
-          {current && (
-            <button
-              onClick={() => onOrder(current.id)}
-              className="mb-6 w-full rounded-2xl border border-orange-200 bg-orange-50 p-5 text-left"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase text-orange-700">
-                    Ordem atual · {current.id}
-                  </p>
-                  <h2 className="mt-1 font-bold">{current.complaint}</h2>
-                </div>
-                <StatusBadge status={current.status} />
-              </div>
-              <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                <Wrench className="h-4 w-4" />
-                Responsáveis: {current.team.join(", ") || "A definir"}
-              </p>
-            </button>
-          )}
-          <h2 className="mb-4 text-xl font-bold">Histórico do veículo</h2>
-          {orders.length === 0 && (
-            <EmptyState
-              title="Nenhum histórico encontrado"
-              text="A primeira ordem deste veículo aparecerá aqui."
-            />
-          )}
-          <div className="relative ml-3 space-y-4 border-l-2 border-slate-200 pl-7">
-            {orders.map((order) => {
-              const total = order.budget
-                .filter((i) => i.approval === "Aprovado")
-                .reduce((sum, i) => sum + i.price, 0);
-              const warrantyEnd = order.completedAt
-                ? new Date(`${order.completedAt}T12:00:00Z`)
-                : null;
-              if (warrantyEnd) warrantyEnd.setUTCDate(warrantyEnd.getUTCDate() + 30);
-              const warrantyActive = warrantyEnd && warrantyEnd >= new Date("2026-09-01T12:00:00Z");
-              return (
-                <button
-                  key={order.id}
-                  onClick={() => onOrder(order.id)}
-                  className="relative w-full rounded-2xl border bg-white p-5 text-left hover:border-orange-200"
-                >
-                  <span className="absolute -left-[37px] top-6 h-4 w-4 rounded-full border-4 border-[#f6f4ef] bg-orange-500" />
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold text-orange-600">
-                        {formatDate(order.openedAt)} · {order.entryMileage.toLocaleString("pt-BR")}{" "}
-                        km
-                      </p>
-                      <h3 className="mt-1 font-bold">
-                        {order.id} · {order.complaint}
-                      </h3>
-                    </div>
-                    <StatusBadge status={order.status} />
-                  </div>
-                  <div className="mt-4 grid gap-4 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Diagnóstico</span>
-                      <p className="line-clamp-2 font-medium">
-                        {order.diagnosis || "Ainda não registrado"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Serviços e peças</span>
-                      <p className="line-clamp-2 font-medium">
-                        {order.budget
-                          .filter((i) => i.approval === "Aprovado")
-                          .map((i) => i.name)
-                          .join(", ") || "Sem itens aprovados"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Responsáveis</span>
-                      <p className="font-medium">{order.team.join(", ") || "A definir"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Valor e garantia</span>
-                      <p className="font-bold">{money(total)}</p>
-                      <p
-                        className={cn(
-                          "mt-1 text-xs font-semibold",
-                          warrantyActive ? "text-emerald-700" : "text-muted-foreground",
-                        )}
-                      >
-                        {warrantyEnd
-                          ? warrantyActive
-                            ? "Garantia ativa"
-                            : "Garantia expirada"
-                          : "Garantia após conclusão"}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        <VehicleHistory
+          orders={history.orders}
+          onOrder={onOrder}
+          renderStatus={(status) => <StatusBadge status={status} />}
+        />
       </div>
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
