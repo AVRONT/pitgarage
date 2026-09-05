@@ -1656,15 +1656,17 @@ function OrderTeamAssignment({
   onSave: (team: string[]) => void;
 }) {
   const { accessLevel, isLocalBypass, profile } = useAuth();
-  const [members, setMembers] = useState<AssignableTeamMember[]>([]);
+  const canAssign =
+    accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff";
+  const [members, setMembers] = useState<AssignableMember[]>([]);
   const [draft, setDraft] = useState<string[]>(team);
-  const [loading, setLoading] = useState(accessLevel === "owner");
+  const [loading, setLoading] = useState(canAssign);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => setDraft(team), [team]);
 
   const loadMembers = async () => {
-    if (accessLevel !== "owner") return;
+    if (!canAssign) return;
     setLoading(true);
     setLoadError(false);
     if (isLocalBypass) {
@@ -1672,9 +1674,9 @@ function OrderTeamAssignment({
         profile
           ? [
               {
-                ...profile,
-                email: "Acesso local isolado",
-                customer_id: null,
+                user_id: profile.user_id,
+                full_name: profile.full_name,
+                operational_role: profile.operational_role,
               },
             ]
           : [],
@@ -1682,20 +1684,14 @@ function OrderTeamAssignment({
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase.rpc("list_team_users");
+    const { data, error } = await supabase.rpc("list_assignable_members");
     if (error) {
       setLoadError(true);
       setLoading(false);
       return;
     }
     setMembers(
-      ((data ?? []) as AssignableTeamMember[]).filter(
-        (member) =>
-          member.is_active &&
-          member.access_level !== "customer" &&
-          !member.customer_id &&
-          Boolean(member.full_name?.trim()),
-      ),
+      ((data ?? []) as AssignableMember[]).filter((member) => Boolean(member.full_name?.trim())),
     );
     setLoading(false);
   };
@@ -1725,7 +1721,7 @@ function OrderTeamAssignment({
             {team.length ? team.join(", ") : "A definir"}
           </p>
         </div>
-        {accessLevel === "owner" && (
+        {canAssign && (
           <Button
             size="sm"
             disabled={!changed || loading || loadError}
@@ -1736,17 +1732,17 @@ function OrderTeamAssignment({
         )}
       </div>
 
-      {accessLevel !== "owner" && (
+      {canAssign && (
         <p className="mt-3 text-xs text-muted-foreground">
-          A edição usa o diretório protegido da equipe e está disponível ao proprietário da oficina.
+          Selecione os membros responsáveis por esta ordem de serviço.
         </p>
       )}
-      {accessLevel === "owner" && loading && (
+      {canAssign && loading && (
         <p className="mt-3 text-sm text-muted-foreground" role="status">
           Carregando membros ativos…
         </p>
       )}
-      {accessLevel === "owner" && loadError && (
+      {canAssign && loadError && (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="alert">
           <span>Não foi possível carregar a equipe. Os responsáveis atuais foram preservados.</span>
           <Button size="sm" variant="outline" onClick={() => void loadMembers()}>
@@ -1754,7 +1750,7 @@ function OrderTeamAssignment({
           </Button>
         </div>
       )}
-      {accessLevel === "owner" && !loading && !loadError && (
+      {canAssign && !loading && !loadError && (
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {members.map((member) => {
             const name = member.full_name!.trim();
@@ -1786,7 +1782,7 @@ function OrderTeamAssignment({
           )}
         </div>
       )}
-      {accessLevel === "owner" && legacyNames.length > 0 && (
+      {canAssign && legacyNames.length > 0 && (
         <div className="mt-3">
           <p className="text-xs font-medium text-muted-foreground">Responsáveis já registrados</p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -1802,6 +1798,7 @@ function OrderTeamAssignment({
     </section>
   );
 }
+
 
 function OrderDetail({
   order,
