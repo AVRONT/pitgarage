@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { isRecoveryPage, preparePasswordRecovery } from "./password-recovery";
 import { getDeviceId, recordAccessEvent } from "@/features/platform/platform-api";
 
 export type AccessLevel = "customer" | "staff" | "admin" | "owner";
@@ -241,7 +242,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     let authEvent = 0;
 
-    if (isLocalDevelopmentHost()) {
+    if (isRecoveryPage()) void preparePasswordRecovery();
+
+    if (isLocalDevelopmentHost() && !isRecoveryPage()) {
       setIdentity(localIdentity);
       setIsLoading(false);
       return () => {
@@ -251,6 +254,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!active || authEvent > 0) return;
+      if (isRecoveryPage()) {
+        clearAuth();
+        return;
+      }
       if (error) {
         if (import.meta.env.DEV) console.error("Falha ao restaurar sessão", error);
         setMessage("Não foi possível verificar sua sessão agora. Tente novamente.");
@@ -273,12 +280,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       const event = ++authEvent;
       profileRequest.current += 1;
+      if (_event === "PASSWORD_RECOVERY" || isRecoveryPage()) {
+        clearAuth();
+        return;
+      }
       if (!session?.user) {
         clearAuth();
         return;
       }
       setTimeout(() => {
-        if (active && event === authEvent) void loadAuthenticatedIdentity(session.user);
+        if (active && event === authEvent && !isRecoveryPage())
+          void loadAuthenticatedIdentity(session.user);
       }, 0);
     });
 

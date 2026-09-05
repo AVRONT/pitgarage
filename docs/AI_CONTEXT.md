@@ -26,6 +26,10 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Recuperação de senha — correção frontend de 05/09/2026
+
+`/reset-password` exige evento `PASSWORD_RECOVERY`, sessão correspondente e confirmação pelo Auth antes de atualizar a senha. AuthProvider não carrega perfil operacional nessa página. Hash/token usa o SDK automaticamente; `code` ainda não consumido é trocado pelo SDK com o verificador existente, exigindo recovery. O marcador fica somente em memória: após recarregar a página sem o callback, solicitar novo link. Sucesso encerra a sessão local e direciona ao login; envio e redirect atuais permanecem iguais. Validado com HTTP simulado, sem mudar banco/configuração cloud. Confirmação de login com senha antiga/nova e allowlist de Redirect URLs em produção permanecem verificações manuais.
+
 ## Visão Geral operacional — evolução local de 04/09/2026
 
 - Polimento final exclusivamente visual: cabeçalho e gaps menores, empty states horizontais compactos, contagem e destino contextual em Próximas ações, indicadores semânticos reduzidos e Agenda em timeline. Entregas mostram veículo/placa/OS somente quando os vínculos já existem. Ordenação, dados, API e navegação permanecem iguais.

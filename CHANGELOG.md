@@ -1,5 +1,12 @@
 # Changelog
 
+## [Recuperação de senha — correção frontend] - 2026-09-05
+
+- Nova senha exige PASSWORD_RECOVERY e sessão conferida no Auth; sessões normais e recargas sem link não habilitam atualização. Marcador de recuperação somente em memória.
+- Hash/token usa inicialização automática do SDK. Callback code não consumido usa exchangeCodeForSession e exige evento de recovery; não repete troca já realizada.
+- AuthProvider evita carregar perfil operacional durante recovery. Feedback de validação, link inválido, senha fraca, sucesso e encerramento da sessão antes de retornar ao login.
+- Testes locais com SDK real e HTTP simulado: acesso direto, sessão normal, hash válido/expirado, code válido/inválido/não recovery, senha fraca, sucesso e reload. Nenhuma alteração de backend/cloud; login com senha antiga/nova ainda requer validação real.
+
 ## [UX de conflito de edição da OS] - 2026-09-05
 
 - Conflito confirmado por versão mais recente e acessível recebe mensagem específica e ação Recarregar OS. Erros comuns mantêm o tratamento existente.
