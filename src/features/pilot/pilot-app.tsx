@@ -118,15 +118,12 @@ type PendingWorkflowConfirmation = {
   onConfirm: () => void;
 };
 
-type AssignableTeamMember = {
+type AssignableMember = {
   user_id: string;
   full_name: string | null;
-  email: string;
-  access_level: "customer" | "staff" | "admin" | "owner";
   operational_role: string | null;
-  is_active: boolean;
-  customer_id: string | null;
 };
+
 
 const orderTimestamp = () => new Date().toISOString();
 
