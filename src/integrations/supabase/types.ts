@@ -690,6 +690,14 @@ export type Database = {
         }[]
       }
       has_developer_access: { Args: never; Returns: boolean }
+      list_assignable_members: {
+        Args: never
+        Returns: {
+          full_name: string
+          operational_role: string
+          user_id: string
+        }[]
+      }
       list_calendar_events: {
         Args: { range_end: string; range_start: string }
         Returns: {
