@@ -1,5 +1,11 @@
 # Changelog
 
+## [UX de conflito de edição da OS] - 2026-09-05
+
+- Conflito confirmado por versão mais recente e acessível recebe mensagem específica e ação Recarregar OS. Erros comuns mantêm o tratamento existente.
+- Recarga confirmada substitui somente a OS afetada, preserva o estado local em falha e não reaplica alterações antigas. Comparação de versão e bloqueio de sobrescrita permanecem intactos.
+- Validação com duas sessões e API simulada: conflito, preservação do rascunho, falha/êxito de recarga, ausência de duplicação e erro comum. Nenhuma alteração remota ou de backend.
+
 ## [Polimento visual da Visão Geral] - 2026-09-04
 
 - Reduzidos paddings, gaps e estados vazios; reforçada a hierarquia de Próximas ações com contagem e destino contextual.

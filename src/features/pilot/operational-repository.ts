@@ -16,6 +16,7 @@ export interface NewOrderBundle {
 }
 
 export interface OperationalRepository {
+  reloadOrder(order: ServiceOrder): Promise<ServiceOrder>;
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
   saveOrder(order: ServiceOrder): Promise<void>;
@@ -132,8 +133,30 @@ function mapOrder(row: {
   };
 }
 
+export class OrderVersionConflict extends Error {
+  constructor() {
+    super(
+      "Esta OS foi alterada por outra pessoa. Recarregue para ver a versão mais recente antes de continuar.",
+    );
+    this.name = "OrderVersionConflict";
+  }
+}
+
 class CloudOperationalRepository implements OperationalRepository {
   private orderVersions = new Map<string, string>();
+
+  async reloadOrder(order: ServiceOrder) {
+    if (!order.databaseId) throw new Error("OS sem identificador persistente.");
+    const { data, error } = await supabase
+      .from("service_orders")
+      .select("*")
+      .eq("id", order.databaseId)
+      .single();
+    if (error || !data) throw new Error("Não foi possível recarregar a OS.");
+    const latest = mapOrder(data);
+    this.orderVersions.set(data.id, data.updated_at);
+    return latest;
+  }
 
   async load() {
     const [customersResult, vehiclesResult, ordersResult] = await Promise.all([
@@ -210,6 +233,17 @@ class CloudOperationalRepository implements OperationalRepository {
       .eq("updated_at", expectedVersion)
       .select("id, updated_at")
       .single();
+    if (error?.code === "PGRST116" || (!error && !data)) {
+      // Missing rows may also mean lost access; confirm a readable newer version.
+      const current = await supabase
+        .from("service_orders")
+        .select("updated_at")
+        .eq("id", order.databaseId)
+        .maybeSingle();
+      if (!current.error && current.data && current.data.updated_at !== expectedVersion) {
+        throw new OrderVersionConflict();
+      }
+    }
     if (error || !data)
       throw new Error(
         "A OS pode ter sido alterada por outra pessoa ou seu acesso mudou. Recarregue antes de continuar.",
@@ -243,6 +277,11 @@ class CloudOperationalRepository implements OperationalRepository {
 }
 
 class LocalOperationalRepository implements OperationalRepository {
+  async reloadOrder(order: ServiceOrder) {
+    const latest = this.read().orders.find((item) => item.id === order.id);
+    if (!latest) throw new Error("Não foi possível recarregar a OS.");
+    return latest;
+  }
   private read(): OperationalData {
     try {
       const saved = localStorage.getItem(devStorageKey);

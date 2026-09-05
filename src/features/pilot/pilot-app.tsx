@@ -91,7 +91,7 @@ import {
   type ServiceOrder,
   type Vehicle,
 } from "./pilot-data";
-import { createOperationalRepository } from "./operational-repository";
+import { createOperationalRepository, OrderVersionConflict } from "./operational-repository";
 import {
   isBasicCpfValid,
   isBasicEmailValid,
@@ -123,7 +123,6 @@ type AssignableMember = {
   full_name: string | null;
   operational_role: string | null;
 };
-
 
 const orderTimestamp = () => new Date().toISOString();
 
@@ -374,6 +373,14 @@ export function PilotApp() {
   const writeQueue = useRef(Promise.resolve());
   const writeFailed = useRef(false);
   const [pendingWrites, setPendingWrites] = useState(0);
+  const [orderConflict, setOrderConflict] = useState<{
+    order: ServiceOrder;
+    message: string;
+  } | null>(null);
+  const [confirmReload, setConfirmReload] = useState(false);
+  const [reloadingOrder, setReloadingOrder] = useState(false);
+  const [reloadError, setReloadError] = useState("");
+  const [orderReloadRevision, setOrderReloadRevision] = useState(0);
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
@@ -448,7 +455,7 @@ export function PilotApp() {
       activeCustomers.some((customer) => customer.id === order.customerId) &&
       activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
   );
-  const persist = (operation: () => Promise<void>) => {
+  const persist = (operation: () => Promise<void>, savingOrder?: ServiceOrder) => {
     if (writeFailed.current) return;
     setPendingWrites((count) => count + 1);
     writeQueue.current = writeQueue.current
@@ -456,9 +463,13 @@ export function PilotApp() {
         if (writeFailed.current) return;
         try {
           await operation();
-        } catch {
+        } catch (error) {
           writeFailed.current = true;
           setNotice("");
+          if (error instanceof OrderVersionConflict && savingOrder) {
+            setOrderConflict({ order: savingOrder, message: error.message });
+            return;
+          }
           setDataError(
             "Não foi possível confirmar a gravação. A OS pode ter mudado ou seu acesso pode ter expirado. Recarregue para conferir os dados salvos antes de continuar.",
           );
@@ -473,7 +484,33 @@ export function PilotApp() {
     const updated = updater(order);
     ordersRef.current = ordersRef.current.map((item) => (item.id === id ? updated : item));
     setOrders(ordersRef.current);
-    persist(() => repository.saveOrder(updated));
+    persist(() => repository.saveOrder(updated), updated);
+  };
+
+  const reloadConflictedOrder = async () => {
+    if (!orderConflict || reloadingOrder) return;
+    setReloadingOrder(true);
+    setReloadError("");
+    try {
+      await writeQueue.current;
+      const latest = migrateOrder(await repository.reloadOrder(orderConflict.order));
+      ordersRef.current = ordersRef.current.map((order) =>
+        order.id === orderConflict.order.id ? latest : order,
+      );
+      setOrders(ordersRef.current);
+      navigate("order", latest.id, selectedOrderTab);
+      setOrderReloadRevision((revision) => revision + 1);
+      writeFailed.current = false;
+      setOrderConflict(null);
+      setConfirmReload(false);
+      setNotice("OS recarregada. A versão mais recente está disponível.");
+    } catch {
+      setReloadError(
+        "Não foi possível recarregar a OS. Sua versão local foi mantida. Tente novamente.",
+      );
+    } finally {
+      setReloadingOrder(false);
+    }
   };
 
   const globalResults = useMemo(() => {
@@ -542,6 +579,54 @@ export function PilotApp() {
 
   return (
     <div className="pilot-shell min-h-screen bg-[#f4f3ef]">
+      <Dialog open={Boolean(orderConflict)} onOpenChange={() => {}}>
+        <DialogContent
+          className="[&>button]:hidden"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {confirmReload
+                ? "Substituir a versão local desta OS?"
+                : "OS alterada por outra pessoa"}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmReload
+                ? "A versão mais recente do servidor substituirá as alterações locais não salvas desta OS. Nenhuma alteração antiga será reaplicada."
+                : orderConflict?.message}
+            </DialogDescription>
+          </DialogHeader>
+          {reloadError && (
+            <p role="alert" className="text-sm text-destructive">
+              {reloadError}
+            </p>
+          )}
+          <DialogFooter>
+            {confirmReload && (
+              <Button
+                variant="outline"
+                disabled={reloadingOrder}
+                onClick={() => setConfirmReload(false)}
+              >
+                Voltar
+              </Button>
+            )}
+            <Button
+              disabled={reloadingOrder || pendingWrites > 0}
+              onClick={() =>
+                confirmReload ? void reloadConflictedOrder() : setConfirmReload(true)
+              }
+            >
+              {reloadingOrder
+                ? "Recarregando OS…"
+                : confirmReload
+                  ? "Confirmar recarga"
+                  : "Recarregar OS"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Sidebar
         active={screen}
         open={menuOpen}
@@ -807,7 +892,7 @@ export function PilotApp() {
           )}
           {screen === "order" && selectedOrder && (
             <OrderDetail
-              key={`${selectedOrder.id}-${selectedOrderTab}`}
+              key={`${selectedOrder.id}-${selectedOrderTab}-${orderReloadRevision}`}
               order={selectedOrder}
               initialTab={selectedOrderTab}
               workshop={workshop}
@@ -1653,8 +1738,7 @@ function OrderTeamAssignment({
   onSave: (team: string[]) => void;
 }) {
   const { accessLevel, isLocalBypass, profile } = useAuth();
-  const canAssign =
-    accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff";
+  const canAssign = accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff";
   const [members, setMembers] = useState<AssignableMember[]>([]);
   const [draft, setDraft] = useState<string[]>(team);
   const [loading, setLoading] = useState(canAssign);
@@ -1795,7 +1879,6 @@ function OrderTeamAssignment({
     </section>
   );
 }
-
 
 function OrderDetail({
   order,
