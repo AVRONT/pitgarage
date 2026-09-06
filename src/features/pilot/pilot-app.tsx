@@ -125,6 +125,8 @@ type AssignableMember = {
 };
 
 const orderTimestamp = () => new Date().toISOString();
+const localDate = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const migrateOrder = (order: ServiceOrder): ServiceOrder => {
   const createdAt = `${order.openedAt}T12:00:00-03:00`;
@@ -3606,7 +3608,7 @@ function PaymentPanel({
         current,
         "payment",
         `Pagamento ${status.toLowerCase()} registrado por ${method}`,
-        { payment: { amount: numericAmount, method, status, date: "2026-09-01" } },
+        { payment: { amount: numericAmount, method, status, date: localDate() } },
       ),
     );
     setPaymentError("");
@@ -3828,7 +3830,7 @@ function NewCustomerDialog({
       phone: cleanPhone,
       email: cleanEmail,
       ...(cleanCpf ? { cpf: cleanCpf } : {}),
-      since: "2026",
+      since: String(new Date().getFullYear()),
     });
     setName("");
     setPhone("");
@@ -3951,7 +3953,11 @@ function NewVehicleDialog({
       });
     const numericYear = Number(year);
     const numericMileage = Number(mileage);
-    if (!Number.isInteger(numericYear) || numericYear < 1900 || numericYear > 2027)
+    if (
+      !Number.isInteger(numericYear) ||
+      numericYear < 1900 ||
+      numericYear > new Date().getFullYear() + 1
+    )
       return setError({ message: "Informe um ano válido para o veículo." });
     if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
       return setError({ message: "Informe uma quilometragem válida entre 0 e 2.000.000 km." });
@@ -4228,7 +4234,7 @@ function NewOrderDialog({
       phone: cleanPhone,
       email: cleanEmail,
       ...(cleanCpf ? { cpf: cleanCpf } : {}),
-      since: "2026",
+      since: String(new Date().getFullYear()),
     };
     setDraftCustomer(customer);
     setCustomerId(customer.id);
@@ -4258,7 +4264,11 @@ function NewOrderDialog({
       );
     const numericYear = Number(year);
     const numericMileage = Number(vehicleMileage);
-    if (!Number.isInteger(numericYear) || numericYear < 1900 || numericYear > 2027)
+    if (
+      !Number.isInteger(numericYear) ||
+      numericYear < 1900 ||
+      numericYear > new Date().getFullYear() + 1
+    )
       return setError("Informe um ano válido para o veículo.");
     if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
       return setError("Informe uma quilometragem válida entre 0 e 2.000.000 km.");
@@ -4325,7 +4335,7 @@ function NewOrderDialog({
           customerId: selectedCustomer.id,
           vehicleId: selectedVehicle.id,
           status: "Recebido",
-          openedAt: "2026-09-01",
+          openedAt: localDate(),
           entryMileage: entryMileage === "" ? selectedVehicle.mileage : Number(entryMileage),
           complaint: complaint.trim(),
           diagnosis: "",

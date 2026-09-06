@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // The recovery screen is only authorized by a callback consumed on this page load.
-let recoveryReady = false;
+let recoverySession: { userId: string; accessToken: string } | null = null;
 let initialization: Promise<boolean> | undefined;
 
 export const isRecoveryPage = () =>
@@ -41,38 +41,53 @@ export function preparePasswordRecovery(): Promise<boolean> {
     if (hasError) return false;
 
     // Explicit hash tokens (implicit flow recovery link).
-    if (accessToken && refreshToken) {
-      const { error } = await supabase.auth.setSession({
+    if (accessToken && refreshToken && type === "recovery") {
+      const { data, error } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
-      if (!error) return true;
+      if (!error && data.session) {
+        recoverySession = { userId: data.session.user.id, accessToken: data.session.access_token };
+        return true;
+      }
     }
 
     // Hashed one-time token (default recovery template / verify redirect).
     if (tokenHash && (!type || type === "recovery")) {
-      const { error } = await supabase.auth.verifyOtp({ type: "recovery", token_hash: tokenHash });
-      if (!error) return true;
+      const { data, error } = await supabase.auth.verifyOtp({
+        type: "recovery",
+        token_hash: tokenHash,
+      });
+      if (!error && data.session) {
+        recoverySession = { userId: data.session.user.id, accessToken: data.session.access_token };
+        return true;
+      }
     }
 
     // PKCE code, when the SDK still holds the matching verifier.
     if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (!error) return true;
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error && data.session && sawRecoveryEvent) {
+        recoverySession = { userId: data.session.user.id, accessToken: data.session.access_token };
+        return true;
+      }
     }
 
     // The SDK may have already consumed the callback (detectSessionInUrl).
     if (!hadCallback && !sawRecoveryEvent) return false;
     const { data, error } = await supabase.auth.getSession();
-    return !error && Boolean(data.session);
+    if (!error && data.session && sawRecoveryEvent) {
+      recoverySession = { userId: data.session.user.id, accessToken: data.session.access_token };
+      return true;
+    }
+    return false;
   })()
     .then((valid) => {
-      recoveryReady = valid;
       if (valid) cleanRecoveryUrl();
       return valid;
     })
     .catch(() => {
-      recoveryReady = false;
+      recoverySession = null;
       return false;
     });
 
@@ -80,11 +95,14 @@ export function preparePasswordRecovery(): Promise<boolean> {
 }
 
 export async function validatePasswordRecovery() {
-  if (!recoveryReady) return false;
+  if (!recoverySession) return false;
+  const session = await supabase.auth.getSession();
+  if (session.error || session.data.session?.access_token !== recoverySession.accessToken)
+    return false;
   const { data, error } = await supabase.auth.getUser();
-  return !error && Boolean(data.user);
+  return !error && data.user?.id === recoverySession.userId;
 }
 
 export function consumePasswordRecovery() {
-  recoveryReady = false;
+  recoverySession = null;
 }

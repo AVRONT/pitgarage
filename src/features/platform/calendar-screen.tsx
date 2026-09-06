@@ -14,7 +14,15 @@ export function CalendarScreen() {
     [editing, setEditing] = useState<Partial<CalendarEvent> | null>(null),
     [query, setQuery] = useState(""),
     [error, setError] = useState(""),
-    [saving, setSaving] = useState(false);
+    [saving, setSaving] = useState(false),
+    [cancelling, setCancelling] = useState(false);
+  const inputDateTime = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "";
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  };
   const load = useCallback(async () => {
     setError("");
     try {
@@ -169,10 +177,14 @@ export function CalendarScreen() {
             <Input
               required
               type="datetime-local"
-              value={editing?.starts_at?.slice(0, 16) ?? ""}
-              onChange={(e) =>
-                setEditing((v) => ({ ...v, starts_at: new Date(e.target.value).toISOString() }))
-              }
+              value={inputDateTime(editing?.starts_at)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setEditing((v) => ({
+                  ...v,
+                  starts_at: value ? new Date(value).toISOString() : "",
+                }));
+              }}
             />
             <Textarea
               placeholder="Observações"
@@ -184,19 +196,26 @@ export function CalendarScreen() {
                 <Button
                   type="button"
                   variant="destructive"
-                  onClick={() =>
-                    void platformApi.cancelEvent(editing.id!).then(() => {
-                      setEditing(null);
-                      return load();
-                    })
-                  }
+                  disabled={saving || cancelling}
+                  onClick={() => {
+                    setCancelling(true);
+                    setError("");
+                    void platformApi
+                      .cancelEvent(editing.id!)
+                      .then(() => {
+                        setEditing(null);
+                        return load();
+                      })
+                      .catch(() => setError("Não foi possível cancelar o evento."))
+                      .finally(() => setCancelling(false));
+                  }}
                 >
-                  Cancelar evento
+                  {cancelling ? "Cancelando…" : "Cancelar evento"}
                 </Button>
               ) : (
                 <span />
               )}
-              <Button disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
+              <Button disabled={saving || cancelling}>{saving ? "Salvando…" : "Salvar"}</Button>
             </div>
           </form>
         </DialogContent>
