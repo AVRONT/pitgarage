@@ -743,8 +743,11 @@ export type Database = {
       list_my_conversations: {
         Args: never
         Returns: {
+          display_name: string
           id: string
           kind: string
+          last_message: string
+          last_message_at: string
           title: string
           unread_count: number
           updated_at: string
