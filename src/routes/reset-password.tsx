@@ -73,6 +73,16 @@ function ResetPassword() {
       }
       const { data, error } = await supabase.auth.updateUser({ password });
       if (error || !data.user) {
+        if (import.meta.env.DEV && error) console.error("updateUser falhou", error);
+        const expired =
+          error?.status === 401 ||
+          error?.status === 403 ||
+          /session|jwt|expired/i.test(error?.message ?? "");
+        if (expired) {
+          consumePasswordRecovery();
+          setState("invalid");
+          return;
+        }
         setFeedback(
           error
             ? errorMessage(error)
@@ -80,6 +90,7 @@ function ResetPassword() {
         );
         return;
       }
+
       consumePasswordRecovery();
       setPassword("");
       setState("ending");
