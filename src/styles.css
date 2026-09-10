@@ -211,7 +211,7 @@
 .pilot-shell {
   background: var(--background);
 }
-.pilot-shell > aside {
+.pilot-sidebar {
   --foreground: #ffffff;
   --muted-foreground: #d5def0;
   --primary-support: #dce8ff;
@@ -224,15 +224,15 @@
   color: var(--foreground);
   border-color: var(--border);
 }
-.pilot-shell > main > header {
+.pilot-main > header {
   background: var(--card);
   border-color: var(--border);
 }
-.pilot-shell > aside .brand-mark {
+.pilot-sidebar .brand-mark {
   background: var(--primary-support);
   color: var(--sidebar);
 }
-.pilot-shell > aside [class~="before:bg-orange-500"]::before {
+.pilot-sidebar [class~="before:bg-orange-500"]::before {
   background: var(--primary-support);
 }
 :where(.pilot-shell, [role="dialog"])
@@ -692,7 +692,7 @@
 button:hover > .brand-mark::after {
   background: var(--brand-red-dark);
 }
-.pilot-shell > main > header::after,
+.pilot-main > header::after,
 .document-paper .document-header::after {
   content: "";
   position: absolute;
@@ -837,13 +837,13 @@ button:hover > .brand-mark::after {
 }
 
 /* v0.2 visual system: compact workshop tooling, quiet surfaces and explicit hierarchy. */
-.pilot-shell > aside {
+.pilot-sidebar {
   background: #102b4e;
   box-shadow: 8px 0 24px rgb(15 23 42 / 0.12);
 }
 
-.pilot-shell > aside nav button {
-  min-height: 2.75rem;
+.pilot-sidebar nav button {
+  min-height: 2.5rem;
   border-radius: 0.375rem;
   transition:
     background-color 140ms ease,
@@ -851,11 +851,7 @@ button:hover > .brand-mark::after {
     transform 120ms ease;
 }
 
-.pilot-shell > aside nav button:active {
-  transform: translateX(2px);
-}
-
-.pilot-shell > main > header {
+.pilot-main > header {
   height: 4.5rem;
   background: rgb(255 255 255 / 0.96);
   box-shadow:
@@ -863,7 +859,7 @@ button:hover > .brand-mark::after {
     0 8px 24px rgb(15 23 42 / 0.035);
 }
 
-.pilot-shell > main > header input {
+.pilot-main > header input {
   background: #f7f8fa;
   border-color: transparent;
   box-shadow: inset 0 0 0 1px #dbe0e8;
@@ -872,7 +868,7 @@ button:hover > .brand-mark::after {
     box-shadow 140ms ease;
 }
 
-.pilot-shell > main > header input:focus {
+.pilot-main > header input:focus {
   background: white;
   box-shadow:
     inset 0 0 0 1px var(--primary-support),
@@ -948,6 +944,46 @@ button:hover > .brand-mark::after {
   line-height: 1;
 }
 
+.sidebar-resize-handle {
+  position: relative;
+  z-index: 10;
+  width: 12px;
+  margin-inline: -5.5px;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: rgb(49 94 173 / 0.34);
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.sidebar-resize-handle::after {
+  inset: 0;
+  width: 100%;
+  transform: none;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle:focus-visible::before {
+  background: rgb(49 94 173 / 0.75);
+  box-shadow: 0 0 0 2px rgb(49 94 173 / 0.08);
+}
+
+.sidebar-resize-handle[data-resize-handle-active]::before {
+  width: 2px;
+  background: rgb(18 52 115 / 0.9);
+  box-shadow: 0 0 0 3px rgb(49 94 173 / 0.12);
+}
+
 .command-palette [cmdk-input-wrapper] {
   transition:
     border-color 140ms ease,
@@ -1019,15 +1055,6 @@ button:hover > .brand-mark::after {
   box-shadow: 0 12px 36px rgb(15 23 42 / 0.08);
 }
 
-@media (min-width: 1024px) {
-  .pilot-shell > aside {
-    width: 17rem;
-  }
-  .pilot-shell > main {
-    padding-left: 17rem;
-  }
-}
-
 @media (max-width: 767px) {
   .calendar-day {
     min-height: 5.25rem;
@@ -1039,8 +1066,8 @@ button:hover > .brand-mark::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pilot-shell > aside nav button,
-  .pilot-shell > main > header input,
+  .pilot-sidebar nav button,
+  .pilot-main > header input,
   .settings-nav a,
   .calendar-day,
   .calendar-event {

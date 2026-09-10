@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeft,
   Bike,
@@ -20,6 +28,8 @@ import {
   Menu,
   MessageCircle,
   PackageCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
   Phone,
   Play,
   Plus,
@@ -40,6 +50,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { usePanelRef } from "react-resizable-panels";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +73,8 @@ import {
 } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useAuth } from "@/features/auth/auth-context";
 import { TeamSettings } from "@/features/auth/team-settings";
 import { InviteForm } from "@/features/auth/invite-form";
@@ -204,6 +217,107 @@ const navItems = [
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
   { id: "settings" as Screen, label: "Configurações da oficina", icon: Settings2 },
 ];
+
+const sidebarPreferenceKey = "pitgarage:desktop-sidebar";
+const sidebarDefaultWidth = 256;
+const sidebarMinWidth = 210;
+const sidebarMaxWidth = 320;
+const sidebarCollapsedWidth = 64;
+
+const readSidebarPreference = () => {
+  if (typeof window === "undefined") {
+    return { width: sidebarDefaultWidth, collapsed: false };
+  }
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(sidebarPreferenceKey) ?? "null") as {
+      width?: unknown;
+      collapsed?: unknown;
+    } | null;
+    const width =
+      typeof saved?.width === "number" &&
+      Number.isFinite(saved.width) &&
+      saved.width >= sidebarMinWidth &&
+      saved.width <= sidebarMaxWidth
+        ? saved.width
+        : sidebarDefaultWidth;
+    return { width, collapsed: saved?.collapsed === true };
+  } catch {
+    return { width: sidebarDefaultWidth, collapsed: false };
+  }
+};
+
+const useDesktopLayout = () => {
+  return useSyncExternalStore(
+    (onChange) => {
+      const media = window.matchMedia("(min-width: 1024px)");
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => false,
+  );
+};
+
+function PilotShellLayout({
+  desktop,
+  sidebar,
+  mobileOverlay,
+  collapsed,
+  width,
+  panelRef,
+  onCollapsedChange,
+  onWidthChange,
+  children,
+}: {
+  desktop: boolean;
+  sidebar: ReactNode;
+  mobileOverlay: ReactNode;
+  collapsed: boolean;
+  width: number;
+  panelRef: ReturnType<typeof usePanelRef>;
+  onCollapsedChange: (collapsed: boolean) => void;
+  onWidthChange: (width: number) => void;
+  children: ReactNode;
+}) {
+  if (!desktop) {
+    return (
+      <>
+        {sidebar}
+        {mobileOverlay}
+        {children}
+      </>
+    );
+  }
+
+  return (
+    <ResizablePanelGroup orientation="horizontal" className="min-h-screen">
+      <ResizablePanel
+        id="pilot-sidebar"
+        panelRef={panelRef}
+        defaultSize={collapsed ? sidebarCollapsedWidth : width}
+        minSize={sidebarMinWidth}
+        maxSize={sidebarMaxWidth}
+        collapsedSize={sidebarCollapsedWidth}
+        collapsible
+        groupResizeBehavior="preserve-pixel-size"
+        onResize={({ inPixels }) => {
+          if (inPixels <= sidebarCollapsedWidth + 1) {
+            onCollapsedChange(true);
+          } else if (inPixels >= sidebarMinWidth) {
+            onCollapsedChange(false);
+            onWidthChange(Math.min(sidebarMaxWidth, Math.max(sidebarMinWidth, inPixels)));
+          }
+        }}
+      >
+        {sidebar}
+      </ResizablePanel>
+      <ResizableHandle className="sidebar-resize-handle bg-transparent" />
+      <ResizablePanel id="pilot-content" minSize={480}>
+        {children}
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  );
+}
 
 const formatActivityDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", {
@@ -393,6 +507,11 @@ export function PilotApp() {
   const [commandOpen, setCommandOpen] = useState(false);
   const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarPreference] = useState(readSidebarPreference);
+  const [sidebarWidth, setSidebarWidth] = useState(sidebarPreference.width);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(sidebarPreference.collapsed);
+  const desktop = useDesktopLayout();
+  const sidebarPanelRef = usePanelRef();
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newVehicleOpen, setNewVehicleOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
@@ -403,6 +522,20 @@ export function PilotApp() {
   useEffect(() => {
     setWorkshop(readWorkshop());
   }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(
+          sidebarPreferenceKey,
+          JSON.stringify({ width: sidebarWidth, collapsed: sidebarCollapsed }),
+        );
+      } catch {
+        // A preferência visual não deve impedir o uso do sistema.
+      }
+    }, 150);
+    return () => window.clearTimeout(timeout);
+  }, [sidebarCollapsed, sidebarWidth]);
 
   useEffect(() => {
     let active = true;
@@ -708,218 +841,245 @@ export function PilotApp() {
         onNewOrder={() => setNewOrderOpen(true)}
         onNavigate={(target) => navigate(target)}
       />
-      <Sidebar
-        active={screen}
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        onNavigate={navigate}
-        onReset={() => setResetOpen(true)}
-        showDevelopmentTools={isLocalBypass}
-      />
-      {menuOpen && (
-        <button
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
-          onClick={() => setMenuOpen(false)}
-          aria-label="Fechar menu"
-        />
-      )}
-      <main className="min-h-screen lg:pl-64">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b px-4 md:gap-4 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,32rem)_minmax(0,1fr)]">
-          <Button
-            className="lg:hidden"
-            size="icon"
-            variant="outline"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Abrir menu"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="relative min-w-0 max-w-md flex-1 lg:col-start-2 lg:w-full lg:max-w-none">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/60" />
-            <button
-              ref={commandTriggerRef}
-              type="button"
-              className="group flex h-10 w-full items-center rounded-md border border-slate-300/90 bg-slate-50/80 pl-10 pr-2 text-left text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_1px_2px_rgba(15,23,42,.04)] transition-[border-color,box-shadow,background-color] duration-150 hover:border-primary/35 hover:bg-white focus-visible:border-primary/45 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/10"
-              onClick={() => setCommandOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={commandOpen}
-            >
-              <span className="min-w-0 flex-1 truncate">
-                Buscar cliente, placa, veículo ou OS...
-              </span>
-              <span className="ml-3 hidden items-center gap-1 sm:flex" aria-hidden="true">
-                <kbd className="command-kbd">Ctrl / ⌘</kbd>
-                <kbd className="command-kbd">K</kbd>
-              </span>
-            </button>
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2 lg:col-start-3 lg:ml-0 lg:justify-self-end">
-            {!isLocalBypass && <NotificationBell />}
-            <UserMenu />
-          </div>
-        </header>
-        {pendingWrites > 0 && (
-          <div className="pilot-action-feedback" role="status">
-            Salvando alterações… Aguarde a confirmação.
-          </div>
-        )}
-        {notice && pendingWrites === 0 && (
-          <div
-            className="pilot-action-feedback"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-400" />
-            {notice}
-          </div>
-        )}
-        <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
-          {screen === "settings" && (
-            <>
-              <nav className="settings-nav" aria-label="Seções das configurações">
-                <a href="#oficina">Oficina e documentos</a>
-                <a href="#backup">Dados e backup</a>
-                <a href="#equipe">Equipe e acessos</a>
-              </nav>
-              <WorkshopSettings
-                key={JSON.stringify(workshop)}
-                workshop={workshop}
-                onSave={setWorkshop}
-              />
-              <section
-                id="backup"
-                className="mt-7 scroll-mt-28 rounded-lg border bg-white p-5 sm:p-6"
-              >
-                <h2 className="font-semibold">Backup dos dados operacionais</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {isLocalBypass
-                    ? "Este ambiente usa dados locais de desenvolvimento isolados. O backup legado do piloto não é carregado automaticamente."
-                    : "O backup JSON legado não inclui nem protege clientes, veículos ou ordens armazenados no Supabase. Backup cloud ainda não está disponível."}
-                </p>
-              </section>
-              <TeamSettings />
-            </>
-          )}
-          {screen === "calendar" &&
-            (isLocalBypass ? (
-              <p className="rounded-lg border bg-white p-6">Agenda cloud requer uma sessão real.</p>
-            ) : (
-              <CalendarScreen />
-            ))}
-          {screen === "dashboard" && (
-            <OperationalDashboard
-              orders={operationalOrders}
-              vehicles={activeVehicles}
-              customers={activeCustomers}
-              onNavigate={(target) =>
-                navigate(
-                  target.screen,
-                  "id" in target ? target.id : undefined,
-                  "tab" in target ? target.tab : undefined,
-                )
+      <PilotShellLayout
+        desktop={desktop}
+        collapsed={sidebarCollapsed}
+        width={sidebarWidth}
+        panelRef={sidebarPanelRef}
+        onCollapsedChange={setSidebarCollapsed}
+        onWidthChange={setSidebarWidth}
+        sidebar={
+          <Sidebar
+            active={screen}
+            open={menuOpen}
+            desktop={desktop}
+            onClose={() => setMenuOpen(false)}
+            onNavigate={navigate}
+            onReset={() => setResetOpen(true)}
+            showDevelopmentTools={isLocalBypass}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={(nextCollapsed) => {
+              setSidebarCollapsed(nextCollapsed);
+              if (nextCollapsed) sidebarPanelRef.current?.collapse();
+              else {
+                sidebarPanelRef.current?.expand();
+                requestAnimationFrame(() => sidebarPanelRef.current?.resize(sidebarWidth));
               }
-              onNewOrder={() => setNewOrderOpen(true)}
+            }}
+          />
+        }
+        mobileOverlay={
+          menuOpen ? (
+            <button
+              className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+              onClick={() => setMenuOpen(false)}
+              aria-label="Fechar menu"
             />
-          )}
-          {screen === "customers" && (
-            <CustomersScreen
-              customers={activeCustomers}
-              vehicles={activeVehicles}
-              orders={orders}
-              onOpen={(id) => navigate("customer", id)}
-              onNew={() => setNewOrderOpen(true)}
-            />
-          )}
-          {screen === "vehicles" && (
-            <VehiclesScreen
-              vehicles={activeVehicles}
-              customers={activeCustomers}
-              orders={orders}
-              onOpen={(id) => navigate("vehicle", id)}
-              onNew={() => setNewOrderOpen(true)}
-            />
-          )}
-          {screen === "orders" && (
-            <OrdersScreen
-              orders={orders}
-              vehicles={vehicles}
-              customers={customers}
-              onOpen={(id) => navigate("order", id)}
-              onNew={() => setNewOrderOpen(true)}
-            />
-          )}
-          {screen === "customer" && (
-            <CustomerDetail
-              customer={customers.find((item) => item.id === selectedCustomerId)!}
-              vehicles={vehicles.filter((item) => item.customerId === selectedCustomerId)}
-              orders={orders}
-              onBack={() => navigate("customers")}
-              onVehicle={(id) => navigate("vehicle", id)}
-              onOrder={(id) => navigate("order", id)}
-              onDelete={() => {
-                const at = orderTimestamp();
-                const deleted = logicallyDeleteCustomer(
-                  customers,
-                  vehicles,
-                  selectedCustomerId,
-                  at,
-                );
-                persist(async () => {
-                  await repository.deleteCustomer(selectedCustomerId, at);
-                  setCustomers(deleted.customers);
-                  setVehicles(deleted.vehicles);
-                  setNotice("Cliente e veículos vinculados removidos das áreas operacionais");
-                  navigate("customers");
-                });
-              }}
-            />
-          )}
-          {screen === "vehicle" && (
-            <VehicleDetail
-              vehicle={vehicles.find((item) => item.id === selectedVehicleId)!}
-              customer={customers.find(
-                (item) =>
-                  item.id ===
-                  vehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.customerId,
-              )!}
-              orders={orders.filter((item) => item.vehicleId === selectedVehicleId)}
-              onBack={() => navigate("vehicles")}
-              onCustomer={(id) => navigate("customer", id)}
-              onOrder={(id) => navigate("order", id)}
-              onNewOrder={() => setNewOrderOpen(true)}
-              onDelete={() => {
-                const at = orderTimestamp();
-                persist(async () => {
-                  await repository.deleteVehicle(selectedVehicleId, at);
-                  setVehicles((current) => logicallyDeleteVehicle(current, selectedVehicleId, at));
-                  setNotice("Veículo removido das áreas operacionais; histórico preservado");
-                  navigate("vehicles");
-                });
-              }}
-            />
-          )}
-          {screen === "order" && selectedOrder && (
-            <div inert={evidenceWrite.current}>
-              <OrderDetail
-                key={`${selectedOrder.id}-${selectedOrderTab}-${orderReloadRevision}`}
-                order={selectedOrder}
-                initialTab={selectedOrderTab}
-                workshop={workshop}
-                vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
-                customer={customers.find((item) => item.id === selectedOrder.customerId)!}
-                onBack={() => navigate("orders")}
-                onVehicle={(id) => navigate("vehicle", id)}
-                onUpdate={(updater) => updateOrder(selectedOrder.id, updater)}
-                onSaveEvidence={(change, description) =>
-                  saveEvidence(selectedOrder.id, change, description)
-                }
-                notify={setNotice}
-              />
+          ) : null
+        }
+      >
+        <main className="pilot-main min-h-screen min-w-0">
+          <header className="sticky top-0 z-20 flex items-center gap-3 border-b px-4 md:gap-4 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,32rem)_minmax(0,1fr)]">
+            <Button
+              className="lg:hidden"
+              size="icon"
+              variant="outline"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Abrir menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="relative min-w-0 max-w-md flex-1 lg:col-start-2 lg:w-full lg:max-w-none">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/60" />
+              <button
+                ref={commandTriggerRef}
+                type="button"
+                className="group flex h-10 w-full items-center rounded-md border border-slate-300/90 bg-slate-50/80 pl-10 pr-2 text-left text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_1px_2px_rgba(15,23,42,.04)] transition-[border-color,box-shadow,background-color] duration-150 hover:border-primary/35 hover:bg-white focus-visible:border-primary/45 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/10"
+                onClick={() => setCommandOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={commandOpen}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  Buscar cliente, placa, veículo ou OS...
+                </span>
+                <span className="ml-3 hidden items-center gap-1 sm:flex" aria-hidden="true">
+                  <kbd className="command-kbd">Ctrl / ⌘</kbd>
+                  <kbd className="command-kbd">K</kbd>
+                </span>
+              </button>
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-2 lg:col-start-3 lg:ml-0 lg:justify-self-end">
+              {!isLocalBypass && <NotificationBell />}
+              <UserMenu />
+            </div>
+          </header>
+          {pendingWrites > 0 && (
+            <div className="pilot-action-feedback" role="status">
+              Salvando alterações… Aguarde a confirmação.
             </div>
           )}
-        </div>
-      </main>
+          {notice && pendingWrites === 0 && (
+            <div
+              className="pilot-action-feedback"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-400" />
+              {notice}
+            </div>
+          )}
+          <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
+            {screen === "settings" && (
+              <>
+                <nav className="settings-nav" aria-label="Seções das configurações">
+                  <a href="#oficina">Oficina e documentos</a>
+                  <a href="#backup">Dados e backup</a>
+                  <a href="#equipe">Equipe e acessos</a>
+                </nav>
+                <WorkshopSettings
+                  key={JSON.stringify(workshop)}
+                  workshop={workshop}
+                  onSave={setWorkshop}
+                />
+                <section
+                  id="backup"
+                  className="mt-7 scroll-mt-28 rounded-lg border bg-white p-5 sm:p-6"
+                >
+                  <h2 className="font-semibold">Backup dos dados operacionais</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {isLocalBypass
+                      ? "Este ambiente usa dados locais de desenvolvimento isolados. O backup legado do piloto não é carregado automaticamente."
+                      : "O backup JSON legado não inclui nem protege clientes, veículos ou ordens armazenados no Supabase. Backup cloud ainda não está disponível."}
+                  </p>
+                </section>
+                <TeamSettings />
+              </>
+            )}
+            {screen === "calendar" &&
+              (isLocalBypass ? (
+                <p className="rounded-lg border bg-white p-6">
+                  Agenda cloud requer uma sessão real.
+                </p>
+              ) : (
+                <CalendarScreen />
+              ))}
+            {screen === "dashboard" && (
+              <OperationalDashboard
+                orders={operationalOrders}
+                vehicles={activeVehicles}
+                customers={activeCustomers}
+                onNavigate={(target) =>
+                  navigate(
+                    target.screen,
+                    "id" in target ? target.id : undefined,
+                    "tab" in target ? target.tab : undefined,
+                  )
+                }
+                onNewOrder={() => setNewOrderOpen(true)}
+              />
+            )}
+            {screen === "customers" && (
+              <CustomersScreen
+                customers={activeCustomers}
+                vehicles={activeVehicles}
+                orders={orders}
+                onOpen={(id) => navigate("customer", id)}
+                onNew={() => setNewOrderOpen(true)}
+              />
+            )}
+            {screen === "vehicles" && (
+              <VehiclesScreen
+                vehicles={activeVehicles}
+                customers={activeCustomers}
+                orders={orders}
+                onOpen={(id) => navigate("vehicle", id)}
+                onNew={() => setNewOrderOpen(true)}
+              />
+            )}
+            {screen === "orders" && (
+              <OrdersScreen
+                orders={orders}
+                vehicles={vehicles}
+                customers={customers}
+                onOpen={(id) => navigate("order", id)}
+                onNew={() => setNewOrderOpen(true)}
+              />
+            )}
+            {screen === "customer" && (
+              <CustomerDetail
+                customer={customers.find((item) => item.id === selectedCustomerId)!}
+                vehicles={vehicles.filter((item) => item.customerId === selectedCustomerId)}
+                orders={orders}
+                onBack={() => navigate("customers")}
+                onVehicle={(id) => navigate("vehicle", id)}
+                onOrder={(id) => navigate("order", id)}
+                onDelete={() => {
+                  const at = orderTimestamp();
+                  const deleted = logicallyDeleteCustomer(
+                    customers,
+                    vehicles,
+                    selectedCustomerId,
+                    at,
+                  );
+                  persist(async () => {
+                    await repository.deleteCustomer(selectedCustomerId, at);
+                    setCustomers(deleted.customers);
+                    setVehicles(deleted.vehicles);
+                    setNotice("Cliente e veículos vinculados removidos das áreas operacionais");
+                    navigate("customers");
+                  });
+                }}
+              />
+            )}
+            {screen === "vehicle" && (
+              <VehicleDetail
+                vehicle={vehicles.find((item) => item.id === selectedVehicleId)!}
+                customer={customers.find(
+                  (item) =>
+                    item.id ===
+                    vehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.customerId,
+                )!}
+                orders={orders.filter((item) => item.vehicleId === selectedVehicleId)}
+                onBack={() => navigate("vehicles")}
+                onCustomer={(id) => navigate("customer", id)}
+                onOrder={(id) => navigate("order", id)}
+                onNewOrder={() => setNewOrderOpen(true)}
+                onDelete={() => {
+                  const at = orderTimestamp();
+                  persist(async () => {
+                    await repository.deleteVehicle(selectedVehicleId, at);
+                    setVehicles((current) =>
+                      logicallyDeleteVehicle(current, selectedVehicleId, at),
+                    );
+                    setNotice("Veículo removido das áreas operacionais; histórico preservado");
+                    navigate("vehicles");
+                  });
+                }}
+              />
+            )}
+            {screen === "order" && selectedOrder && (
+              <div inert={evidenceWrite.current}>
+                <OrderDetail
+                  key={`${selectedOrder.id}-${selectedOrderTab}-${orderReloadRevision}`}
+                  order={selectedOrder}
+                  initialTab={selectedOrderTab}
+                  workshop={workshop}
+                  vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
+                  customer={customers.find((item) => item.id === selectedOrder.customerId)!}
+                  onBack={() => navigate("orders")}
+                  onVehicle={(id) => navigate("vehicle", id)}
+                  onUpdate={(updater) => updateOrder(selectedOrder.id, updater)}
+                  onSaveEvidence={(change, description) =>
+                    saveEvidence(selectedOrder.id, change, description)
+                  }
+                  notify={setNotice}
+                />
+              </div>
+            )}
+          </div>
+        </main>
+      </PilotShellLayout>
       <NewCustomerDialog
         open={newCustomerOpen}
         onOpenChange={setNewCustomerOpen}
@@ -1012,96 +1172,298 @@ export function PilotApp() {
   );
 }
 
+function CollapsedSidebarRail({
+  active,
+  onNavigate,
+  onReset,
+  onExpand,
+  showDevelopmentTools,
+}: {
+  active: Screen;
+  onNavigate: (screen: Screen) => void;
+  onReset: () => void;
+  onExpand: () => void;
+  showDevelopmentTools: boolean;
+}) {
+  const isItemActive = (id: Screen) =>
+    active === id ||
+    (id === "customers" && active === "customer") ||
+    (id === "vehicles" && active === "vehicle") ||
+    (id === "orders" && active === "order");
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <aside className="pilot-sidebar flex h-screen w-full flex-col border-r border-white/10 bg-sidebar px-2 py-3 text-white">
+        <div className="flex flex-col items-center gap-2 border-b border-white/10 pb-3">
+          <button
+            onClick={() => onNavigate("dashboard")}
+            className="brand-mark grid h-9 w-9 place-items-center rounded-md bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            aria-label="Ir para Visão geral"
+          >
+            <Wrench className="h-4.5 w-4.5" />
+          </button>
+          <button
+            onClick={onExpand}
+            className="grid h-8 w-8 place-items-center rounded-md text-slate-400 transition-colors hover:bg-white/[.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            aria-label="Expandir barra lateral"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+        </div>
+        <nav className="mt-3 flex flex-col gap-1" aria-label="Navegação principal">
+          {navItems.map((item) => {
+            const itemActive = isItemActive(item.id);
+            return (
+              <Tooltip key={item.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onNavigate(item.id)}
+                    aria-label={item.label}
+                    aria-current={itemActive ? "page" : undefined}
+                    className={cn(
+                      "relative grid h-10 w-full place-items-center rounded-md transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+                      itemActive
+                        ? "bg-white/[.09] text-white before:bg-orange-400"
+                        : "text-slate-500 hover:bg-white/[.05] hover:text-slate-200",
+                    )}
+                  >
+                    <item.icon className={cn("h-4 w-4", itemActive && "text-orange-400")} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+        {showDevelopmentTools && (
+          <div className="mt-auto border-t border-white/10 pt-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onReset}
+                  className="grid h-10 w-full place-items-center rounded-md text-orange-300 transition-colors hover:bg-white/[.05] hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                  aria-label="Ambiente local isolado: limpar dados locais"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10}>
+                Ambiente local isolado · Limpar dados locais
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+      </aside>
+    </TooltipProvider>
+  );
+}
+
 function Sidebar({
   active,
   open,
+  desktop,
   onClose,
   onNavigate,
   onReset,
   showDevelopmentTools,
+  collapsed,
+  onCollapsedChange,
 }: {
   active: Screen;
   open: boolean;
+  desktop: boolean;
   onClose: () => void;
   onNavigate: (screen: Screen) => void;
   onReset: () => void;
   showDevelopmentTools: boolean;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }) {
+  if (desktop && collapsed) {
+    return (
+      <CollapsedSidebarRail
+        active={active}
+        onNavigate={onNavigate}
+        onReset={onReset}
+        onExpand={() => onCollapsedChange(false)}
+        showDevelopmentTools={showDevelopmentTools}
+      />
+    );
+  }
+
+  const isItemActive = (id: Screen) =>
+    active === id ||
+    (id === "customers" && active === "customer") ||
+    (id === "vehicles" && active === "vehicle") ||
+    (id === "orders" && active === "order");
+
   return (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 text-white transition-transform duration-200 ease-out motion-reduce:transition-none lg:translate-x-0",
-        open ? "translate-x-0" : "-translate-x-full",
-      )}
-    >
-      <div className="flex h-[4.5rem] items-center justify-between border-b border-white/10 px-5">
-        <button className="flex items-center gap-3" onClick={() => onNavigate("dashboard")}>
-          <span
-            className="brand-mark grid h-9 w-9 place-items-center rounded-md bg-orange-600"
-            aria-hidden="true"
-          >
-            <Wrench className="h-5 w-5" />
-          </span>
-          <span className="text-left">
-            <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-300">Operação da oficina</span>
-          </span>
-        </button>
-        <Button
-          className="lg:hidden"
-          size="icon"
-          variant="ghost"
-          onClick={onClose}
-          aria-label="Fechar menu"
+    <TooltipProvider delayDuration={250}>
+      <aside
+        className={cn(
+          "pilot-sidebar relative overflow-hidden border-r border-white/10 bg-sidebar text-white",
+          desktop
+            ? "h-screen w-full"
+            : cn(
+                "fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 ease-out motion-reduce:transition-none",
+                open ? "translate-x-0" : "-translate-x-full",
+              ),
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-[4.5rem] items-center justify-between border-b border-white/10 px-3",
+            collapsed && "lg:px-2",
+          )}
         >
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
-      <nav className="space-y-1 px-3 py-4" aria-label="Navegação principal">
-        <p className="px-3 pb-2 pt-3 text-[11px] font-semibold tracking-wide text-slate-300">
-          Operação
-        </p>
-        {navItems.map((item) => (
           <button
-            key={item.id}
-            onClick={() => onNavigate(item.id)}
+            className={cn("flex min-w-0 items-center gap-3", collapsed && "lg:gap-1")}
+            onClick={() => onNavigate("dashboard")}
+            aria-label={collapsed ? "Ir para Visão geral" : undefined}
+          >
+            <span
+              className={cn(
+                "brand-mark grid h-8 w-8 shrink-0 place-items-center rounded-md bg-orange-600",
+                collapsed && "lg:h-7 lg:w-7",
+              )}
+              aria-hidden="true"
+            >
+              <Wrench className={cn("h-4 w-4", collapsed && "lg:h-4 lg:w-4")} />
+            </span>
+            <span className={cn("text-left", collapsed && "lg:hidden")}>
+              <strong className="block text-sm font-semibold leading-none tracking-tight">
+                PitGarage
+              </strong>
+              <span className="mt-1 block text-[11px] leading-none text-slate-300">
+                Operação da oficina
+              </span>
+            </span>
+          </button>
+          <Button
+            className="lg:hidden"
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            aria-label="Fechar menu"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <Button
             className={cn(
-              "relative flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm font-medium transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:bg-transparent",
-              active === item.id ||
-                (item.id === "customers" && active === "customer") ||
-                (item.id === "vehicles" && active === "vehicle") ||
-                (item.id === "orders" && active === "order")
-                ? "bg-white/8 text-white before:bg-orange-500"
-                : "text-slate-400 hover:bg-white/5 hover:text-white",
+              "hidden h-8 w-8 shrink-0 text-slate-400 hover:bg-white/10 hover:text-white lg:inline-flex",
+              collapsed && "h-7 w-7",
+            )}
+            size="icon"
+            variant="ghost"
+            onClick={() => onCollapsedChange(!collapsed)}
+            aria-label={collapsed ? "Expandir barra lateral" : "Recolher barra lateral"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <nav
+          className={cn("space-y-1 px-3 py-3", collapsed && "lg:px-2")}
+          aria-label="Navegação principal"
+        >
+          <p
+            className={cn(
+              "px-3 pb-2 pt-3 text-[11px] font-semibold tracking-wide text-slate-300",
+              collapsed && "lg:sr-only",
             )}
           >
-            <item.icon
+            Operação
+          </p>
+          {navItems.map((item) => {
+            const itemActive = isItemActive(item.id);
+            const navigationButton = (
+              <button
+                onClick={() => onNavigate(item.id)}
+                aria-label={collapsed ? item.label : undefined}
+                aria-current={itemActive ? "page" : undefined}
+                className={cn(
+                  "relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-transparent",
+                  collapsed && "lg:justify-center lg:px-0",
+                  itemActive
+                    ? "bg-white/8 text-white before:bg-orange-500"
+                    : "text-slate-400 hover:bg-white/5 hover:text-white",
+                )}
+              >
+                <item.icon
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    itemActive ? "text-orange-400" : "text-slate-500",
+                  )}
+                />
+                <span className={cn("truncate", collapsed && "lg:hidden")}>{item.label}</span>
+              </button>
+            );
+            return desktop && collapsed ? (
+              <Tooltip key={item.id}>
+                <TooltipTrigger asChild>{navigationButton}</TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div key={item.id}>{navigationButton}</div>
+            );
+          })}
+        </nav>
+        {showDevelopmentTools && (
+          <div
+            className={cn(
+              "absolute bottom-0 left-0 right-0 border-t border-white/10 p-4",
+              collapsed && "lg:p-2",
+            )}
+          >
+            <div
               className={cn(
-                "h-4.5 w-4.5",
-                active === item.id ? "text-orange-400" : "text-slate-500",
+                "border-l-2 border-orange-500/70 bg-white/[.035] p-3",
+                collapsed && "lg:border-l-0 lg:bg-transparent lg:p-0",
               )}
-            />
-            {item.label}
-          </button>
-        ))}
-      </nav>
-      {showDevelopmentTools && (
-        <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 p-4">
-          <div className="border-l-2 border-orange-500/70 bg-white/[.035] p-3">
-            <p className="text-sm font-medium">Ambiente local isolado</p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">
-              Dados de desenvolvimento, sem acesso ao ambiente cloud.
-            </p>
-            <button
-              onClick={onReset}
-              className="mt-3 flex items-center gap-2 text-xs font-semibold text-orange-300 hover:text-orange-200"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Limpar dados locais
-            </button>
+              <div className={cn(collapsed && "lg:hidden")}>
+                <p className="text-sm font-medium">Ambiente local isolado</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                  Dados de desenvolvimento, sem acesso ao ambiente cloud.
+                </p>
+              </div>
+              {collapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={onReset}
+                      className="hidden h-10 w-full items-center justify-center rounded-sm text-orange-300 hover:bg-white/5 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 lg:flex"
+                      aria-label="Ambiente local isolado: limpar dados locais"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={10}>
+                    Ambiente local isolado · Limpar dados locais
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <button
+                onClick={onReset}
+                className={cn(
+                  "mt-3 flex items-center gap-2 text-xs font-semibold text-orange-300 hover:text-orange-200",
+                  collapsed && "lg:hidden",
+                )}
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Limpar dados locais
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-    </aside>
+        )}
+      </aside>
+    </TooltipProvider>
   );
 }
 
