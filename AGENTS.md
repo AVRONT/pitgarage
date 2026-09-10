@@ -208,3 +208,87 @@ Estas instruções existem para permitir prompts curtos.
 Um pedido curto e específico NÃO é autorização para explorar, auditar ou refatorar o projeto inteiro.
 
 A quantidade de investigação, alterações e validações deve acompanhar o tamanho e o risco real da tarefa.
+
+## Universal Skills Pack
+
+Este projeto mantém skills universais em `.agent-skills/`. Os arquivos `*-universal.md`
+listados abaixo são definições completas de skills, mesmo sem o nome `SKILL.md`.
+O arquivo `.agent-skills/README.md` é somente documentação do pacote e não é uma skill.
+
+Antes de iniciar uma tarefa, determine se alguma skill é relevante. Quando for, leia o
+arquivo completo correspondente antes de executar a parte relacionada; não dependa
+somente deste resumo. Carregue apenas as skills necessárias para economizar contexto e
+evitar conflitos. Skills complementares podem ser combinadas. Se o usuário pedir uma
+skill pelo nome, ela deve ser usada.
+
+### grill-me
+
+Arquivo: `.agent-skills/grill-me/grill-me-universal.md`
+
+Use quando houver requisitos vagos, decisões importantes abertas, muitas suposições,
+ou quando arquitetura ou plano precisarem ser questionados; também quando o usuário
+pedir para fazer "grill", questionar ou validar uma ideia. Leia a skill antes de agir e
+siga seu processo de descoberta e questionamento.
+
+### frontend-design
+
+Arquivo: `.agent-skills/frontend-design/frontend-design-universal.md`
+
+Use ao criar frontend, páginas, dashboards ou componentes; alterar layouts; analisar
+screenshots; melhorar UI/UX ou identidade visual; e evitar aparência genérica de site
+produzido por IA. Leia a skill antes de tomar decisões visuais relevantes.
+
+### design-engineering
+
+Arquivo: `.agent-skills/design-engineering/design-engineering-universal.md`
+
+Use ao trabalhar com animações, motion, microinterações, feedback de hover/focus/press,
+drawers, modais, dropdowns, overlays, responsividade percebida ou refinamento de
+interações. Leia a skill antes de implementar ou revisar esses comportamentos.
+
+### revenue-centric-design
+
+Arquivo: `.agent-skills/revenue-centric-design/revenue-centric-design-universal.md`
+
+Use em SaaS ou produto digital, landing pages, conversão, onboarding, ativação, pricing,
+monetização, retenção, churn, posicionamento, métricas e estratégia de produto. Leia a
+skill antes de decisões importantes relacionadas a produto e negócio.
+
+### viral-product-principles
+
+Arquivo: `.agent-skills/viral-product-principles/viral-product-principles-universal.md`
+
+Use ao criar, revisar ou simplificar um produto; trabalhar copy, proposta de valor,
+compartilhamento, viralidade, pricing, diferenciação ou landing page; e avaliar se uma
+feature é fácil de entender e vender. Leia a skill antes de aplicar esses princípios.
+
+### Combinações comuns
+
+- Planejamento incerto: `grill-me`.
+- Novo frontend: `frontend-design`.
+- Frontend muito refinado: `frontend-design` + `design-engineering`.
+- Landing page de SaaS: `viral-product-principles` + `revenue-centric-design` +
+  `frontend-design` + `design-engineering`.
+- Ideia de produto ainda mal definida: `grill-me` → `viral-product-principles` →
+  `revenue-centric-design`.
+
+### Precedência
+
+As skills complementam as instruções do projeto e não podem sobrescrevê-las. A ordem é:
+
+1. instruções explícitas do usuário para a tarefa atual;
+2. `AGENTS.md` específico do projeto ou diretório;
+3. regras e restrições do projeto;
+4. skills relevantes do Universal Skills Pack;
+5. defaults gerais do agente.
+
+Se duas skills entrarem em conflito, aplique a orientação mais adequada ao objetivo atual
+e às restrições do projeto.
+
+### Atualização upstream
+
+Cada skill possui uma regra de `Mandatory upstream freshness check`. Quando uma skill for
+ativada e houver acesso à internet ou ao repositório indicado, verifique somente a fonte
+upstream dessa skill e confira atualizações relevantes. Aproveite melhorias quando
+apropriado sem substituir automaticamente adaptações locais. Se o upstream estiver
+indisponível, continue o trabalho. Não pesquise o upstream das skills não ativadas.
