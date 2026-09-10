@@ -70,7 +70,13 @@ const isBudgetItem = (value: unknown) =>
 const isEvidence = (value: unknown) =>
   isRecord(value) &&
   hasStrings(value, ["id", "kind", "name", "caption"]) &&
-  (value["kind"] === "Foto" || value["kind"] === "Vídeo");
+  (value["kind"] === "Foto" || value["kind"] === "Vídeo") &&
+  (value["path"] === undefined ||
+    (typeof value["path"] === "string" &&
+      /^[0-9a-f-]{36}\/e-[0-9a-f-]{36}\.[a-z0-9]{1,5}$/i.test(value["path"]))) &&
+  isOptionalString(value["mimeType"]) &&
+  (value["size"] === undefined ||
+    (typeof value["size"] === "number" && Number.isFinite(value["size"]) && value["size"] > 0));
 
 const isWorkshop = (value: unknown): value is Workshop =>
   isRecord(value) && hasStrings(value, Object.keys(defaultWorkshop));

@@ -26,6 +26,12 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Evidências reais da OS — integração local de 10/09/2026
+
+Botões de foto/vídeo usam o helper do bucket privado `os-evidence`, com arquivo em `<databaseId>/e-<uuid>.<extensão>`. `Evidence` mantém os campos legados e aceita `path`, `mimeType` e `size` opcionais. A referência só entra no estado após upload e confirmação do `saveOrder`, preservando a fila e o versionamento existentes. Visualização usa signed URL de uma hora, renovada em tela, nunca persistida; evidências antigas permanecem com fallback neutro. MOV depende dos codecs do navegador, com alternativa de abrir o arquivo.
+
+Exclusão salva primeiro a remoção da referência e só depois remove o arquivo; falha na limpeza é informada com nova tentativa. Falha/resultado incerto ao salvar após upload conserva o arquivo para não apagar uma gravação que pode ter sido efetivada. Fechar/recarregar durante essa falha pode deixar arquivo sem referência, que exige conferência antes de limpeza manual. Backup JSON preserva somente metadados e caminhos; não copia nem restaura os binários do Storage. Não houve mudança de schema, migration, policy, bucket ou operação remota. Validação de permissões/arquivos reais no cloud continua necessária; bucket/policies existentes foram informados pelo responsável, não reaplicados.
+
 ## Recuperação de senha — correção frontend de 05/09/2026
 
 `/reset-password` exige evento `PASSWORD_RECOVERY`, sessão correspondente e confirmação pelo Auth antes de atualizar a senha. AuthProvider não carrega perfil operacional nessa página. Hash/token usa o SDK automaticamente; `code` ainda não consumido é trocado pelo SDK com o verificador existente, exigindo recovery. O marcador fica somente em memória: após recarregar a página sem o callback, solicitar novo link. Sucesso encerra a sessão local e direciona ao login; envio e redirect atuais permanecem iguais. Validado com HTTP simulado, sem mudar banco/configuração cloud. Confirmação de login com senha antiga/nova e allowlist de Redirect URLs em produção permanecem verificações manuais.

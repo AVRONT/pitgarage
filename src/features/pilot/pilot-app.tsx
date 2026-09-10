@@ -16,7 +16,6 @@ import {
   Gauge,
   History,
   Eye,
-  ImagePlus,
   LayoutDashboard,
   Menu,
   MessageCircle,
@@ -92,6 +91,7 @@ import {
   type Vehicle,
 } from "./pilot-data";
 import { createOperationalRepository, OrderVersionConflict } from "./operational-repository";
+import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
 import {
   isBasicCpfValid,
   isBasicEmailValid,
@@ -479,7 +479,46 @@ export function PilotApp() {
       })
       .finally(() => setPendingWrites((count) => count - 1));
   };
+  const evidenceWrite = useRef(false);
+  const saveEvidence = (id: string, change: Parameters<SaveEvidence>[0], description: string) => {
+    if (writeFailed.current || evidenceWrite.current)
+      return Promise.reject(new Error("Aguarde a gravação ou recarregue a OS antes de continuar."));
+    evidenceWrite.current = true;
+    setPendingWrites((count) => count + 1);
+    const operation = writeQueue.current
+      .then(async () => {
+        if (writeFailed.current)
+          throw new Error("Recarregue a OS para conferir a gravação anterior.");
+        const current = ordersRef.current.find((item) => item.id === id);
+        if (!current) throw new Error("OS não encontrada.");
+        const updated = withActivity(current, "diagnosis", description, {
+          evidence: change(current.evidence),
+        });
+        try {
+          await repository.saveOrder(updated);
+        } catch (error) {
+          writeFailed.current = true;
+          if (error instanceof OrderVersionConflict)
+            setOrderConflict({ order: current, message: error.message });
+          throw new Error(
+            "Não foi possível confirmar a gravação da evidência. Recarregue a OS para conferir a versão salva.",
+          );
+        }
+        ordersRef.current = ordersRef.current.map((item) => (item.id === id ? updated : item));
+        setOrders(ordersRef.current);
+      })
+      .finally(() => {
+        evidenceWrite.current = false;
+        setPendingWrites((count) => count - 1);
+      });
+    writeQueue.current = operation.catch(() => undefined);
+    return operation;
+  };
   const updateOrder = (id: string, updater: OrderUpdater) => {
+    if (evidenceWrite.current) {
+      setNotice("Aguarde a gravação da evidência antes de alterar a OS.");
+      return;
+    }
     if (writeFailed.current) return;
     const order = ordersRef.current.find((item) => item.id === id);
     if (!order) return;
@@ -893,18 +932,23 @@ export function PilotApp() {
             />
           )}
           {screen === "order" && selectedOrder && (
-            <OrderDetail
-              key={`${selectedOrder.id}-${selectedOrderTab}-${orderReloadRevision}`}
-              order={selectedOrder}
-              initialTab={selectedOrderTab}
-              workshop={workshop}
-              vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
-              customer={customers.find((item) => item.id === selectedOrder.customerId)!}
-              onBack={() => navigate("orders")}
-              onVehicle={(id) => navigate("vehicle", id)}
-              onUpdate={(updater) => updateOrder(selectedOrder.id, updater)}
-              notify={setNotice}
-            />
+            <div inert={evidenceWrite.current}>
+              <OrderDetail
+                key={`${selectedOrder.id}-${selectedOrderTab}-${orderReloadRevision}`}
+                order={selectedOrder}
+                initialTab={selectedOrderTab}
+                workshop={workshop}
+                vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
+                customer={customers.find((item) => item.id === selectedOrder.customerId)!}
+                onBack={() => navigate("orders")}
+                onVehicle={(id) => navigate("vehicle", id)}
+                onUpdate={(updater) => updateOrder(selectedOrder.id, updater)}
+                onSaveEvidence={(change, description) =>
+                  saveEvidence(selectedOrder.id, change, description)
+                }
+                notify={setNotice}
+              />
+            </div>
           )}
         </div>
       </main>
@@ -1883,6 +1927,7 @@ function OrderTeamAssignment({
 }
 
 function OrderDetail({
+  onSaveEvidence,
   order,
   initialTab,
   workshop,
@@ -1895,6 +1940,7 @@ function OrderDetail({
 }: {
   order: ServiceOrder;
   initialTab?: string;
+  onSaveEvidence: SaveEvidence;
   workshop: Workshop;
   vehicle: Vehicle;
   customer: Customer;
@@ -2181,7 +2227,12 @@ function OrderDetail({
           />
         </TabsContent>
         <TabsContent value="diagnosis" className="mt-6">
-          <DiagnosisPanel order={order} onUpdate={onUpdate} notify={notify} />
+          <DiagnosisPanel
+            order={order}
+            onUpdate={onUpdate}
+            onSaveEvidence={onSaveEvidence}
+            notify={notify}
+          />
         </TabsContent>
         <TabsContent value="budget" className="mt-6">
           <BudgetPanel
@@ -2450,6 +2501,7 @@ function OrderOverview({
                       </span>
                       <Badge className="bg-white/10 text-white">{evidence.kind}</Badge>
                     </div>
+                    <EvidenceMedia evidence={evidence} />
                     <p className="text-sm font-semibold">{evidence.caption}</p>
                     <p className="mt-1 text-xs text-slate-400">{evidence.name}</p>
                   </div>
@@ -2583,10 +2635,12 @@ function OrderOverview({
 }
 
 function DiagnosisPanel({
+  onSaveEvidence,
   order,
   onUpdate,
   notify,
 }: {
+  onSaveEvidence: SaveEvidence;
   order: ServiceOrder;
   onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
@@ -2596,20 +2650,7 @@ function DiagnosisPanel({
   const [notes, setNotes] = useState(order.notes);
   const [pendingDiagnosisChange, setPendingDiagnosisChange] =
     useState<PendingWorkflowConfirmation>();
-  const addEvidence = (kind: "Foto" | "Vídeo") => {
-    const evidence = {
-      id: `e-${Date.now()}`,
-      kind,
-      name: kind === "Foto" ? "evidencia-local.jpg" : "video-diagnostico.mp4",
-      caption: kind === "Foto" ? "Nova foto do diagnóstico" : "Novo vídeo do diagnóstico",
-    };
-    onUpdate((current) =>
-      withActivity(current, "diagnosis", `${kind} adicionada ao diagnóstico`, {
-        evidence: [...current.evidence, evidence],
-      }),
-    );
-    notify(`${kind} adicionada em modo demonstração`);
-  };
+
   const saveDiagnosis = () => {
     onUpdate((current) =>
       withActivity(current, "diagnosis", "Diagnóstico atualizado", {
@@ -2667,59 +2708,7 @@ function DiagnosisPanel({
           </Button>
         </CardContent>
       </Card>
-      <Card className="border-0 bg-slate-900 text-white">
-        <CardContent className="p-6">
-          <h2 className="font-bold">Fotos e vídeos</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Experiência simulada; nenhum arquivo é enviado.
-          </p>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <Button
-              onClick={() =>
-                setPendingDiagnosisChange({
-                  title: "Confirmar inclusão da foto?",
-                  description: "Uma evidência fotográfica demonstrativa será adicionada à OS.",
-                  onConfirm: () => addEvidence("Foto"),
-                })
-              }
-              className="h-24 flex-col gap-2 bg-white/10 hover:bg-white/15"
-            >
-              <ImagePlus className="h-6 w-6 text-orange-400" />
-              Adicionar foto
-            </Button>
-            <Button
-              onClick={() =>
-                setPendingDiagnosisChange({
-                  title: "Confirmar inclusão do vídeo?",
-                  description: "Uma evidência em vídeo demonstrativa será adicionada à OS.",
-                  onConfirm: () => addEvidence("Vídeo"),
-                })
-              }
-              className="h-24 flex-col gap-2 bg-white/10 hover:bg-white/15"
-            >
-              <Video className="h-6 w-6 text-orange-400" />
-              Adicionar vídeo
-            </Button>
-          </div>
-          <div className="mt-5 space-y-2">
-            {order.evidence.map((evidence) => (
-              <div key={evidence.id} className="flex items-center gap-3 rounded-xl bg-white/7 p-3">
-                <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/10">
-                  {evidence.kind === "Foto" ? (
-                    <Camera className="h-4 w-4" />
-                  ) : (
-                    <Video className="h-4 w-4" />
-                  )}
-                </span>
-                <span className="min-w-0">
-                  <strong className="block truncate text-sm">{evidence.caption}</strong>
-                  <span className="text-xs text-slate-400">{evidence.name}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <OrderEvidence order={order} save={onSaveEvidence} notify={notify} />
       <Dialog
         open={Boolean(pendingDiagnosisChange)}
         onOpenChange={(open) => !open && setPendingDiagnosisChange(undefined)}
@@ -2862,8 +2851,11 @@ function ClientQuotePreview({
                       <Play className="h-5 w-5" />
                     )}
                   </span>
+                  <EvidenceMedia evidence={evidence} />
                   <p className="mt-6 font-semibold">{evidence.caption}</p>
-                  <p className="mt-1 text-xs text-slate-400">Prévia simulada · {evidence.kind}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {evidence.name} · {evidence.kind}
+                  </p>
                 </div>
               ))
             ) : (

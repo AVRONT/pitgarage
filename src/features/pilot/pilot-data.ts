@@ -54,6 +54,9 @@ export interface Evidence {
   kind: "Foto" | "Vídeo";
   name: string;
   caption: string;
+  path?: string;
+  mimeType?: string;
+  size?: number;
 }
 
 export interface Payment {
