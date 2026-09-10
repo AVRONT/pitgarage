@@ -931,6 +931,45 @@ button:hover > .brand-mark::after {
   color: var(--primary);
 }
 
+.command-kbd {
+  display: inline-grid;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  place-items: center;
+  padding-inline: 0.3rem;
+  border: 1px solid #cbd3de;
+  border-bottom-width: 2px;
+  border-radius: 0.25rem;
+  background: white;
+  color: #5f6b7a;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.command-palette [cmdk-input-wrapper] {
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.command-palette [cmdk-input-wrapper]:focus-within {
+  border-bottom-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.command-palette [cmdk-input]:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+[cmdk-item] {
+  transition:
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
 .calendar-grid {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -1007,6 +1046,10 @@ button:hover > .brand-mark::after {
   .calendar-event {
     transition: none;
     transform: none;
+  }
+
+  [cmdk-item] {
+    transition: none;
   }
 }
 

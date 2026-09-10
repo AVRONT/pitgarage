@@ -73,6 +73,7 @@ import { NotificationBell } from "@/features/platform/notification-bell";
 import { cn } from "@/lib/utils";
 import { WorkshopSettings } from "./workshop-settings";
 import { OperationalDashboard } from "./operational-dashboard";
+import { PilotCommandPalette, type GlobalSearchResult } from "./pilot-command-palette";
 import { vehicleHistory } from "./vehicle-history";
 import { VehicleHistory } from "./vehicle-history-timeline";
 import { WorkshopIdentity } from "./workshop-document-header";
@@ -389,6 +390,8 @@ export function PilotApp() {
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [query, setQuery] = useState("");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newVehicleOpen, setNewVehicleOpen] = useState(false);
@@ -433,6 +436,25 @@ export function PilotApp() {
     const timeout = window.setTimeout(() => setNotice(""), 3000);
     return () => window.clearTimeout(timeout);
   }, [notice, pendingWrites]);
+
+  useEffect(() => {
+    const openCommandPalette = (event: KeyboardEvent) => {
+      if (event.key.toLocaleLowerCase("pt-BR") !== "k" || (!event.ctrlKey && !event.metaKey))
+        return;
+      event.preventDefault();
+      setCommandOpen(true);
+    };
+    document.addEventListener("keydown", openCommandPalette);
+    return () => document.removeEventListener("keydown", openCommandPalette);
+  }, []);
+
+  const changeCommandOpen = (open: boolean) => {
+    setCommandOpen(open);
+    if (!open) {
+      setQuery("");
+      requestAnimationFrame(() => commandTriggerRef.current?.focus());
+    }
+  };
 
   const navigate = (next: Screen, id?: string, orderTab?: string) => {
     if (next === "customer" && id) setSelectedCustomerId(id);
@@ -554,7 +576,7 @@ export function PilotApp() {
     }
   };
 
-  const globalResults = useMemo(() => {
+  const globalResults = useMemo<GlobalSearchResult[]>(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
     const phoneTerm = normalizePhone(query);
     const plateTerm = normalizePlate(query);
@@ -584,8 +606,14 @@ export function PilotApp() {
     const orderResults = orders
       .filter((order) => order.id.toLocaleLowerCase("pt-BR").includes(term))
       .map((order) => ({ type: "order" as const, order }));
-    return [...orderResults, ...customerResults, ...vehicleResults].slice(0, 6);
+    return [...orderResults, ...customerResults, ...vehicleResults].slice(0, 18);
   }, [query, activeVehicles, activeCustomers, customers, orders]);
+
+  const selectGlobalResult = (result: GlobalSearchResult) => {
+    if (result.type === "customer") navigate("customer", result.customer.id);
+    else if (result.type === "vehicle") navigate("vehicle", result.vehicle.id);
+    else navigate("order", result.order.id);
+  };
 
   if (dataLoading) {
     return (
@@ -668,6 +696,18 @@ export function PilotApp() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PilotCommandPalette
+        open={commandOpen}
+        query={query}
+        results={globalResults}
+        customers={customers}
+        vehicles={vehicles}
+        onOpenChange={changeCommandOpen}
+        onQueryChange={setQuery}
+        onSelectResult={selectGlobalResult}
+        onNewOrder={() => setNewOrderOpen(true)}
+        onNavigate={(target) => navigate(target)}
+      />
       <Sidebar
         active={screen}
         open={menuOpen}
@@ -684,7 +724,7 @@ export function PilotApp() {
         />
       )}
       <main className="min-h-screen lg:pl-64">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b px-4 md:gap-4 md:px-8">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b px-4 md:gap-4 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,32rem)_minmax(0,1fr)]">
           <Button
             className="lg:hidden"
             size="icon"
@@ -694,109 +734,29 @@ export function PilotApp() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="relative max-w-md flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="h-10 border-slate-300 bg-white pl-10 shadow-none"
-              placeholder="Buscar cliente, placa, veículo ou OS..."
-            />
-            {query.trim() && globalResults.length === 0 && (
-              <div
-                className="absolute left-0 right-0 top-11 z-50 rounded-md border bg-white p-3 text-sm text-muted-foreground shadow-sm"
-                role="status"
-              >
-                Nenhum resultado encontrado. Tente outro nome, placa ou número da OS.
-              </div>
-            )}
-            {globalResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden border bg-white shadow-lg">
-                {globalResults.map((result) => {
-                  if (result.type === "order") {
-                    const order = result.order;
-                    const vehicle = vehicles.find((item) => item.id === order.vehicleId);
-                    return (
-                      <button
-                        key={`order-${order.id}`}
-                        onClick={() => {
-                          setQuery("");
-                          navigate("order", order.id);
-                        }}
-                        className="flex w-full items-center gap-3 border-b p-3 text-left last:border-0 hover:bg-orange-50"
-                      >
-                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-900 text-white">
-                          <ClipboardList className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            Ordem de serviço
-                          </span>
-                          <strong className="block text-sm">{order.id}</strong>
-                          <span className="text-xs text-muted-foreground">
-                            {vehicle
-                              ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
-                              : order.status}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  }
-                  if (result.type === "customer") {
-                    const customer = result.customer;
-                    return (
-                      <button
-                        key={`customer-${customer.id}`}
-                        onClick={() => {
-                          setQuery("");
-                          navigate("customer", customer.id);
-                        }}
-                        className="flex w-full items-center gap-3 border-b p-3 text-left last:border-0 hover:bg-orange-50"
-                      >
-                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-orange-100 text-orange-700">
-                          <UserRound className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-orange-600">
-                            Cliente
-                          </span>
-                          <strong className="block truncate text-sm">{customer.name}</strong>
-                          <span className="text-xs text-muted-foreground">{customer.phone}</span>
-                        </span>
-                      </button>
-                    );
-                  }
-                  const vehicle = result.vehicle;
-                  const owner = customers.find((customer) => customer.id === vehicle.customerId);
-                  return (
-                    <button
-                      key={`vehicle-${vehicle.id}`}
-                      onClick={() => {
-                        setQuery("");
-                        navigate("vehicle", vehicle.id);
-                      }}
-                      className="flex w-full items-center gap-3 border-b p-3 text-left last:border-0 hover:bg-orange-50"
-                    >
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100">
-                        <VehicleIcon kind={vehicle.kind} className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          {vehicle.kind}
-                        </span>
-                        <strong className="block text-sm">
-                          {vehicle.brand} {vehicle.model} · {vehicle.plate}
-                        </strong>
-                        <span className="text-xs text-muted-foreground">{owner?.name}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <div className="relative min-w-0 max-w-md flex-1 lg:col-start-2 lg:w-full lg:max-w-none">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/60" />
+            <button
+              ref={commandTriggerRef}
+              type="button"
+              className="group flex h-10 w-full items-center rounded-md border border-slate-300/90 bg-slate-50/80 pl-10 pr-2 text-left text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_1px_2px_rgba(15,23,42,.04)] transition-[border-color,box-shadow,background-color] duration-150 hover:border-primary/35 hover:bg-white focus-visible:border-primary/45 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/10"
+              onClick={() => setCommandOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={commandOpen}
+            >
+              <span className="min-w-0 flex-1 truncate">
+                Buscar cliente, placa, veículo ou OS...
+              </span>
+              <span className="ml-3 hidden items-center gap-1 sm:flex" aria-hidden="true">
+                <kbd className="command-kbd">Ctrl / ⌘</kbd>
+                <kbd className="command-kbd">K</kbd>
+              </span>
+            </button>
           </div>
-          {!isLocalBypass && <NotificationBell />}
-          <UserMenu />
+          <div className="ml-auto flex shrink-0 items-center gap-2 lg:col-start-3 lg:ml-0 lg:justify-self-end">
+            {!isLocalBypass && <NotificationBell />}
+            <UserMenu />
+          </div>
         </header>
         {pendingWrites > 0 && (
           <div className="pilot-action-feedback" role="status">
