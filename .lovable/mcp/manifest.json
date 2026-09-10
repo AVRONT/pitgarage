@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "sdk_version": "2.0.4",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://vzvwprzmlhvfehwykstx.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "pitgarage",
+      "version": "0.1.0",
+      "title": "PitGarage"
+    },
+    "tools": [
+      {
+        "name": "list_service_orders",
+        "title": "Listar ordens de serviço",
+        "description": "Lista as ordens de serviço visíveis para o usuário autenticado, da mais recente para a mais antiga.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Filtra por status exato da OS.",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "default": 20,
+              "description": "Quantidade máxima de OS.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_service_order",
+        "title": "Detalhar ordem de serviço",
+        "description": "Mostra os detalhes de uma ordem de serviço pelo número da OS.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "order_number": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Número da OS."
+            }
+          },
+          "required": [
+            "order_number"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_vehicles",
+        "title": "Listar veículos",
+        "description": "Lista os veículos visíveis para o usuário autenticado, com busca opcional por placa, marca ou modelo.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "search": {
+              "description": "Texto para buscar placa, marca ou modelo.",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "default": 20,
+              "description": "Quantidade máxima de veículos.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_calendar_events",
+        "title": "Listar compromissos da agenda",
+        "description": "Lista os compromissos da agenda da oficina em um intervalo de datas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "range_start": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "description": "Início do intervalo (ISO 8601)."
+            },
+            "range_end": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "description": "Fim do intervalo (ISO 8601)."
+            }
+          },
+          "required": [
+            "range_start",
+            "range_end"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
