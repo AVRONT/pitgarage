@@ -102,6 +102,27 @@ function LoginPage() {
     setFormMessage("Se existir uma conta com esse e-mail, enviaremos as instruções.");
   };
 
+  const continueRememberedAccount = async () => {
+    if (!rememberedAccount) return;
+    setFormMessage(null);
+    setSubmitting(true);
+    const { data, error } = await supabase.auth.getUser();
+    const sessionMatches =
+      !error &&
+      data.user?.email?.trim().toLocaleLowerCase("pt-BR") ===
+        rememberedAccount.email.trim().toLocaleLowerCase("pt-BR");
+
+    if (sessionMatches) {
+      await retryProfile();
+      setSubmitting(false);
+      return;
+    }
+
+    setSubmitting(false);
+    setEmail(rememberedAccount.email);
+    requestAnimationFrame(() => passwordRef.current?.focus());
+  };
+
   if (isLoading && !submitting) {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-4">
@@ -191,10 +212,8 @@ function LoginPage() {
               <Button
                 type="button"
                 className="mt-4 w-full"
-                onClick={() => {
-                  setEmail(rememberedAccount.email);
-                  requestAnimationFrame(() => passwordRef.current?.focus());
-                }}
+                disabled={submitting}
+                onClick={() => void continueRememberedAccount()}
               >
                 Continuar com {rememberedAccount.name}
               </Button>

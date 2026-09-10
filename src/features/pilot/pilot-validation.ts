@@ -7,6 +7,24 @@ export const normalizePhone = (value: string) => {
     : digits;
 };
 
+export const formatPhoneInput = (value: string) => {
+  const digits = normalizePhone(value).slice(0, 11);
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  const prefixLength = digits.length === 11 ? 5 : 4;
+  const prefix = digits.slice(2, 2 + prefixLength);
+  const suffix = digits.slice(2 + prefixLength);
+  return `(${digits.slice(0, 2)}) ${prefix}${suffix ? `-${suffix}` : ""}`;
+};
+
+export const formatCpfInput = (value: string) => {
+  const digits = normalizeCpf(value).slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, "$1.$2.$3-$4");
+};
+
 export const normalizeEmail = (value: string) => value.trim().toLocaleLowerCase("pt-BR");
 
 export const normalizePlate = (value: string) => value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();

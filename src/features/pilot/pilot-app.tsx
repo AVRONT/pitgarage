@@ -118,6 +118,8 @@ import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidenc
 import {
   isBasicCpfValid,
   isBasicEmailValid,
+  formatCpfInput,
+  formatPhoneInput,
   nextOrderId,
   normalizeCpf,
   normalizeEmail,
@@ -303,7 +305,11 @@ function PilotShellLayout({
   }
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="min-h-screen">
+    <ResizablePanelGroup
+      orientation="horizontal"
+      className="min-h-screen"
+      resizeTargetMinimumSize={{ fine: 14, coarse: 24 }}
+    >
       <ResizablePanel
         id="pilot-sidebar"
         panelRef={panelRef}
@@ -398,8 +404,8 @@ function OrderProgress({
         </div>
         <span className="text-xs text-muted-foreground">Estados ainda sujeitos à validação</span>
       </div>
-      <div className="relative overflow-x-auto pb-1">
-        <div className="min-w-[760px] px-2">
+      <div className="relative overflow-x-auto px-1 pb-1 pt-1">
+        <div className="min-w-[760px] px-3">
           <div
             role="progressbar"
             aria-label={`Etapa ${currentStepIndex + 1} de ${orderStatuses.length}: ${status}`}
@@ -4408,7 +4414,7 @@ function NewCustomerDialog({
               <label className="text-sm font-semibold">Telefone</label>
               <Input
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
                 className="mt-2"
                 aria-invalid={error?.field === "telefone" || error?.field === "phone"}
               />
@@ -4423,7 +4429,7 @@ function NewCustomerDialog({
               </label>
               <Input
                 value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
+                onChange={(e) => setCpf(formatCpfInput(e.target.value))}
                 className="mt-2"
                 inputMode="numeric"
               />
@@ -5034,8 +5040,9 @@ function NewOrderDialog({
                       Telefone com DDD
                       <Input
                         value={customerPhone}
-                        onChange={(event) => setCustomerPhone(event.target.value)}
+                        onChange={(event) => setCustomerPhone(formatPhoneInput(event.target.value))}
                         placeholder="Telefone com DDD"
+                        inputMode="tel"
                       />
                     </label>
                     <label className="space-y-1 text-sm font-medium">
@@ -5050,8 +5057,9 @@ function NewOrderDialog({
                       CPF (opcional)
                       <Input
                         value={customerCpf}
-                        onChange={(event) => setCustomerCpf(event.target.value)}
+                        onChange={(event) => setCustomerCpf(formatCpfInput(event.target.value))}
                         placeholder="CPF (opcional)"
+                        inputMode="numeric"
                       />
                     </label>
                   </div>
