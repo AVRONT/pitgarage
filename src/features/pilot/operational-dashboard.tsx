@@ -352,7 +352,7 @@ export function OperationalDashboard({
     <div className="dashboard-premium">
       <header className="mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Visão geral</p>
+          <p className="text-sm font-semibold text-primary">Visão geral</p>
           <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
             Central operacional
           </h1>

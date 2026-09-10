@@ -1,6 +1,6 @@
 import { addMonths, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,10 +71,12 @@ export function CalendarScreen() {
   };
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-heading flex flex-wrap items-end justify-between gap-4 border-b pb-5">
         <div>
-          <h1 className="text-2xl font-semibold">Agenda</h1>
-          <p className="text-sm text-muted-foreground">Compromissos definidos pela equipe.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Agenda da oficina</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Compromissos, entregas e atendimentos organizados pela equipe.
+          </p>
         </div>
         <Button
           onClick={() =>
@@ -88,77 +90,123 @@ export function CalendarScreen() {
           Criar evento
         </Button>
       </div>
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_22rem]">
-        <section className="rounded-lg border bg-white p-4">
-          <div className="mb-4 flex items-center justify-between">
+      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="rounded-lg border bg-white p-3 sm:p-5">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <Button size="icon" variant="outline" onClick={() => setMonth(subMonths(month, 1))}>
               <ChevronLeft />
             </Button>
-            <strong className="capitalize">
+            <strong className="text-base capitalize tracking-tight sm:text-lg">
               {format(month, "MMMM 'de' yyyy", { locale: ptBR })}
             </strong>
             <Button size="icon" variant="outline" onClick={() => setMonth(addMonths(month, 1))}>
               <ChevronRight />
             </Button>
           </div>
-          <div className="grid grid-cols-7 text-center text-xs font-medium text-muted-foreground">
-            {"DSTQQSS".split("").map((d, i) => (
-              <span key={i}>{d}</span>
+          <div className="mb-2 grid grid-cols-7 text-center text-[11px] font-semibold text-muted-foreground sm:text-xs">
+            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
+              <span key={day}>{day}</span>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-7">
+          <div className="calendar-grid grid grid-cols-7">
             {days.map((day, i) => (
               <div
                 key={i}
-                className={`min-h-20 border p-1 text-sm ${day && format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "bg-orange-50 ring-1 ring-orange-400" : ""}`}
+                className={`calendar-day min-w-0 p-1.5 text-sm sm:p-2 ${day && format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "calendar-day-today" : ""}`}
               >
                 {day && (
                   <>
-                    <span>{day.getDate()}</span>
+                    <span
+                      className={`inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-semibold ${format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "bg-primary text-white" : "text-slate-700"}`}
+                    >
+                      {day.getDate()}
+                    </span>
                     {events
                       .filter((e) => e.starts_at.slice(0, 10) === format(day, "yyyy-MM-dd"))
                       .slice(0, 2)
                       .map((e) => (
                         <button
                           key={e.id}
-                          className="mt-1 block w-full truncate rounded bg-slate-900 px-1 text-left text-[10px] text-white"
+                          className="calendar-event mt-1 block w-full truncate rounded-sm px-1.5 py-1 text-left text-[10px] font-medium sm:text-[11px]"
                           onClick={() => setEditing(e)}
+                          title={`${e.title} — ${new Date(e.starts_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
                         >
-                          {e.title}
+                          <span className="hidden sm:inline">
+                            {new Date(e.starts_at).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            · {e.title}
+                          </span>
+                          <span className="sm:hidden">{e.title}</span>
                         </button>
                       ))}
+                    {events.filter(
+                      (event) => event.starts_at.slice(0, 10) === format(day, "yyyy-MM-dd"),
+                    ).length > 2 && (
+                      <span className="mt-1 block text-[10px] font-semibold text-primary">
+                        +
+                        {events.filter(
+                          (event) => event.starts_at.slice(0, 10) === format(day, "yyyy-MM-dd"),
+                        ).length - 2}{" "}
+                        eventos
+                      </span>
+                    )}
                   </>
                 )}
               </div>
             ))}
           </div>
         </section>
-        <section className="rounded-lg border bg-white p-4">
-          <h2 className="font-semibold">Próximos eventos</h2>
-          <Input
-            className="mt-3"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar"
-          />
-          <div className="mt-3 space-y-2">
+        <section className="overflow-hidden rounded-lg border bg-white xl:sticky xl:top-24">
+          <div className="border-b px-4 py-4">
+            <h2 className="flex items-center gap-2 font-semibold">
+              <CalendarDays className="h-4 w-4 text-primary" /> Eventos do mês
+            </h2>
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar evento"
+              />
+            </div>
+          </div>
+          <div className="max-h-[32rem] divide-y overflow-auto">
             {filtered.map((e) => (
               <button
                 key={e.id}
                 onClick={() => setEditing(e)}
-                className="block w-full rounded border p-3 text-left"
+                className="group flex w-full gap-3 p-4 text-left transition-colors hover:bg-slate-50"
               >
-                <b>{e.title}</b>
-                <span className="block text-xs text-muted-foreground">
-                  {new Date(e.starts_at).toLocaleString("pt-BR")}
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-secondary text-primary">
+                  <Clock3 className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <b className="block truncate text-sm">{e.title}</b>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {new Date(e.starts_at).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </span>
               </button>
             ))}
             {!filtered.length && (
-              <p className="text-sm text-muted-foreground">Nenhum evento neste mês.</p>
+              <div className="p-6 text-center">
+                <CalendarDays className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">Nenhum evento encontrado</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Crie um evento ou ajuste a busca deste mês.
+                </p>
+              </div>
             )}
           </div>
-          {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+          {error && <p className="border-t p-3 text-sm text-red-700">{error}</p>}
         </section>
       </div>
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>

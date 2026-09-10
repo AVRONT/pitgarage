@@ -64,7 +64,7 @@ export function TeamSettings() {
   if (accessLevel !== "owner") return null;
   if (isLocalBypass) {
     return (
-      <section className="mt-7 rounded-lg border bg-white p-5 sm:p-6">
+      <section id="equipe" className="mt-7 scroll-mt-28 rounded-lg border bg-white p-5 sm:p-6">
         <h2 className="font-semibold">Equipe</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Gestão de usuários indisponível no Admin Local isolado. Nenhuma consulta cloud foi feita.
@@ -110,7 +110,11 @@ export function TeamSettings() {
   };
 
   return (
-    <section className="mt-7 rounded-lg border bg-white p-5 sm:p-6" aria-labelledby="team-title">
+    <section
+      id="equipe"
+      className="mt-7 scroll-mt-28 rounded-lg border bg-white p-5 sm:p-6"
+      aria-labelledby="team-title"
+    >
       <h2 id="team-title" className="font-semibold">
         Equipe
       </h2>

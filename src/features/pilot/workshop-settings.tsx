@@ -28,7 +28,7 @@ export function WorkshopSettings({
     ["hours", "Horário / observação de atendimento"],
   ];
   return (
-    <section>
+    <section id="oficina" className="scroll-mt-28">
       <h1 className="text-2xl font-bold">Configurações da oficina</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Ajuste os dados e confira como aparecem nos documentos. As alterações só valem após salvar.

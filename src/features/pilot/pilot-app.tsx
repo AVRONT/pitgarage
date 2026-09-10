@@ -619,7 +619,7 @@ export function PilotApp() {
   }
 
   return (
-    <div className="pilot-shell min-h-screen bg-[#f4f3ef]">
+    <div className="pilot-shell min-h-screen bg-background">
       <Dialog open={Boolean(orderConflict)} onOpenChange={() => {}}>
         <DialogContent
           className="[&>button]:hidden"
@@ -684,7 +684,7 @@ export function PilotApp() {
         />
       )}
       <main className="min-h-screen lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-[#f4f3ef]/95 px-4 backdrop-blur-sm md:px-8">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b px-4 md:gap-4 md:px-8">
           <Button
             className="lg:hidden"
             size="icon"
@@ -817,12 +817,20 @@ export function PilotApp() {
         <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
           {screen === "settings" && (
             <>
+              <nav className="settings-nav" aria-label="Seções das configurações">
+                <a href="#oficina">Oficina e documentos</a>
+                <a href="#backup">Dados e backup</a>
+                <a href="#equipe">Equipe e acessos</a>
+              </nav>
               <WorkshopSettings
                 key={JSON.stringify(workshop)}
                 workshop={workshop}
                 onSave={setWorkshop}
               />
-              <section className="mt-7 rounded-lg border bg-white p-5 sm:p-6">
+              <section
+                id="backup"
+                className="mt-7 scroll-mt-28 rounded-lg border bg-white p-5 sm:p-6"
+              >
                 <h2 className="font-semibold">Backup dos dados operacionais</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {isLocalBypass
@@ -1062,11 +1070,11 @@ function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 bg-[#17202d] text-white transition-transform lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 text-white transition-transform duration-200 ease-out motion-reduce:transition-none lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full",
       )}
     >
-      <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
+      <div className="flex h-[4.5rem] items-center justify-between border-b border-white/10 px-5">
         <button className="flex items-center gap-3" onClick={() => onNavigate("dashboard")}>
           <span
             className="brand-mark grid h-9 w-9 place-items-center rounded-md bg-orange-600"
@@ -1076,7 +1084,7 @@ function Sidebar({
           </span>
           <span className="text-left">
             <strong className="block text-lg tracking-tight">PitGarage</strong>
-            <span className="text-xs text-slate-400">Piloto v0.1.15</span>
+            <span className="text-xs text-slate-300">Operação da oficina</span>
           </span>
         </button>
         <Button
@@ -1090,7 +1098,7 @@ function Sidebar({
         </Button>
       </div>
       <nav className="space-y-1 px-3 py-4" aria-label="Navegação principal">
-        <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <p className="px-3 pb-2 pt-3 text-[11px] font-semibold tracking-wide text-slate-300">
           Operação
         </p>
         {navItems.map((item) => (
