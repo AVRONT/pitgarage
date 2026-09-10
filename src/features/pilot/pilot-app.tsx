@@ -73,6 +73,15 @@ import {
 } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  SidePanel,
+  SidePanelBody,
+  SidePanelContent,
+  SidePanelDescription,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "@/components/ui/side-panel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useAuth } from "@/features/auth/auth-context";
@@ -131,6 +140,10 @@ type PendingWorkflowConfirmation = {
   description: string;
   onConfirm: () => void;
 };
+type QuickView =
+  | { type: "customer"; id: string }
+  | { type: "vehicle"; id: string }
+  | { type: "order"; id: string };
 
 type AssignableMember = {
   user_id: string;
@@ -505,6 +518,7 @@ export function PilotApp() {
   const [dataError, setDataError] = useState("");
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
+  const [quickView, setQuickView] = useState<QuickView | null>(null);
   const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarPreference] = useState(readSidebarPreference);
@@ -841,6 +855,17 @@ export function PilotApp() {
         onNewOrder={() => setNewOrderOpen(true)}
         onNavigate={(target) => navigate(target)}
       />
+      <PilotQuickView
+        selection={quickView}
+        customers={customers}
+        vehicles={vehicles}
+        orders={orders}
+        onClose={() => setQuickView(null)}
+        onNavigate={(target, id) => {
+          setQuickView(null);
+          navigate(target, id);
+        }}
+      />
       <PilotShellLayout
         desktop={desktop}
         collapsed={sidebarCollapsed}
@@ -984,7 +1009,7 @@ export function PilotApp() {
                 customers={activeCustomers}
                 vehicles={activeVehicles}
                 orders={orders}
-                onOpen={(id) => navigate("customer", id)}
+                onOpen={(id) => setQuickView({ type: "customer", id })}
                 onNew={() => setNewOrderOpen(true)}
               />
             )}
@@ -993,7 +1018,7 @@ export function PilotApp() {
                 vehicles={activeVehicles}
                 customers={activeCustomers}
                 orders={orders}
-                onOpen={(id) => navigate("vehicle", id)}
+                onOpen={(id) => setQuickView({ type: "vehicle", id })}
                 onNew={() => setNewOrderOpen(true)}
               />
             )}
@@ -1002,7 +1027,7 @@ export function PilotApp() {
                 orders={orders}
                 vehicles={vehicles}
                 customers={customers}
-                onOpen={(id) => navigate("order", id)}
+                onOpen={(id) => setQuickView({ type: "order", id })}
                 onNew={() => setNewOrderOpen(true)}
               />
             )}
@@ -1503,6 +1528,202 @@ function PageTitle({
       </div>
       {action}
     </div>
+  );
+}
+
+function QuickViewField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="border-b border-slate-100 py-3 last:border-0">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold text-slate-900">{children}</dd>
+    </div>
+  );
+}
+
+function PilotQuickView({
+  selection,
+  customers,
+  vehicles,
+  orders,
+  onClose,
+  onNavigate,
+}: {
+  selection: QuickView | null;
+  customers: Customer[];
+  vehicles: Vehicle[];
+  orders: ServiceOrder[];
+  onClose: () => void;
+  onNavigate: (target: "customer" | "vehicle" | "order", id: string) => void;
+}) {
+  const customer =
+    selection?.type === "customer" ? customers.find((item) => item.id === selection.id) : undefined;
+  const vehicle =
+    selection?.type === "vehicle" ? vehicles.find((item) => item.id === selection.id) : undefined;
+  const order =
+    selection?.type === "order" ? orders.find((item) => item.id === selection.id) : undefined;
+
+  return (
+    <SidePanel open={Boolean(selection)} onOpenChange={(open) => !open && onClose()}>
+      <SidePanelContent>
+        {customer && (
+          <>
+            <SidePanelHeader>
+              <p className="mb-2 text-xs font-semibold text-orange-700">Consulta rápida</p>
+              <SidePanelTitle>{customer.name}</SidePanelTitle>
+              <SidePanelDescription>Cliente da oficina</SidePanelDescription>
+            </SidePanelHeader>
+            <SidePanelBody>
+              <dl>
+                <QuickViewField label="Telefone">{customer.phone}</QuickViewField>
+                <QuickViewField label="E-mail">{customer.email || "Não informado"}</QuickViewField>
+                {customer.cpf && <QuickViewField label="CPF">{customer.cpf}</QuickViewField>}
+              </dl>
+              <section className="mt-5 border-t border-slate-200 pt-5">
+                <h3 className="text-sm font-bold text-slate-950">Veículos</h3>
+                <div className="mt-3 space-y-2">
+                  {vehicles.filter((item) => item.customerId === customer.id).length ? (
+                    vehicles
+                      .filter((item) => item.customerId === customer.id)
+                      .map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => onNavigate("vehicle", item.id)}
+                          className="flex w-full items-center justify-between rounded-md border border-slate-200 px-3 py-2.5 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          <span>
+                            <strong className="block text-sm">
+                              {item.brand} {item.model}
+                            </strong>
+                            <span className="text-xs text-muted-foreground">{item.plate}</span>
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        </button>
+                      ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhum veículo cadastrado.</p>
+                  )}
+                </div>
+              </section>
+              <section className="mt-5 border-t border-slate-200 pt-5">
+                <h3 className="text-sm font-bold text-slate-950">Ordens em aberto</h3>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-950">
+                  {
+                    orders.filter(
+                      (item) => item.customerId === customer.id && item.status !== "Entregue",
+                    ).length
+                  }
+                </p>
+              </section>
+            </SidePanelBody>
+            <SidePanelFooter>
+              <Button className="w-full" onClick={() => onNavigate("customer", customer.id)}>
+                Abrir ficha completa
+              </Button>
+            </SidePanelFooter>
+          </>
+        )}
+
+        {vehicle &&
+          (() => {
+            const owner = customers.find((item) => item.id === vehicle.customerId);
+            const currentOrder = orders.find(
+              (item) => item.vehicleId === vehicle.id && item.status !== "Entregue",
+            );
+            return (
+              <>
+                <SidePanelHeader>
+                  <p className="mb-2 text-xs font-semibold text-orange-700">Consulta rápida</p>
+                  <SidePanelTitle>
+                    {vehicle.brand} {vehicle.model}
+                  </SidePanelTitle>
+                  <SidePanelDescription>
+                    {vehicle.kind} · {vehicle.plate}
+                  </SidePanelDescription>
+                </SidePanelHeader>
+                <SidePanelBody>
+                  <dl>
+                    <QuickViewField label="Placa">{vehicle.plate}</QuickViewField>
+                    <QuickViewField label="Ano e cor">
+                      {vehicle.year} · {vehicle.color}
+                    </QuickViewField>
+                    <QuickViewField label="Quilometragem">
+                      {vehicle.mileage.toLocaleString("pt-BR")} km
+                    </QuickViewField>
+                    <QuickViewField label="Proprietário">
+                      {owner?.name ?? "Não identificado"}
+                    </QuickViewField>
+                  </dl>
+                  <section className="mt-5 border-t border-slate-200 pt-5">
+                    <h3 className="text-sm font-bold text-slate-950">Ordem atual</h3>
+                    {currentOrder ? (
+                      <button
+                        onClick={() => onNavigate("order", currentOrder.id)}
+                        className="mt-3 flex w-full items-center justify-between rounded-md border border-slate-200 p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        <span>
+                          <strong className="block text-sm">{currentOrder.id}</strong>
+                          <span className="mt-1 block">
+                            <StatusBadge status={currentOrder.status} />
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                      </button>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">Nenhuma OS em aberto.</p>
+                    )}
+                  </section>
+                </SidePanelBody>
+                <SidePanelFooter>
+                  <Button className="w-full" onClick={() => onNavigate("vehicle", vehicle.id)}>
+                    Abrir ficha completa
+                  </Button>
+                </SidePanelFooter>
+              </>
+            );
+          })()}
+
+        {order &&
+          (() => {
+            const relatedVehicle = vehicles.find((item) => item.id === order.vehicleId);
+            const relatedCustomer = customers.find((item) => item.id === order.customerId);
+            const total = order.budget.reduce((sum, item) => sum + item.price, 0);
+            const nextAction = evaluateOrderWorkflow(order).nextAction.label;
+            return (
+              <>
+                <SidePanelHeader>
+                  <p className="mb-2 text-xs font-semibold text-orange-700">Resumo operacional</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <SidePanelTitle>{order.id}</SidePanelTitle>
+                    <StatusBadge status={order.status} />
+                  </div>
+                  <SidePanelDescription>
+                    {relatedVehicle
+                      ? `${relatedVehicle.brand} ${relatedVehicle.model} · ${relatedVehicle.plate}`
+                      : "Veículo não identificado"}
+                  </SidePanelDescription>
+                </SidePanelHeader>
+                <SidePanelBody>
+                  <dl>
+                    <QuickViewField label="Cliente">
+                      {relatedCustomer?.name ?? "Não identificado"}
+                    </QuickViewField>
+                    <QuickViewField label="Problema relatado">
+                      {order.complaint || "Não informado"}
+                    </QuickViewField>
+                    <QuickViewField label="Valor atual">{money(total)}</QuickViewField>
+                    <QuickViewField label="Próxima ação">{nextAction}</QuickViewField>
+                  </dl>
+                </SidePanelBody>
+                <SidePanelFooter>
+                  <Button className="w-full" onClick={() => onNavigate("order", order.id)}>
+                    Abrir OS completa
+                  </Button>
+                </SidePanelFooter>
+              </>
+            );
+          })()}
+      </SidePanelContent>
+    </SidePanel>
   );
 }
 
