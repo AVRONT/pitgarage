@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LoaderCircle, LockKeyhole, UserPlus, Wrench } from "lucide-react";
+import { LoaderCircle, LockKeyhole, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -140,7 +140,7 @@ function LoginPage() {
         <aside className="auth-brand-panel hidden min-h-[42rem] flex-col justify-between p-10 lg:flex">
           <div>
             <span className="brand-mark grid h-12 w-12 place-items-center rounded-md bg-white text-primary">
-              <Wrench className="h-6 w-6" />
+              <img src="/pitgarage-logo.png" alt="" className="h-full w-full object-contain" />
             </span>
             <p className="mt-7 text-3xl font-bold tracking-tight">PitGarage</p>
             <p className="mt-2 max-w-xs text-base leading-7 text-slate-300">
@@ -154,7 +154,7 @@ function LoginPage() {
         <div className="p-6 sm:p-9 lg:p-10">
           <div className="mb-7 flex items-center gap-3 lg:hidden">
             <span className="brand-mark grid h-11 w-11 place-items-center rounded-md bg-primary text-primary-foreground">
-              <Wrench className="h-5 w-5" />
+              <img src="/pitgarage-logo.png" alt="" className="h-full w-full object-contain" />
             </span>
             <div>
               <p className="text-xl font-semibold tracking-tight">PitGarage</p>

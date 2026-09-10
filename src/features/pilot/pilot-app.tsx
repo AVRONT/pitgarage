@@ -1231,7 +1231,7 @@ function CollapsedSidebarRail({
             className="brand-mark grid h-9 w-9 place-items-center rounded-md bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             aria-label="Ir para Visão geral"
           >
-            <Wrench className="h-4.5 w-4.5" />
+            <img src="/pitgarage-logo.png" alt="" className="h-full w-full object-contain" />
           </button>
           <button
             onClick={onExpand}
@@ -1361,7 +1361,7 @@ function Sidebar({
               )}
               aria-hidden="true"
             >
-              <Wrench className={cn("h-4 w-4", collapsed && "lg:h-4 lg:w-4")} />
+              <img src="/pitgarage-logo.png" alt="" className="h-full w-full object-contain" />
             </span>
             <span className={cn("text-left", collapsed && "lg:hidden")}>
               <strong className="block text-sm font-semibold leading-none tracking-tight">

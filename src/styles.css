@@ -229,7 +229,7 @@
   border-color: var(--border);
 }
 .pilot-sidebar .brand-mark {
-  background: var(--primary-support);
+  background: transparent;
   color: var(--sidebar);
 }
 .pilot-sidebar [class~="before:bg-orange-500"]::before {
@@ -681,9 +681,10 @@
 .brand-mark {
   position: relative;
   overflow: hidden;
+  background: transparent;
 }
 .brand-mark::after {
-  content: "";
+  content: none;
   position: absolute;
   inset: 0 0 0 auto;
   width: 6px;

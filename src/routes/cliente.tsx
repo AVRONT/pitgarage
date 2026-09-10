@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CarFront, ClipboardList, LoaderCircle, LogOut, UserRound, Wrench } from "lucide-react";
+import { CarFront, ClipboardList, LoaderCircle, LogOut, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,7 @@ function CustomerArea() {
       <section className="mx-auto w-full max-w-6xl overflow-hidden rounded-lg border bg-card">
         <header className="flex items-center gap-3 border-b px-5 py-4 sm:px-7">
           <span className="brand-mark grid h-11 w-11 place-items-center rounded-md bg-primary text-primary-foreground">
-            <Wrench className="h-5 w-5" />
+            <img src="/pitgarage-logo.png" alt="" className="h-full w-full object-contain" />
           </span>
           <div>
             <p className="text-lg font-semibold">PitGarage</p>

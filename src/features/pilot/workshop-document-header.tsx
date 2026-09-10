@@ -1,4 +1,3 @@
-import { Wrench } from "lucide-react";
 import { formatWorkshopField, type Workshop } from "./workshop-data";
 
 export function WorkshopIdentity({ workshop }: { workshop: Workshop }) {
@@ -16,7 +15,7 @@ export function WorkshopIdentity({ workshop }: { workshop: Workshop }) {
         className="brand-mark grid h-11 w-11 shrink-0 place-items-center rounded-md bg-orange-700 text-white"
         aria-hidden="true"
       >
-        <Wrench className="h-6 w-6" />
+        <img src="/pitgarage-logo.png" alt="" className="h-full w-full object-contain" />
       </span>
       <div className="min-w-0 break-words">
         <p className="text-xs font-semibold uppercase tracking-widest opacity-75">PitGarage</p>
