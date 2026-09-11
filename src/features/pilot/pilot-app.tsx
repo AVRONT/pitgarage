@@ -3910,8 +3910,7 @@ function BudgetPanel({
           <DialogHeader>
             <DialogTitle>Adicionar item ao orçamento</DialogTitle>
             <DialogDescription>
-              O item será criado aguardando a decisão do cliente. Para peças, o piloto demonstra o
-              custo acrescido de 30%.
+              O item será criado aguardando a decisão do cliente.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
