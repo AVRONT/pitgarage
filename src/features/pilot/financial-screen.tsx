@@ -363,16 +363,16 @@ export function FinancialScreen() {
     },
   ];
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="mx-auto min-w-0 max-w-screen-2xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Financeiro</h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-foreground">
-            Visão financeira das OS concluídas no período. O resultado bruto considera faturamento
-            menos custos conhecidos de peças.
+            Visão financeira das OS concluídas no período.
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Não representa lucro líquido contábil ou fluxo de caixa.
+            O resultado bruto considera faturamento menos custos conhecidos de peças. Não representa
+            lucro líquido contábil ou fluxo de caixa.
           </p>
         </div>
         <Button variant="outline" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
@@ -387,7 +387,7 @@ export function FinancialScreen() {
       )}
       {rows && (
         <>
-          <div className="flex flex-wrap items-end gap-x-5 gap-y-3 rounded-md border bg-card px-4 py-3">
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-b border-border/60 pb-4">
             <label className="text-sm">
               Veículo
               <select
@@ -441,50 +441,52 @@ export function FinancialScreen() {
             <p role="alert">A data inicial deve ser anterior à data final.</p>
           ) : (
             <>
-              <h2 className="text-base font-semibold tracking-tight">
-                Desempenho financeiro da oficina
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {[
-                  ["Resultado bruto das OS", money(summary.result)],
-                  ["Faturamento total das OS", money(summary.revenue)],
-                  ["Ticket médio (OS com valor)", money(summary.ticket)],
-                  ["OS consideradas", String(summary.orders)],
-                  ["Receita de serviços / mão de obra", money(summary.servicesRevenue)],
-                  ["Receita de peças", money(summary.partsRevenue)],
-                  ["Custo conhecido das peças", money(summary.cost)],
-                ].map(([label, value]) => (
-                  <Card
-                    key={label}
-                    className={
-                      label === "Resultado bruto das OS"
-                        ? "min-w-0 border-primary/25 border-l-[3px] border-l-primary bg-primary/[0.03] shadow-sm sm:col-span-2 xl:col-span-1 xl:row-span-2"
-                        : "min-w-0 shadow-none"
-                    }
-                  >
-                    <CardContent className="flex h-full min-h-28 flex-col justify-center p-4 sm:p-5">
-                      <p
-                        className={
-                          label === "Resultado bruto das OS"
-                            ? "text-sm font-semibold text-primary"
-                            : "min-h-10 text-xs leading-5 text-muted-foreground"
-                        }
-                      >
-                        {label}
-                      </p>
-                      <p
-                        className={
-                          label === "Resultado bruto das OS"
-                            ? "mt-3 break-words text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
-                            : "mt-1 break-words text-xl font-semibold tracking-tight tabular-nums"
-                        }
-                      >
+              <section
+                aria-label="Desempenho financeiro da oficina"
+                className="overflow-hidden rounded-[12px] bg-card"
+              >
+                <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)] xl:items-center xl:gap-10">
+                  <div className="min-w-0 rounded-[10px] bg-primary/[0.045] px-5 py-6">
+                    <h2 className="text-sm font-medium text-primary">Resultado bruto</h2>
+                    <p className="mt-3 break-words text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">
+                      {money(summary.result)}
+                    </p>
+                  </div>
+                  <dl className="grid min-w-0 gap-5 sm:grid-cols-3">
+                    {[
+                      ["Faturamento total", money(summary.revenue)],
+                      ["Ticket médio (OS com valor)", money(summary.ticket)],
+                      ["OS consideradas", String(summary.orders)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="min-w-0">
+                        <dt className="text-xs leading-5 text-muted-foreground sm:min-h-10">
+                          {label}
+                        </dt>
+                        <dd className="mt-2 break-words text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
+                          {value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <dl className="grid gap-4 border-t border-border/40 px-5 py-4 sm:grid-cols-3 sm:px-6">
+                  {[
+                    ["Serviços / mão de obra", money(summary.servicesRevenue)],
+                    ["Peças", money(summary.partsRevenue)],
+                    ["Custo conhecido das peças", money(summary.cost)],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 sm:block"
+                    >
+                      <dt className="text-xs leading-5 text-muted-foreground">{label}</dt>
+                      <dd className="break-words text-base font-medium tabular-nums sm:mt-1">
                         {value}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
               <p className="text-sm text-muted-foreground">
                 {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
                 {summary.incompleteCosts} OS com custo de peças incompleto. Resultados com custo
@@ -498,13 +500,17 @@ export function FinancialScreen() {
                   Nenhuma OS concluída para estes filtros.
                 </p>
               )}
-              <div className="grid gap-4 xl:grid-cols-2">
+              <div className="grid gap-x-8 gap-y-6 rounded-[12px] bg-card p-4 sm:p-6 xl:grid-cols-2">
                 {charts.map((chart) => (
                   <Card
                     key={chart.title}
-                    className={chart.mode === "timeline" ? "min-w-0 xl:col-span-2" : "min-w-0"}
+                    className={
+                      chart.mode === "timeline"
+                        ? "min-w-0 rounded-none border-0 border-t border-border/40 bg-transparent pt-6 shadow-none xl:col-span-2"
+                        : "min-w-0 rounded-none border-0 bg-transparent shadow-none"
+                    }
                   >
-                    <CardContent className="min-w-0 p-4 sm:p-5">
+                    <CardContent className="min-w-0 p-0">
                       <div className="mb-5 min-h-14">
                         <h2 className="text-base font-semibold tracking-tight">{chart.title}</h2>
                         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -709,11 +715,11 @@ export function FinancialScreen() {
                   </Card>
                 ))}
               </div>
-              <Card>
-                <CardContent className="min-w-0 p-4">
+              <Card className="min-w-0 rounded-[12px] border-0 shadow-none">
+                <CardContent className="min-w-0 p-4 sm:p-6">
                   <h2 className="mb-4 text-base font-semibold tracking-tight">Resumo por OS</h2>
                   <div
-                    className="max-h-[32rem] max-w-full overflow-auto rounded-md border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="max-h-[32rem] max-w-full overflow-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     tabIndex={0}
                     aria-label="Resumo financeiro das ordens"
                   >
@@ -731,7 +737,7 @@ export function FinancialScreen() {
                             "Resultado bruto",
                           ].map((label) => (
                             <th
-                              className="sticky top-0 z-10 border-b bg-muted px-3 py-3 text-xs font-semibold text-foreground"
+                              className="sticky top-0 z-10 border-b border-border/50 bg-card px-3 py-3 text-xs font-medium text-muted-foreground"
                               key={label}
                             >
                               {label}
@@ -782,7 +788,7 @@ export function FinancialScreen() {
                   )}
                 </CardContent>
               </Card>
-              <details className="rounded-md border bg-card px-4 py-2 sm:px-5">
+              <details className="rounded-[12px] border-0 bg-card px-4 py-2 sm:px-6">
                 <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight marker:text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   Rentabilidade de peças
                 </summary>
