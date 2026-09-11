@@ -317,6 +317,7 @@ function PilotShellLayout({
     >
       <ResizablePanel
         id="pilot-sidebar"
+        className="bg-sidebar"
         panelRef={panelRef}
         defaultSize={collapsed ? sidebarCollapsedWidth : width}
         minSize={sidebarMinWidth}
