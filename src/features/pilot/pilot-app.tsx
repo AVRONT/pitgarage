@@ -114,6 +114,9 @@ import {
   type Vehicle,
 } from "./pilot-data";
 import { createOperationalRepository, OrderVersionConflict } from "./operational-repository";
+import { FinancialScreen, PartFinancialEditor } from "./financial-screen";
+import type { SavePart } from "./financial-api";
+import type { PartFinancialInput } from "./financial-model";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
 import {
   isBasicCpfValid,
@@ -214,6 +217,7 @@ const withStatusTransition = (
 };
 
 type Screen =
+  | "financial"
   | "dashboard"
   | "calendar"
   | "customers"
@@ -231,6 +235,7 @@ const navItems = [
   { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
   { id: "settings" as Screen, label: "Configurações da oficina", icon: Settings2 },
+  { id: "financial" as Screen, label: "Financeiro", icon: WalletCards },
 ];
 
 const sidebarPreferenceKey = "pitgarage:desktop-sidebar";
@@ -655,8 +660,41 @@ export function PilotApp() {
       .finally(() => setPendingWrites((count) => count - 1));
   };
   const evidenceWrite = useRef(false);
+  const financialWrite = useRef(false);
+  const savePart = (id: string, input: PartFinancialInput) => {
+    if (writeFailed.current || financialWrite.current || evidenceWrite.current)
+      return Promise.reject(new Error("Aguarde a gravação ou recarregue a OS antes de continuar."));
+    financialWrite.current = true;
+    setPendingWrites((count) => count + 1);
+    const operation = writeQueue.current
+      .then(async () => {
+        if (writeFailed.current) throw new Error("Recarregue a OS antes de continuar.");
+        const current = ordersRef.current.find((item) => item.id === id);
+        if (!current) throw new Error("OS não encontrada.");
+        try {
+          const updated = await repository.savePartFinancial(current, input);
+          ordersRef.current = ordersRef.current.map((item) =>
+            item.id === id ? migrateOrder(updated) : item,
+          );
+          setOrders(ordersRef.current);
+          setNotice("Dados da peça salvos.");
+        } catch (error) {
+          if (error instanceof OrderVersionConflict) {
+            writeFailed.current = true;
+            setOrderConflict({ order: current, message: error.message });
+          }
+          throw error;
+        }
+      })
+      .finally(() => {
+        financialWrite.current = false;
+        setPendingWrites((count) => count - 1);
+      });
+    writeQueue.current = operation.catch(() => undefined);
+    return operation;
+  };
   const saveEvidence = (id: string, change: Parameters<SaveEvidence>[0], description: string) => {
-    if (writeFailed.current || evidenceWrite.current)
+    if (writeFailed.current || evidenceWrite.current || financialWrite.current)
       return Promise.reject(new Error("Aguarde a gravação ou recarregue a OS antes de continuar."));
     evidenceWrite.current = true;
     setPendingWrites((count) => count + 1);
@@ -690,8 +728,8 @@ export function PilotApp() {
     return operation;
   };
   const updateOrder = (id: string, updater: OrderUpdater) => {
-    if (evidenceWrite.current) {
-      setNotice("Aguarde a gravação da evidência antes de alterar a OS.");
+    if (evidenceWrite.current || financialWrite.current) {
+      setNotice("Aguarde a gravação antes de alterar a OS.");
       return;
     }
     if (writeFailed.current) return;
@@ -961,6 +999,7 @@ export function PilotApp() {
             </div>
           )}
           <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
+            {screen === "financial" && <FinancialScreen />}
             {screen === "settings" && (
               <>
                 <nav className="settings-nav" aria-label="Seções das configurações">
@@ -981,7 +1020,7 @@ export function PilotApp() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {isLocalBypass
                       ? "Este ambiente usa dados locais de desenvolvimento isolados. O backup legado do piloto não é carregado automaticamente."
-                      : "O backup JSON legado não inclui nem protege clientes, veículos ou ordens armazenados no Supabase. Backup cloud ainda não está disponível."}
+                      : "O backup JSON manual local não protege os dados cloud. Snapshots automáticos estruturados estão preparados e dependem de ativação do agendamento no servidor. Fotos e vídeos não são copiados."}
                   </p>
                 </section>
                 <TeamSettings />
@@ -1090,7 +1129,7 @@ export function PilotApp() {
               />
             )}
             {screen === "order" && selectedOrder && (
-              <div inert={evidenceWrite.current}>
+              <div inert={evidenceWrite.current || financialWrite.current}>
                 <OrderDetail
                   key={`${selectedOrder.id}-${selectedOrderTab}-${orderReloadRevision}`}
                   order={selectedOrder}
@@ -1101,6 +1140,7 @@ export function PilotApp() {
                   onBack={() => navigate("orders")}
                   onVehicle={(id) => navigate("vehicle", id)}
                   onUpdate={(updater) => updateOrder(selectedOrder.id, updater)}
+                  onSavePart={(input) => savePart(selectedOrder.id, input)}
                   onSaveEvidence={(change, description) =>
                     saveEvidence(selectedOrder.id, change, description)
                   }
@@ -2484,6 +2524,7 @@ function OrderTeamAssignment({
 }
 
 function OrderDetail({
+  onSavePart,
   onSaveEvidence,
   order,
   initialTab,
@@ -2498,6 +2539,7 @@ function OrderDetail({
   order: ServiceOrder;
   initialTab?: string;
   onSaveEvidence: SaveEvidence;
+  onSavePart: SavePart;
   workshop: Workshop;
   vehicle: Vehicle;
   customer: Customer;
@@ -2793,6 +2835,7 @@ function OrderDetail({
         </TabsContent>
         <TabsContent value="budget" className="mt-6">
           <BudgetPanel
+            onSavePart={onSavePart}
             order={order}
             workshop={order.workshopSnapshot ?? workshop}
             vehicle={vehicle}
@@ -3468,6 +3511,7 @@ function ClientQuotePreview({
 }
 
 function BudgetPanel({
+  onSavePart,
   order,
   workshop,
   vehicle,
@@ -3476,6 +3520,7 @@ function BudgetPanel({
   onUpdate,
   notify,
 }: {
+  onSavePart: SavePart;
   order: ServiceOrder;
   workshop: Workshop;
   vehicle: Vehicle;
@@ -3646,9 +3691,11 @@ function BudgetPanel({
             id: `i-${Date.now()}`,
             type: itemType,
             name: cleanName,
-            price: itemType === "Peça" ? Number((value * 1.3).toFixed(2)) : value,
+            price: value,
             approval: "Aguardando aprovação",
-            ...(itemType === "Peça" ? { cost: value, availability: "Disponível" as const } : {}),
+            ...(itemType === "Peça"
+              ? { quantity: 1, unitPrice: value, availability: "Disponível" as const }
+              : {}),
             executed: false,
           },
         ],
@@ -3735,8 +3782,8 @@ function BudgetPanel({
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {item.type}
-                        {item.cost !== undefined &&
-                          ` · custo ${money(item.cost)} + 30% = ${money(item.price)}`}
+                        {item.type === "Peça" &&
+                          ` · ${item.quantity ?? 1} un. × ${money(item.unitPrice ?? item.price / (item.quantity ?? 1))}`}
                         {item.availability && ` · ${item.availability}`}
                       </p>
                     </div>
@@ -3744,6 +3791,9 @@ function BudgetPanel({
                   <strong className="text-lg">{money(item.price)}</strong>
                   <StatusBadge status={item.approval} />
                 </div>
+                {item.type === "Peça" && (
+                  <PartFinancialEditor order={order} item={item} save={onSavePart} />
+                )}
                 <div className="mt-4 flex flex-wrap gap-2 lg:justify-end">
                   {item.type === "Peça" && item.approval === "Aprovado" && (
                     <label className="mr-auto flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -3889,7 +3939,7 @@ function BudgetPanel({
             </div>
             <div>
               <label className="text-sm font-semibold">
-                {itemType === "Peça" ? "Custo da peça" : "Valor da mão de obra"}
+                {itemType === "Peça" ? "Preço de venda unitário" : "Valor da mão de obra"}
               </label>
               <Input
                 type="number"
@@ -3902,7 +3952,8 @@ function BudgetPanel({
               />
               {itemType === "Peça" && Number(itemValue) > 0 && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Valor demonstrado ao cliente: <strong>{money(Number(itemValue) * 1.3)}</strong>
+                  Após adicionar, use “Custo, quantidade e preço” para registrar custo e acréscimo
+                  com acesso financeiro.
                 </p>
               )}
             </div>

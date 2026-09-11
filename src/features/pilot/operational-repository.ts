@@ -2,6 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
+import { financialRpc } from "./financial-api";
+import type { PartFinancialInput } from "./financial-model";
 
 export interface OperationalData {
   customers: Customer[];
@@ -16,6 +18,7 @@ export interface NewOrderBundle {
 }
 
 export interface OperationalRepository {
+  savePartFinancial(order: ServiceOrder, input: PartFinancialInput): Promise<ServiceOrder>;
   reloadOrder(order: ServiceOrder): Promise<ServiceOrder>;
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
@@ -144,6 +147,28 @@ export class OrderVersionConflict extends Error {
 
 class CloudOperationalRepository implements OperationalRepository {
   private orderVersions = new Map<string, string>();
+
+  async savePartFinancial(order: ServiceOrder, input: PartFinancialInput) {
+    if (!order.databaseId) throw new Error("OS sem identificador persistente.");
+    const expected = this.orderVersions.get(order.databaseId);
+    if (!expected) throw new Error("Recarregue a OS antes de salvar.");
+    try {
+      const row = await financialRpc<Parameters<typeof mapOrder>[0]>("save_part_financial", {
+        order_id: order.databaseId,
+        expected_version: expected,
+        item_id: input.itemId,
+        unit_cost: input.unitCost,
+        markup: input.markup,
+        quantity: input.quantity,
+        unit_price: input.unitPrice,
+      });
+      this.orderVersions.set(row.id, row.updated_at);
+      return mapOrder(row);
+    } catch (error) {
+      if ((error as { code?: string }).code === "40001") throw new OrderVersionConflict();
+      throw error;
+    }
+  }
 
   async reloadOrder(order: ServiceOrder) {
     if (!order.databaseId) throw new Error("OS sem identificador persistente.");
@@ -277,6 +302,9 @@ class CloudOperationalRepository implements OperationalRepository {
 }
 
 class LocalOperationalRepository implements OperationalRepository {
+  async savePartFinancial(): Promise<ServiceOrder> {
+    throw new Error("O financeiro exige o ambiente da oficina com permissões ativas.");
+  }
   async reloadOrder(order: ServiceOrder) {
     const latest = this.read().orders.find((item) => item.id === order.id);
     if (!latest) throw new Error("Não foi possível recarregar a OS.");

@@ -26,6 +26,10 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Financeiro de peças e backup — preparação local
+
+Custo e acréscimo preparados em tabela privada por permissão financeira, editor na OS com preço manual preservado, quantidade e preço unitário opcionais, área financeira com filtros e gráficos e snapshots estruturados a cada 72 horas. Duas migrations e um script de pg_cron estão **somente preparados**, sem aplicação remota. Ver [modelo, limites e ativação](17-financeiro-backup.md). Dados financeiros legados são arquivados e migrados pela primeira migration; frontend e migration precisam ser publicados em conjunto. Backup mantém referências de evidências, sem binários, e fica no mesmo banco, não substituindo recuperação de desastre.
+
 ## Evidências reais da OS — integração local de 10/09/2026
 
 Botões de foto/vídeo usam o helper do bucket privado `os-evidence`, com arquivo em `<databaseId>/e-<uuid>.<extensão>`. `Evidence` mantém os campos legados e aceita `path`, `mimeType` e `size` opcionais. A referência só entra no estado após upload e confirmação do `saveOrder`, preservando a fila e o versionamento existentes. Visualização usa signed URL de uma hora, renovada em tela, nunca persistida; evidências antigas permanecem com fallback neutro. MOV depende dos codecs do navegador, com alternativa de abrir o arquivo.

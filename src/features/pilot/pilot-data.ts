@@ -42,6 +42,8 @@ export interface BudgetItem {
   type: "Serviço" | "Peça";
   name: string;
   cost?: number;
+  quantity?: number;
+  unitPrice?: number;
   price: number;
   approval: ApprovalStatus;
   availability?: "Disponível" | "Solicitada" | "Aguardando peça";

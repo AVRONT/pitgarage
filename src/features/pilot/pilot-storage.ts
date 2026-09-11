@@ -13,6 +13,7 @@ export interface PilotData {
 }
 
 export interface PilotBackup {
+  cloud?: Record<string, unknown>;
   format: typeof backupFormat;
   formatVersion: typeof backupFormatVersion;
   exportedAt: string;
@@ -62,6 +63,14 @@ const isBudgetItem = (value: unknown) =>
   approvalStatuses.includes(value["approval"] as string) &&
   typeof value["price"] === "number" &&
   Number.isFinite(value["price"]) &&
+  (value["quantity"] === undefined ||
+    (Number.isInteger(value["quantity"]) &&
+      Number(value["quantity"]) >= 1 &&
+      Number(value["quantity"]) <= 100000)) &&
+  (value["unitPrice"] === undefined ||
+    (typeof value["unitPrice"] === "number" &&
+      Number.isFinite(value["unitPrice"]) &&
+      value["unitPrice"] >= 0)) &&
   (value["cost"] === undefined ||
     (typeof value["cost"] === "number" && Number.isFinite(value["cost"]))) &&
   (value["executed"] === undefined || typeof value["executed"] === "boolean") &&
@@ -191,6 +200,10 @@ export function parseBackup(source: string): PilotBackup {
 }
 
 export function persistImportedBackup(backup: PilotBackup) {
+  if (backup.cloud)
+    throw new Error(
+      "Este backup inclui dados cloud. A restauração deve ser feita pelo administrador no ambiente da oficina; nada foi alterado localmente.",
+    );
   const previousPilot = localStorage.getItem(pilotStorageKey);
   const previousWorkshop = localStorage.getItem(workshopStorageKey);
   try {
