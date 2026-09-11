@@ -67,13 +67,23 @@ export function ChatWidget() {
 
   useEffect(() => {
     if (!activeId) return;
+    let active = true;
     setLoadingMessages(true);
     setError("");
     void platformApi
       .messages(activeId)
-      .then(setMessages)
-      .catch(() => setError("Não foi possível carregar as mensagens."))
-      .finally(() => setLoadingMessages(false));
+      .then((items) => {
+        if (active) setMessages(items);
+      })
+      .catch(() => {
+        if (active) setError("Não foi possível carregar as mensagens.");
+      })
+      .finally(() => {
+        if (active) setLoadingMessages(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [activeId]);
 
   const markRead = useCallback(
@@ -81,7 +91,11 @@ export function ChatWidget() {
       setConversations((current) =>
         current.map((item) => (item.id === conversationId ? { ...item, unread_count: 0 } : item)),
       );
-      void platformApi.markChatRead(conversationId).catch(() => void loadConversations());
+      void platformApi
+        .markChatRead(conversationId)
+        .catch(() =>
+          loadConversations().catch(() => setError("Não foi possível atualizar as conversas.")),
+        );
     },
     [loadConversations],
   );
@@ -126,7 +140,9 @@ export function ChatWidget() {
         }
         setConversations((current) => {
           if (!current.some((item) => item.id === row.conversation_id)) {
-            void loadConversations();
+            void loadConversations().catch(() =>
+              setError("Não foi possível atualizar as conversas."),
+            );
             return current;
           }
           return current

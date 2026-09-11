@@ -74,6 +74,7 @@ export function aggregateFinancial(rows: FinancialRow[], kind = "Todos", start =
   const complete = selected.filter(
     (row) => row.unitCost !== null && Number.isFinite(row.unitCost) && row.unitCost >= 0,
   );
+  const completeSet = new Set(complete);
   const revenue = roundMoney(selected.reduce((sum, row) => sum + row.revenue, 0));
   const knownRevenue = roundMoney(complete.reduce((sum, row) => sum + row.revenue, 0));
   const cost = roundMoney(
@@ -106,7 +107,7 @@ export function aggregateFinancial(rows: FinancialRow[], kind = "Todos", start =
     profit,
     margin: profit === null || knownRevenue === 0 ? null : (profit / knownRevenue) * 100,
     orders: new Set(selected.map((row) => row.orderId)).size,
-    incomplete: new Set(selected.filter((row) => !complete.includes(row)).map((row) => row.orderId))
+    incomplete: new Set(selected.filter((row) => !completeSet.has(row)).map((row) => row.orderId))
       .size,
     undated,
     timeline: groups((row) => row.completedAt!),
@@ -224,7 +225,9 @@ export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start
     const map = new Map<string, Amounts[]>();
     for (const row of selected) {
       const name = key(row);
-      map.set(name, [...(map.get(name) ?? []), row]);
+      const list = map.get(name);
+      if (list) list.push(row);
+      else map.set(name, [row]);
     }
     return [...map]
       .sort(([a], [b]) => a.localeCompare(b))
@@ -235,11 +238,20 @@ export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start
   };
   const timeline = groups((row) => row.completedAt!);
   const vehicles = groups((row) => row.kind ?? "Não informado");
+  const byDate = new Map<string, { cars: Amounts[]; bikes: Amounts[] }>();
+  for (const row of selected) {
+    let group = byDate.get(row.completedAt!);
+    if (!group) {
+      group = { cars: [], bikes: [] };
+      byDate.set(row.completedAt!, group);
+    }
+    if (row.kind === "Carro") group.cars.push(row);
+    else if (row.kind === "Moto") group.bikes.push(row);
+  }
   const vehicleTimeline = timeline.map(({ name }) => ({
     name,
-    Carros: totals(selected.filter((row) => row.completedAt === name && row.kind === "Carro"))
-      .result,
-    Motos: totals(selected.filter((row) => row.completedAt === name && row.kind === "Moto")).result,
+    Carros: totals(byDate.get(name)!.cars).result,
+    Motos: totals(byDate.get(name)!.bikes).result,
   }));
   const partRows: FinancialRow[] = selected.flatMap((row) =>
     row.items

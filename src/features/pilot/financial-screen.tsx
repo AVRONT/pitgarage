@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -277,7 +277,10 @@ export function FinancialScreen() {
   }, [isLocalBypass, accessLevel, revision]);
   const range = period === "custom" ? { start: customStart, end: customEnd } : dateRange(period);
   const invalidRange = Boolean(range.start && range.end && range.start > range.end);
-  const summary = aggregateOrders(rows ?? [], kind, range.start, range.end);
+  const summary = useMemo(
+    () => aggregateOrders(rows ?? [], kind, range.start, range.end),
+    [rows, kind, range.start, range.end],
+  );
   const charts = [
     {
       title: "Faturamento × custo das peças × resultado bruto",

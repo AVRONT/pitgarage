@@ -26,6 +26,10 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Otimização e estabilidade — rodada local de 11/09/2026
+
+Agrupamentos financeiros evitam cópias cumulativas e varreduras por data; a tela reutiliza o cálculo enquanto dados/filtros não mudam. Resultados comparados com a implementação anterior em 8.000 OS sintéticas, sem divergência. Chat ignora respostas/erros de carregamentos obsoletos e trata rejeições em atualizações de conversas. Sem mudanças em fórmulas, RPC/RLS, backup, Storage, workflow ou layout. Testes locais não substituem validação de Realtime/rede lenta e mobile em produção; TypeScript permanece bloqueado pela dependência MCP preexistente ausente. Nada aplicado remotamente.
+
 ## Financeiro de peças e backup — preparação local
 
 Evolução local adicional: o Financeiro principal passa a considerar OS completas (peças e serviços aprovados/executados), mantendo a rentabilidade de peças como detalhe. A nova migration `20260911030000_financial_order_report.sql` prepara somente a RPC de leitura protegida `financial_order_report`; ainda não aplicada. Mantidos conclusão/período, custos canônicos, permissões e backup de 72h. O editor reaproveita custo/markup salvos e mostra acréscimo implícito sem gravá-lo nem substituir preço manual. Critérios para valores incompletos e implantação estão na seção “Evolução — financeiro geral das OS” do documento abaixo. O registro anterior permanece como histórico da primeira preparação.

@@ -280,6 +280,13 @@ async function uiHarness(api, owner = false) {
   const slots = [],
     effects = [];
   const react = {
+    useMemo(factory, deps) {
+      const i = cursor++;
+      const previous = slots[i];
+      if (!previous || deps.some((value, n) => value !== previous.deps[n]))
+        slots[i] = { deps, value: factory() };
+      return slots[i].value;
+    },
     useState(initial) {
       const i = cursor++;
       if (!(i in slots)) slots[i] = initial;
@@ -634,6 +641,9 @@ test("financial screen creates all three charts with data and hides charts on em
       tree = nodes(harness.render(harness.ui.FinancialScreen));
       assert.equal(tree.filter((node) => node.type === "LineChart").length, 1);
       const bars = tree.filter((node) => node.type === "BarChart");
+      const timeline = tree.find((node) => node.type === "LineChart").props.data;
+      const unchanged = nodes(harness.render(harness.ui.FinancialScreen));
+      assert.equal(unchanged.find((node) => node.type === "LineChart").props.data, timeline);
       assert.equal(bars.length, 2);
       assert.equal(bars[0].props.data[0].Faturamento, 850);
       assert.equal(bars[0].props.data[0].Resultado, 650);
