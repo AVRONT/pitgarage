@@ -68,10 +68,7 @@ export function PartFinancialEditor({
       .part(order.databaseId, item.id)
       .then((data) => {
         if (!active) return;
-        const values = prefillPart(
-          { price: item.price, quantity: item.quantity, unitPrice: item.unitPrice },
-          data,
-        );
+        const values = prefillPart(item, data);
         setCost(values.unitCost === null ? "" : String(values.unitCost));
         setMarkup(values.markup === null ? "" : String(values.markup));
         setQuantity(String(values.quantity));
