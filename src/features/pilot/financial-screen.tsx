@@ -363,13 +363,16 @@ export function FinancialScreen() {
     },
   ];
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Financeiro</h1>
-          <p className="text-sm text-muted-foreground">
-            Resultado operacional das OS concluídas, com peças e serviços aprovados e executados.
-            Período pela conclusão; não representa lucro líquido nem recebimentos de caixa.
+          <h1 className="text-2xl font-semibold tracking-tight">Financeiro</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-foreground">
+            Visão financeira das OS concluídas no período. O resultado bruto considera faturamento
+            menos custos conhecidos de peças.
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Não representa lucro líquido contábil ou fluxo de caixa.
           </p>
         </div>
         <Button variant="outline" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
@@ -384,7 +387,7 @@ export function FinancialScreen() {
       )}
       {rows && (
         <>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-3 rounded-md border bg-card px-4 py-3">
             <label className="text-sm">
               Veículo
               <select
@@ -438,24 +441,46 @@ export function FinancialScreen() {
             <p role="alert">A data inicial deve ser anterior à data final.</p>
           ) : (
             <>
-              <h2 className="text-lg font-semibold">Desempenho financeiro da oficina</h2>
-              <p className="text-sm text-muted-foreground">
-                Resultado bruto = valor considerado das OS − custo conhecido das peças.
-              </p>
+              <h2 className="text-base font-semibold tracking-tight">
+                Desempenho financeiro da oficina
+              </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[
-                  ["Faturamento total das OS", money(summary.revenue)],
                   ["Resultado bruto das OS", money(summary.result)],
+                  ["Faturamento total das OS", money(summary.revenue)],
                   ["Ticket médio (OS com valor)", money(summary.ticket)],
                   ["OS consideradas", String(summary.orders)],
                   ["Receita de serviços / mão de obra", money(summary.servicesRevenue)],
                   ["Receita de peças", money(summary.partsRevenue)],
                   ["Custo conhecido das peças", money(summary.cost)],
                 ].map(([label, value]) => (
-                  <Card key={label}>
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">{label}</p>
-                      <p className="mt-2 text-xl font-semibold">{value}</p>
+                  <Card
+                    key={label}
+                    className={
+                      label === "Resultado bruto das OS"
+                        ? "min-w-0 border-primary/25 border-l-[3px] border-l-primary bg-primary/[0.03] shadow-sm sm:col-span-2 xl:col-span-1 xl:row-span-2"
+                        : "min-w-0 shadow-none"
+                    }
+                  >
+                    <CardContent className="flex h-full min-h-28 flex-col justify-center p-4 sm:p-5">
+                      <p
+                        className={
+                          label === "Resultado bruto das OS"
+                            ? "text-sm font-semibold text-primary"
+                            : "min-h-10 text-xs leading-5 text-muted-foreground"
+                        }
+                      >
+                        {label}
+                      </p>
+                      <p
+                        className={
+                          label === "Resultado bruto das OS"
+                            ? "mt-3 break-words text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+                            : "mt-1 break-words text-xl font-semibold tracking-tight tabular-nums"
+                        }
+                      >
+                        {value}
+                      </p>
                     </CardContent>
                   </Card>
                 ))}
@@ -506,8 +531,8 @@ export function FinancialScreen() {
                                 <BarChart
                                   data={chart.data}
                                   margin={{ top: 12, right: 8, bottom: 8, left: 0 }}
-                                  barGap={6}
-                                  barCategoryGap="24%"
+                                  barGap={3}
+                                  barCategoryGap="18%"
                                 >
                                   <CartesianGrid
                                     stroke="var(--border)"
@@ -686,13 +711,13 @@ export function FinancialScreen() {
               </div>
               <Card>
                 <CardContent className="min-w-0 p-4">
-                  <h2 className="mb-3 font-semibold">Resumo por OS</h2>
+                  <h2 className="mb-4 text-base font-semibold tracking-tight">Resumo por OS</h2>
                   <div
-                    className="max-w-full overflow-x-auto"
+                    className="max-h-[32rem] max-w-full overflow-auto rounded-md border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     tabIndex={0}
                     aria-label="Resumo financeiro das ordens"
                   >
-                    <table className="w-full min-w-[1000px] text-left text-sm">
+                    <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm [&_td]:border-b [&_td]:border-border/60 [&_td]:px-3 [&_td]:py-3 [&_td]:tabular-nums">
                       <thead>
                         <tr className="border-b">
                           {[
@@ -705,7 +730,10 @@ export function FinancialScreen() {
                             "Custo conhecido",
                             "Resultado bruto",
                           ].map((label) => (
-                            <th className="p-2 font-medium" key={label}>
+                            <th
+                              className="sticky top-0 z-10 border-b bg-muted px-3 py-3 text-xs font-semibold text-foreground"
+                              key={label}
+                            >
                               {label}
                             </th>
                           ))}
@@ -713,7 +741,7 @@ export function FinancialScreen() {
                       </thead>
                       <tbody>
                         {summary.rows.map((order) => (
-                          <tr className="border-b align-top" key={order.orderId}>
+                          <tr className="align-top hover:bg-muted/40" key={order.orderId}>
                             <td className="p-2">
                               <strong>{order.orderNumber}</strong>
                               <p>{order.vehicle ?? "Veículo não informado"}</p>
@@ -754,8 +782,10 @@ export function FinancialScreen() {
                   )}
                 </CardContent>
               </Card>
-              <details className="rounded-md border bg-card p-4">
-                <summary className="cursor-pointer font-semibold">Rentabilidade de peças</summary>
+              <details className="rounded-md border bg-card px-4 py-2 sm:px-5">
+                <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight marker:text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  Rentabilidade de peças
+                </summary>
                 <p className="mt-3 text-sm text-muted-foreground">
                   Somente peças com custo conhecido dos mesmos filtros. Não representa o resultado
                   completo da oficina.
