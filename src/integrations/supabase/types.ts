@@ -246,6 +246,29 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_permissions: {
+        Row: {
+          granted_at: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string
@@ -319,6 +342,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      order_part_financials: {
+        Row: {
+          item_id: string
+          markup: number | null
+          order_id: string
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          item_id: string
+          markup?: number | null
+          order_id: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          item_id?: string
+          markup?: number | null
+          order_id?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_part_financials_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registration_attempts: {
         Row: {
@@ -611,6 +666,7 @@ export type Database = {
         }
       }
       before_user_created: { Args: { event: Json }; Returns: Json }
+      can_view_financial: { Args: never; Returns: boolean }
       cancel_calendar_event: { Args: { event_id: string }; Returns: undefined }
       create_service_order_atomic: {
         Args: {
@@ -652,6 +708,7 @@ export type Database = {
         }
       }
       ensure_my_chat: { Args: never; Returns: string }
+      financial_report: { Args: never; Returns: Json }
       get_developer_dashboard: { Args: never; Returns: Json }
       get_my_customer: {
         Args: never
@@ -688,6 +745,10 @@ export type Database = {
           plate: string
           year: number
         }[]
+      }
+      get_part_financial: {
+        Args: { item_id: string; order_id: string }
+        Returns: Json
       }
       has_developer_access: { Args: never; Returns: boolean }
       list_assignable_members: {
@@ -740,6 +801,7 @@ export type Database = {
           sender_user_id: string
         }[]
       }
+      list_financial_members: { Args: never; Returns: Json }
       list_my_conversations: {
         Args: never
         Returns: {
@@ -816,9 +878,25 @@ export type Database = {
         }
         Returns: string
       }
+      save_part_financial: {
+        Args: {
+          expected_version: string
+          item_id: string
+          markup: number
+          order_id: string
+          quantity: number
+          unit_cost: number
+          unit_price: number
+        }
+        Returns: Json
+      }
       send_chat_message: {
         Args: { message_body: string; target_conversation: string }
         Returns: string
+      }
+      set_financial_permission: {
+        Args: { allowed: boolean; target_user: string }
+        Returns: undefined
       }
       start_direct_conversation: {
         Args: { target_user: string }
