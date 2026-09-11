@@ -4,6 +4,8 @@
 
 Esta seção amplia o relatório inicial descrito abaixo, sem apagar seus critérios históricos.
 
+Refinamento de apresentação posterior: os indicadores gerais abrem a tela; os gráficos mostram comparação de faturamento/custo/resultado no período, Carros × Motos e evolução temporal de faturamento/resultado. “Rentabilidade de peças” fica recolhida abaixo do resumo por OS, com custo, lucro e acréscimo implícito por peça. O relatório não retorna nomes das peças nem markup manual; mostra posições no detalhamento e identifica o percentual como implícito. Markup manual continua no editor da OS. Nenhuma RPC, cálculo persistido, permissão ou backup foi alterado nessa reorganização.
+
 - Principal: faturamento das OS, receitas de peças e serviços, custo conhecido das peças, resultado bruto, ticket médio e quantidade de OS. Rentabilidade das peças permanece em detalhamento.
 - Mantidos os três status finais e a data de conclusão. Contabilizados somente itens aprovados e explicitamente executados; sem inferir recebimento/pagamento. OS somente com serviços agora entram. O resumo identifica OS, cliente, veículo, classificação real, data e valores.
 - Filtros de categoria/período afetam indicadores, resumo e os três gráficos: faturamento/custo/resultado no tempo, comparação por categoria e resultado bruto temporal separado em Carros/Motos.

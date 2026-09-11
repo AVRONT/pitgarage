@@ -575,8 +575,24 @@ test("financial screen creates all three charts with data and hides charts on em
       const selects = tree.filter((node) => node.type === "select");
       selects[1].props.onChange({ target: { value: "all" } });
       tree = nodes(harness.render(harness.ui.FinancialScreen));
-      assert.equal(tree.filter((node) => node.type === "LineChart").length, 2);
-      assert.equal(tree.filter((node) => node.type === "BarChart").length, 1);
+      assert.equal(tree.filter((node) => node.type === "LineChart").length, 1);
+      const bars = tree.filter((node) => node.type === "BarChart");
+      assert.equal(bars.length, 2);
+      assert.equal(bars[0].props.data[0].Faturamento, 850);
+      assert.equal(bars[0].props.data[0].Resultado, 650);
+      assert.deepEqual(
+        tree.filter((node) => node.type === "Line").map((node) => node.props.dataKey),
+        ["Faturamento", "Resultado"],
+      );
+      assert.ok(
+        tree.some(
+          (node) => node.type === "summary" && node.props.children === "Rentabilidade de peças",
+        ),
+      );
+      assert.ok(
+        tree.some((node) => node.type === "th" && node.props.children === "Acréscimo implícito"),
+      );
+      assert.ok(tree.some((node) => node.type === "td" && node.props.children === "25%"));
     } else {
       assert.equal(
         tree.filter((node) => node.type === "LineChart" || node.type === "BarChart").length,

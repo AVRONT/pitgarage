@@ -284,14 +284,23 @@ export function FinancialScreen() {
   const charts = [
     {
       title: "Faturamento × custo das peças × resultado bruto",
-      data: summary.timeline,
-      mode: "timeline",
+      data: summary.orders
+        ? [
+            {
+              name: "Período selecionado",
+              Faturamento: summary.revenue,
+              Custo: summary.cost,
+              Resultado: summary.result,
+            },
+          ]
+        : [],
+      mode: "comparison",
     },
     { title: "Comparação financeira Carros × Motos", data: summary.vehicles, mode: "comparison" },
     {
-      title: "Resultado bruto ao longo do tempo — Carros e Motos",
-      data: summary.vehicleTimeline,
-      mode: "vehicles",
+      title: "Evolução do faturamento e resultado bruto",
+      data: summary.timeline,
+      mode: "timeline",
     },
   ];
   return (
@@ -325,7 +334,9 @@ export function FinancialScreen() {
                 onChange={(e) => setKind(e.target.value)}
               >
                 {["Todos", "Carro", "Moto"].map((v) => (
-                  <option key={v}>{v}</option>
+                  <option key={v} value={v}>
+                    {v === "Carro" ? "Carros" : v === "Moto" ? "Motos" : v}
+                  </option>
                 ))}
               </select>
             </label>
@@ -368,15 +379,19 @@ export function FinancialScreen() {
             <p role="alert">A data inicial deve ser anterior à data final.</p>
           ) : (
             <>
+              <h2 className="text-lg font-semibold">Desempenho financeiro da oficina</h2>
+              <p className="text-sm text-muted-foreground">
+                Resultado bruto = valor considerado das OS − custo conhecido das peças.
+              </p>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[
-                  ["Faturamento das OS", money(summary.revenue)],
-                  ["Receita de peças", money(summary.partsRevenue)],
-                  ["Receita de serviços", money(summary.servicesRevenue)],
-                  ["Custo conhecido das peças", money(summary.cost)],
-                  ["Resultado bruto", money(summary.result)],
+                  ["Faturamento total das OS", money(summary.revenue)],
+                  ["Resultado bruto das OS", money(summary.result)],
                   ["Ticket médio (OS com valor)", money(summary.ticket)],
                   ["OS consideradas", String(summary.orders)],
+                  ["Receita de serviços / mão de obra", money(summary.servicesRevenue)],
+                  ["Receita de peças", money(summary.partsRevenue)],
+                  ["Custo conhecido das peças", money(summary.cost)],
                 ].map(([label, value]) => (
                   <Card key={label}>
                     <CardContent className="p-4">
@@ -444,49 +459,21 @@ export function FinancialScreen() {
                                   <YAxis width={65} />
                                   <Tooltip />
                                   <Legend />
-                                  {chart.mode === "vehicles" ? (
-                                    <>
-                                      <Line
-                                        dataKey="Carros"
-                                        stroke="#173F8F"
-                                        strokeWidth={2}
-                                        isAnimationActive={false}
-                                        connectNulls={false}
-                                      />
-                                      <Line
-                                        dataKey="Motos"
-                                        stroke="#B51F26"
-                                        strokeWidth={2}
-                                        isAnimationActive={false}
-                                        connectNulls={false}
-                                      />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Line
-                                        dataKey="Faturamento"
-                                        stroke="#173F8F"
-                                        strokeWidth={2}
-                                        isAnimationActive={false}
-                                        connectNulls={false}
-                                      />
-                                      <Line
-                                        dataKey="Custo"
-                                        name="Custo das peças"
-                                        stroke="#667085"
-                                        isAnimationActive={false}
-                                        connectNulls={false}
-                                      />
-                                      <Line
-                                        dataKey="Resultado"
-                                        name="Resultado bruto"
-                                        stroke="#15803D"
-                                        strokeWidth={2}
-                                        isAnimationActive={false}
-                                        connectNulls={false}
-                                      />
-                                    </>
-                                  )}
+                                  <Line
+                                    dataKey="Faturamento"
+                                    stroke="#173F8F"
+                                    strokeWidth={2}
+                                    isAnimationActive={false}
+                                    connectNulls={false}
+                                  />
+                                  <Line
+                                    dataKey="Resultado"
+                                    name="Resultado bruto"
+                                    stroke="#15803D"
+                                    strokeWidth={2}
+                                    isAnimationActive={false}
+                                    connectNulls={false}
+                                  />
                                 </LineChart>
                               )}
                             </ResponsiveContainer>
@@ -496,9 +483,7 @@ export function FinancialScreen() {
                             {chart.data.map((row) => (
                               <p key={row.name}>
                                 {row.name}:{" "}
-                                {"Carros" in row
-                                  ? `Carros ${money(row.Carros)} · Motos ${money(row.Motos)}`
-                                  : `faturamento ${money(row.Faturamento)} · custo conhecido ${money(row.Custo)} · resultado bruto ${money(row.Resultado)}`}
+                                {`faturamento ${money(row.Faturamento)} · custo conhecido ${money(row.Custo)} · resultado bruto ${money(row.Resultado)}`}
                               </p>
                             ))}
                           </details>
@@ -579,9 +564,7 @@ export function FinancialScreen() {
                 </CardContent>
               </Card>
               <details className="rounded-md border bg-card p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Detalhamento da rentabilidade das peças
-                </summary>
+                <summary className="cursor-pointer font-semibold">Rentabilidade de peças</summary>
                 <p className="mt-3 text-sm text-muted-foreground">
                   Somente peças com custo conhecido dos mesmos filtros. Não representa o resultado
                   completo da oficina.
@@ -604,6 +587,84 @@ export function FinancialScreen() {
                     </div>
                   ))}
                 </div>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Detalhe por peça aprovada e executada. O acréscimo abaixo é implícito na venda,
+                  não o markup manual salvo. Para consultar ou editar esse markup, use “Custo,
+                  quantidade e preço” na própria OS. Os nomes das peças não são retornados pelo
+                  relatório atual; a numeração abaixo identifica sua posição neste detalhamento.
+                </p>
+                <div
+                  className="mt-3 max-w-full overflow-x-auto"
+                  tabIndex={0}
+                  aria-label="Rentabilidade por peça"
+                >
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        {[
+                          "OS / peça",
+                          "Quantidade",
+                          "Custo unitário",
+                          "Custo total",
+                          "Acréscimo implícito",
+                          "Lucro da peça",
+                        ].map((label) => (
+                          <th className="p-2 font-medium" key={label}>
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.rows.flatMap((order) =>
+                        order.items
+                          .filter((item) => item.type === "Peça")
+                          .map((item, index) => {
+                            const validQuantity =
+                              item.quantity !== null &&
+                              Number.isInteger(item.quantity) &&
+                              item.quantity > 0;
+                            const amounts =
+                              item.revenue !== null && validQuantity
+                                ? partAmounts(
+                                    { price: item.revenue, quantity: item.quantity! },
+                                    item.unitCost,
+                                  )
+                                : null;
+                            const markup =
+                              validQuantity && item.revenue !== null
+                                ? implicitMarkup(item.unitCost, item.revenue / item.quantity!)
+                                : null;
+                            return (
+                              <tr className="border-b" key={order.orderId + "-" + index}>
+                                <td className="p-2">
+                                  {order.orderNumber} · Peça {index + 1}
+                                </td>
+                                <td className="p-2">
+                                  {validQuantity ? item.quantity : "Não informado"}
+                                </td>
+                                <td className="p-2">{money(item.unitCost)}</td>
+                                <td className="p-2">{money(amounts?.cost ?? null)}</td>
+                                <td className="p-2">
+                                  {markup === null
+                                    ? "Não informado"
+                                    : markup.toLocaleString("pt-BR") + "%"}
+                                </td>
+                                <td className="p-2">{money(amounts?.profit ?? null)}</td>
+                              </tr>
+                            );
+                          }),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {!summary.rows.some((order) =>
+                  order.items.some((item) => item.type === "Peça"),
+                ) && (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Nenhuma peça considerada nestes filtros.
+                  </p>
+                )}
               </details>
             </>
           )}
