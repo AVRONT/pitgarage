@@ -11,6 +11,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  Banknote,
+  ChartNoAxesCombined,
+  ClipboardCheck,
+  Package,
+  ReceiptText,
+  RefreshCw,
+  ShieldCheck,
+  SlidersHorizontal,
+  Wrench,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +58,18 @@ const chartDate = (value: string, full = false) =>
       ? value.split("-").reverse().join("/")
       : value.slice(5).split("-").reverse().join("/")
     : value;
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
 function FinancialChartTooltip({
   active,
   payload,
@@ -60,8 +84,10 @@ function FinancialChartTooltip({
   const values = payload?.[0]?.payload;
   if (!active || !values) return null;
   return (
-    <div className="max-w-[min(19rem,80vw)] rounded-md border bg-card p-3 text-xs text-foreground shadow-sm">
-      <p className="mb-2 border-b pb-2 font-medium">{chartDate(String(label ?? ""), true)}</p>
+    <div className="max-w-[min(19rem,80vw)] rounded-lg border border-slate-200 bg-white/95 p-3 text-xs text-foreground shadow-lg shadow-slate-950/10 backdrop-blur-sm">
+      <p className="mb-2 border-b border-slate-100 pb-2 font-semibold">
+        {chartDate(String(label ?? ""), true)}
+      </p>
       <dl className="space-y-2">
         {[
           ["Faturamento", values.Faturamento],
@@ -283,6 +309,7 @@ export function PartFinancialEditor({
 
 export function FinancialScreen() {
   const { accessLevel, isLocalBypass } = useAuth();
+  const reducedMotion = useReducedMotion();
   const [rows, setRows] = useState<OrderFinancialRow[] | null>(null),
     [members, setMembers] = useState<FinancialMember[]>([]);
   const [error, setError] = useState(""),
@@ -336,7 +363,8 @@ export function FinancialScreen() {
   const charts = [
     {
       title: "Faturamento, custo e resultado",
-      subtitle: "Valores consolidados no período · resultado bruto em destaque",
+      subtitle:
+        "Compara a receita total das OS, o custo conhecido das peças e o resultado bruto do período.",
       data: summary.orders
         ? [
             {
@@ -351,31 +379,42 @@ export function FinancialScreen() {
     },
     {
       title: "Carros × Motos",
-      subtitle: "Compare faturamento e resultado por categoria",
+      subtitle: "Compara o desempenho financeiro das duas categorias dentro dos filtros.",
       data: summary.vehicles,
       mode: "comparison",
     },
     {
-      title: "Evolução do faturamento e resultado bruto",
-      subtitle: "Por data de conclusão · valores em reais, sem acumulação",
+      title: "Evolução financeira",
+      subtitle: "Acompanha faturamento e resultado bruto por data de conclusão, sem acumulação.",
       data: summary.timeline,
       mode: "timeline",
     },
   ];
   return (
-    <div className="mx-auto min-w-0 max-w-screen-2xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Financeiro</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-foreground">
-            Visão financeira das OS concluídas no período.
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            O resultado bruto considera faturamento menos custos conhecidos de peças. Não representa
-            lucro líquido contábil ou fluxo de caixa.
-          </p>
+    <div className="mx-auto min-w-0 max-w-screen-2xl space-y-7 pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div className="flex min-w-0 gap-3">
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <ChartNoAxesCombined className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Financeiro</h1>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600">
+              Visão executiva das ordens de serviço concluídas no período selecionado.
+            </p>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              Resultado bruto é faturamento menos custos conhecidos de peças; não representa lucro
+              líquido contábil ou fluxo de caixa.
+            </p>
+          </div>
         </div>
-        <Button variant="outline" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
+        <Button
+          variant="outline"
+          className="gap-2 bg-white"
+          disabled={loading}
+          onClick={() => setRevision((v) => v + 1)}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading && !reducedMotion ? "animate-spin" : ""}`} />
           Atualizar
         </Button>
       </div>
@@ -387,11 +426,18 @@ export function FinancialScreen() {
       )}
       {rows && (
         <>
-          <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-b border-border/60 pb-4">
-            <label className="text-sm">
-              Veículo
+          <section
+            aria-label="Filtros financeiros"
+            className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-950/[0.03]"
+          >
+            <div className="mr-1 flex items-center gap-2 self-center text-sm font-medium text-slate-700">
+              <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden="true" />
+              Filtros
+            </div>
+            <label className="grid gap-1.5 text-xs font-medium text-slate-600">
+              Categoria
               <select
-                className="ml-2 h-10 rounded-md border bg-background px-3"
+                className="h-10 min-w-32 rounded-md border border-slate-200 bg-background px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                 value={kind}
                 onChange={(e) => setKind(e.target.value)}
               >
@@ -402,10 +448,10 @@ export function FinancialScreen() {
                 ))}
               </select>
             </label>
-            <label className="text-sm">
+            <label className="grid gap-1.5 text-xs font-medium text-slate-600">
               Período
               <select
-                className="ml-2 h-10 rounded-md border bg-background px-3"
+                className="h-10 min-w-40 rounded-md border border-slate-200 bg-background px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
               >
@@ -418,7 +464,7 @@ export function FinancialScreen() {
             </label>
             {period === "custom" && (
               <>
-                <label className="text-sm">
+                <label className="grid gap-1.5 text-xs font-medium text-slate-600">
                   De
                   <Input
                     type="date"
@@ -426,7 +472,7 @@ export function FinancialScreen() {
                     onChange={(e) => setCustomStart(e.target.value)}
                   />
                 </label>
-                <label className="text-sm">
+                <label className="grid gap-1.5 text-xs font-medium text-slate-600">
                   Até
                   <Input
                     type="date"
@@ -436,58 +482,109 @@ export function FinancialScreen() {
                 </label>
               </>
             )}
-          </div>
+          </section>
           {invalidRange ? (
             <p role="alert">A data inicial deve ser anterior à data final.</p>
           ) : (
             <>
               <section
                 aria-label="Desempenho financeiro da oficina"
-                className="overflow-hidden rounded-[12px] bg-card"
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/[0.04]"
               >
-                <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)] xl:items-center xl:gap-10">
-                  <div className="min-w-0 rounded-[10px] bg-primary/[0.045] px-5 py-6">
-                    <h2 className="text-sm font-medium text-primary">Resultado bruto</h2>
-                    <p className="mt-3 break-words text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">
+                <div className="grid xl:grid-cols-[minmax(18rem,1fr)_minmax(0,1.8fr)]">
+                  <div className="relative min-w-0 overflow-hidden bg-primary px-5 py-6 text-primary-foreground sm:p-7">
+                    <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full border border-white/10" />
+                    <div className="flex items-center gap-2 text-sm font-medium text-white/80">
+                      <Banknote className="h-4 w-4" aria-hidden="true" />
+                      Resultado bruto
+                    </div>
+                    <p className="relative mt-4 break-words text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">
                       {money(summary.result)}
                     </p>
+                    <p className="relative mt-3 max-w-sm text-xs leading-relaxed text-white/70">
+                      Faturamento menos custos conhecidos das peças.
+                    </p>
                   </div>
-                  <dl className="grid min-w-0 gap-5 sm:grid-cols-3">
-                    {[
-                      ["Faturamento total", money(summary.revenue)],
-                      ["Ticket médio (OS com valor)", money(summary.ticket)],
-                      ["OS consideradas", String(summary.orders)],
-                    ].map(([label, value]) => (
-                      <div key={label} className="min-w-0">
-                        <dt className="text-xs leading-5 text-muted-foreground sm:min-h-10">
-                          {label}
-                        </dt>
-                        <dd className="mt-2 break-words text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
+                  <dl className="grid min-w-0 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                    {(
+                      [
+                        [
+                          "Faturamento total",
+                          money(summary.revenue),
+                          "Total das OS concluídas dentro dos filtros.",
+                          ReceiptText,
+                        ],
+                        [
+                          "Ticket médio",
+                          money(summary.ticket),
+                          "Média das OS que possuem valor conhecido.",
+                          Banknote,
+                        ],
+                        [
+                          "OS consideradas",
+                          String(summary.orders),
+                          "Ordens concluídas incluídas neste período.",
+                          ClipboardCheck,
+                        ],
+                      ] as Array<[string, string, string, LucideIcon]>
+                    ).map(([label, value, description, Icon]) => (
+                      <div
+                        key={String(label)}
+                        className="group min-w-0 p-5 transition-colors duration-150 hover:bg-slate-50/80 sm:p-6"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <dt className="text-xs font-medium leading-5 text-slate-600">{label}</dt>
+                          <Icon className="h-4 w-4 text-slate-400 group-hover:text-primary" />
+                        </div>
+                        <dd className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950 tabular-nums sm:text-2xl">
                           {value}
                         </dd>
+                        <p className="mt-2 text-xs leading-relaxed text-slate-500">{description}</p>
                       </div>
                     ))}
                   </dl>
                 </div>
-                <dl className="grid gap-4 border-t border-border/40 px-5 py-4 sm:grid-cols-3 sm:px-6">
-                  {[
-                    ["Serviços / mão de obra", money(summary.servicesRevenue)],
-                    ["Peças", money(summary.partsRevenue)],
-                    ["Custo conhecido das peças", money(summary.cost)],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 sm:block"
-                    >
-                      <dt className="text-xs leading-5 text-muted-foreground">{label}</dt>
-                      <dd className="break-words text-base font-medium tabular-nums sm:mt-1">
-                        {value}
-                      </dd>
+                <dl className="grid border-t border-slate-200 bg-slate-50/60 sm:grid-cols-3 sm:divide-x sm:divide-slate-200">
+                  {(
+                    [
+                      [
+                        "Serviços / mão de obra",
+                        money(summary.servicesRevenue),
+                        "Receita dos serviços executados.",
+                        Wrench,
+                      ],
+                      [
+                        "Peças",
+                        money(summary.partsRevenue),
+                        "Receita das peças executadas.",
+                        Package,
+                      ],
+                      [
+                        "Custo conhecido das peças",
+                        money(summary.cost),
+                        "Somente peças com custo cadastrado.",
+                        ReceiptText,
+                      ],
+                    ] as Array<[string, string, string, LucideIcon]>
+                  ).map(([label, value, description, Icon]) => (
+                    <div key={String(label)} className="flex min-w-0 gap-3 p-4 sm:px-5">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-primary shadow-sm ring-1 ring-slate-200">
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium leading-5 text-slate-600">{label}</dt>
+                        <dd className="break-words text-base font-semibold text-slate-900 tabular-nums">
+                          {value}
+                        </dd>
+                        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                          {description}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </dl>
               </section>
-              <p className="text-sm text-muted-foreground">
+              <p className="rounded-lg border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-xs leading-relaxed text-amber-950/75">
                 {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
                 {summary.incompleteCosts} OS com custo de peças incompleto. Resultados com custo
                 parcial são provisórios; quando o custo de uma OS com peças é totalmente
@@ -500,230 +597,265 @@ export function FinancialScreen() {
                   Nenhuma OS concluída para estes filtros.
                 </p>
               )}
-              <div className="grid gap-x-8 gap-y-6 rounded-[12px] bg-card p-4 sm:p-6 xl:grid-cols-2">
-                {charts.map((chart) => (
-                  <Card
-                    key={chart.title}
-                    className={
-                      chart.mode === "timeline"
-                        ? "min-w-0 rounded-none border-0 border-t border-border/40 bg-transparent pt-6 shadow-none xl:col-span-2"
-                        : "min-w-0 rounded-none border-0 bg-transparent shadow-none"
-                    }
-                  >
-                    <CardContent className="min-w-0 p-0">
-                      <div className="mb-5 min-h-14">
-                        <h2 className="text-base font-semibold tracking-tight">{chart.title}</h2>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                          {chart.subtitle}
-                        </p>
-                      </div>
-                      {!chart.data.length ? (
-                        <div className="flex h-64 flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 px-5 text-center sm:h-72">
-                          <p className="text-sm font-medium">Sem dados neste período</p>
-                          <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                            Os valores das OS consideradas aparecerão aqui. Revise os filtros
-                            selecionados.
+              <section aria-label="Análises financeiras" className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+                    Análises do período
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Composição e evolução dos valores considerados pelos filtros atuais.
+                  </p>
+                </div>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {charts.map((chart) => (
+                    <Card
+                      key={chart.title}
+                      className={
+                        chart.mode === "timeline"
+                          ? "min-w-0 overflow-hidden rounded-xl border-slate-200 bg-white shadow-sm shadow-slate-950/[0.03] xl:col-span-2"
+                          : "min-w-0 overflow-hidden rounded-xl border-slate-200 bg-white shadow-sm shadow-slate-950/[0.03]"
+                      }
+                    >
+                      <CardContent className="min-w-0 p-4 sm:p-6">
+                        <div className="mb-5 min-h-16 border-b border-slate-100 pb-4">
+                          <h3 className="text-base font-semibold tracking-tight text-slate-950">
+                            {chart.title}
+                          </h3>
+                          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+                            {chart.subtitle}
                           </p>
                         </div>
-                      ) : (
-                        <>
-                          <div
-                            className="h-64 min-w-0 text-xs tabular-nums sm:h-72"
-                            role="img"
-                            aria-label={chart.title}
-                          >
-                            <ResponsiveContainer width="100%" height="100%">
-                              {chart.mode === "comparison" ? (
-                                <BarChart
-                                  data={chart.data}
-                                  margin={{ top: 12, right: 8, bottom: 8, left: 0 }}
-                                  barGap={3}
-                                  barCategoryGap="18%"
-                                >
-                                  <CartesianGrid
-                                    stroke="var(--border)"
-                                    strokeOpacity={0.55}
-                                    strokeDasharray="2 4"
-                                    vertical={false}
-                                  />
-                                  <XAxis
-                                    dataKey="name"
-                                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickMargin={10}
-                                    minTickGap={40}
-                                    interval="preserveStartEnd"
-                                    tickFormatter={(value) => chartDate(String(value))}
-                                  />
-                                  <YAxis
-                                    width={78}
-                                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickCount={5}
-                                    tickFormatter={(value) => chartCurrency.format(Number(value))}
-                                  />
-                                  <Tooltip
-                                    content={<FinancialChartTooltip />}
-                                    filterNull={false}
-                                    cursor={{
-                                      stroke: "var(--border)",
-                                      fill: "var(--muted)",
-                                      fillOpacity: 0.3,
-                                    }}
-                                    isAnimationActive={false}
-                                  />
-                                  <Legend
-                                    iconType="square"
-                                    iconSize={8}
-                                    wrapperStyle={{
-                                      paddingTop: 18,
-                                      fontSize: 11,
-                                      lineHeight: "22px",
-                                    }}
-                                    formatter={(value) => (
-                                      <span
-                                        className={
-                                          value === "Resultado bruto"
-                                            ? "font-semibold text-foreground"
-                                            : "text-muted-foreground"
-                                        }
-                                      >
-                                        {value}
-                                      </span>
-                                    )}
-                                  />
-                                  <Bar
-                                    dataKey="Faturamento"
-                                    fill="#315EAD"
-                                    radius={[3, 3, 0, 0]}
-                                    maxBarSize={52}
-                                    isAnimationActive={false}
-                                  />
-                                  <Bar
-                                    dataKey="Custo"
-                                    name="Custo das peças"
-                                    fill="#94A3B8"
-                                    radius={[3, 3, 0, 0]}
-                                    maxBarSize={52}
-                                    isAnimationActive={false}
-                                  />
-                                  <Bar
-                                    dataKey="Resultado"
-                                    name="Resultado bruto"
-                                    fill="#15803D"
-                                    radius={[3, 3, 0, 0]}
-                                    maxBarSize={52}
-                                    isAnimationActive={false}
-                                  />
-                                </BarChart>
-                              ) : (
-                                <LineChart
-                                  data={chart.data}
-                                  margin={{ top: 12, right: 16, bottom: 8, left: 0 }}
-                                >
-                                  <CartesianGrid
-                                    stroke="var(--border)"
-                                    strokeOpacity={0.55}
-                                    strokeDasharray="2 4"
-                                    vertical={false}
-                                  />
-                                  <XAxis
-                                    dataKey="name"
-                                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickMargin={10}
-                                    minTickGap={40}
-                                    interval="preserveStartEnd"
-                                    tickFormatter={(value) => chartDate(String(value))}
-                                  />
-                                  <YAxis
-                                    width={78}
-                                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickCount={5}
-                                    tickFormatter={(value) => chartCurrency.format(Number(value))}
-                                  />
-                                  <Tooltip
-                                    content={<FinancialChartTooltip />}
-                                    filterNull={false}
-                                    cursor={{
-                                      stroke: "var(--border)",
-                                      fill: "var(--muted)",
-                                      fillOpacity: 0.3,
-                                    }}
-                                    isAnimationActive={false}
-                                  />
-                                  <Legend
-                                    iconType="square"
-                                    iconSize={8}
-                                    wrapperStyle={{
-                                      paddingTop: 18,
-                                      fontSize: 11,
-                                      lineHeight: "22px",
-                                    }}
-                                    formatter={(value) => (
-                                      <span
-                                        className={
-                                          value === "Resultado bruto"
-                                            ? "font-semibold text-foreground"
-                                            : "text-muted-foreground"
-                                        }
-                                      >
-                                        {value}
-                                      </span>
-                                    )}
-                                  />
-                                  <Line
-                                    dataKey="Faturamento"
-                                    stroke="#173F8F"
-                                    strokeWidth={2}
-                                    dot={chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false}
-                                    activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
-                                    isAnimationActive={false}
-                                    connectNulls={false}
-                                  />
-                                  <Line
-                                    dataKey="Resultado"
-                                    name="Resultado bruto"
-                                    stroke="#15803D"
-                                    strokeWidth={3}
-                                    dot={chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false}
-                                    activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
-                                    isAnimationActive={false}
-                                    connectNulls={false}
-                                  />
-                                </LineChart>
-                              )}
-                            </ResponsiveContainer>
+                        {!chart.data.length ? (
+                          <div className="flex h-64 flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 px-5 text-center sm:h-72">
+                            <p className="text-sm font-medium">Sem dados neste período</p>
+                            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                              Os valores das OS consideradas aparecerão aqui. Revise os filtros
+                              selecionados.
+                            </p>
                           </div>
-                          <details className="mt-3 text-xs">
-                            <summary>Ver valores em reais</summary>
-                            {chart.data.map((row) => (
-                              <p key={row.name}>
-                                {row.name}:{" "}
-                                {`faturamento ${money(row.Faturamento)} · custo conhecido ${money(row.Custo)} · resultado bruto ${money(row.Resultado)}`}
-                              </p>
-                            ))}
-                          </details>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <Card className="min-w-0 rounded-[12px] border-0 shadow-none">
+                        ) : (
+                          <>
+                            <div
+                              className="h-64 min-w-0 text-xs tabular-nums sm:h-72 xl:h-80"
+                              role="img"
+                              aria-label={chart.title}
+                            >
+                              <ResponsiveContainer width="100%" height="100%">
+                                {chart.mode === "comparison" ? (
+                                  <BarChart
+                                    data={chart.data}
+                                    margin={{ top: 12, right: 8, bottom: 8, left: 0 }}
+                                    barGap={3}
+                                    barCategoryGap="18%"
+                                  >
+                                    <CartesianGrid
+                                      stroke="var(--border)"
+                                      strokeOpacity={0.55}
+                                      strokeDasharray="2 4"
+                                      vertical={false}
+                                    />
+                                    <XAxis
+                                      dataKey="name"
+                                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                      axisLine={false}
+                                      tickLine={false}
+                                      tickMargin={10}
+                                      minTickGap={40}
+                                      interval="preserveStartEnd"
+                                      tickFormatter={(value) => chartDate(String(value))}
+                                    />
+                                    <YAxis
+                                      width={78}
+                                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                                      axisLine={false}
+                                      tickLine={false}
+                                      tickCount={5}
+                                      tickFormatter={(value) => chartCurrency.format(Number(value))}
+                                    />
+                                    <Tooltip
+                                      content={<FinancialChartTooltip />}
+                                      filterNull={false}
+                                      cursor={{
+                                        stroke: "var(--border)",
+                                        fill: "var(--muted)",
+                                        fillOpacity: 0.3,
+                                      }}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={180}
+                                    />
+                                    <Legend
+                                      iconType="square"
+                                      iconSize={8}
+                                      wrapperStyle={{
+                                        paddingTop: 18,
+                                        fontSize: 11,
+                                        lineHeight: "22px",
+                                      }}
+                                      formatter={(value) => (
+                                        <span
+                                          className={
+                                            value === "Resultado bruto"
+                                              ? "font-semibold text-foreground"
+                                              : "text-muted-foreground"
+                                          }
+                                        >
+                                          {value}
+                                        </span>
+                                      )}
+                                    />
+                                    <Bar
+                                      dataKey="Faturamento"
+                                      fill="#315EAD"
+                                      radius={[3, 3, 0, 0]}
+                                      maxBarSize={52}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={320}
+                                      animationEasing="ease-out"
+                                    />
+                                    <Bar
+                                      dataKey="Custo"
+                                      name="Custo das peças"
+                                      fill="#94A3B8"
+                                      radius={[3, 3, 0, 0]}
+                                      maxBarSize={52}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={320}
+                                      animationEasing="ease-out"
+                                    />
+                                    <Bar
+                                      dataKey="Resultado"
+                                      name="Resultado bruto"
+                                      fill="#15803D"
+                                      radius={[3, 3, 0, 0]}
+                                      maxBarSize={52}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={320}
+                                      animationEasing="ease-out"
+                                    />
+                                  </BarChart>
+                                ) : (
+                                  <LineChart
+                                    data={chart.data}
+                                    margin={{ top: 12, right: 16, bottom: 8, left: 0 }}
+                                  >
+                                    <CartesianGrid
+                                      stroke="var(--border)"
+                                      strokeOpacity={0.55}
+                                      strokeDasharray="2 4"
+                                      vertical={false}
+                                    />
+                                    <XAxis
+                                      dataKey="name"
+                                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                      axisLine={false}
+                                      tickLine={false}
+                                      tickMargin={10}
+                                      minTickGap={40}
+                                      interval="preserveStartEnd"
+                                      tickFormatter={(value) => chartDate(String(value))}
+                                    />
+                                    <YAxis
+                                      width={78}
+                                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                                      axisLine={false}
+                                      tickLine={false}
+                                      tickCount={5}
+                                      tickFormatter={(value) => chartCurrency.format(Number(value))}
+                                    />
+                                    <Tooltip
+                                      content={<FinancialChartTooltip />}
+                                      filterNull={false}
+                                      cursor={{
+                                        stroke: "var(--border)",
+                                        fill: "var(--muted)",
+                                        fillOpacity: 0.3,
+                                      }}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={180}
+                                    />
+                                    <Legend
+                                      iconType="square"
+                                      iconSize={8}
+                                      wrapperStyle={{
+                                        paddingTop: 18,
+                                        fontSize: 11,
+                                        lineHeight: "22px",
+                                      }}
+                                      formatter={(value) => (
+                                        <span
+                                          className={
+                                            value === "Resultado bruto"
+                                              ? "font-semibold text-foreground"
+                                              : "text-muted-foreground"
+                                          }
+                                        >
+                                          {value}
+                                        </span>
+                                      )}
+                                    />
+                                    <Line
+                                      dataKey="Faturamento"
+                                      stroke="#173F8F"
+                                      strokeWidth={2}
+                                      dot={
+                                        chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false
+                                      }
+                                      activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={360}
+                                      animationEasing="ease-out"
+                                      connectNulls={false}
+                                    />
+                                    <Line
+                                      dataKey="Resultado"
+                                      name="Resultado bruto"
+                                      stroke="#15803D"
+                                      strokeWidth={3}
+                                      dot={
+                                        chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false
+                                      }
+                                      activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
+                                      isAnimationActive={!reducedMotion}
+                                      animationDuration={360}
+                                      animationEasing="ease-out"
+                                      connectNulls={false}
+                                    />
+                                  </LineChart>
+                                )}
+                              </ResponsiveContainer>
+                            </div>
+                            <details className="mt-3 text-xs">
+                              <summary>Ver valores em reais</summary>
+                              {chart.data.map((row) => (
+                                <p key={row.name}>
+                                  {row.name}:{" "}
+                                  {`faturamento ${money(row.Faturamento)} · custo conhecido ${money(row.Custo)} · resultado bruto ${money(row.Resultado)}`}
+                                </p>
+                              ))}
+                            </details>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+              <Card className="min-w-0 overflow-hidden rounded-xl border-slate-200 shadow-sm shadow-slate-950/[0.03]">
                 <CardContent className="min-w-0 p-4 sm:p-6">
-                  <h2 className="mb-4 text-base font-semibold tracking-tight">Resumo por OS</h2>
+                  <div className="mb-4">
+                    <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+                      Resumo por OS
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Detalhamento das ordens que compõem os indicadores deste período.
+                    </p>
+                  </div>
                   <div
                     className="max-h-[32rem] max-w-full overflow-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     tabIndex={0}
                     aria-label="Resumo financeiro das ordens"
                   >
-                    <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm [&_td]:border-b [&_td]:border-border/60 [&_td]:px-3 [&_td]:py-3 [&_td]:tabular-nums">
+                    <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm [&_td]:border-b [&_td]:border-slate-100 [&_td]:px-3 [&_td]:py-3 [&_td]:tabular-nums">
                       <thead>
                         <tr className="border-b">
                           {[
@@ -737,7 +869,7 @@ export function FinancialScreen() {
                             "Resultado bruto",
                           ].map((label) => (
                             <th
-                              className="sticky top-0 z-10 border-b border-border/50 bg-card px-3 py-3 text-xs font-medium text-muted-foreground"
+                              className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-3 py-3 text-xs font-semibold text-slate-600"
                               key={label}
                             >
                               {label}
@@ -747,7 +879,10 @@ export function FinancialScreen() {
                       </thead>
                       <tbody>
                         {summary.rows.map((order) => (
-                          <tr className="align-top hover:bg-muted/40" key={order.orderId}>
+                          <tr
+                            className="align-top transition-colors duration-150 hover:bg-slate-50"
+                            key={order.orderId}
+                          >
                             <td className="p-2">
                               <strong>{order.orderNumber}</strong>
                               <p>{order.vehicle ?? "Veículo não informado"}</p>
@@ -788,8 +923,8 @@ export function FinancialScreen() {
                   )}
                 </CardContent>
               </Card>
-              <details className="rounded-[12px] border-0 bg-card px-4 py-2 sm:px-6">
-                <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight marker:text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm shadow-slate-950/[0.03] sm:px-6">
+                <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight text-slate-800 marker:text-slate-400 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
                   Rentabilidade de peças
                 </summary>
                 <p className="mt-3 text-sm text-muted-foreground">
@@ -808,9 +943,9 @@ export function FinancialScreen() {
                         : summary.parts.margin.toFixed(1) + "%",
                     ],
                   ].map(([label, value]) => (
-                    <div key={label}>
-                      <p className="text-sm text-muted-foreground">{label}</p>
-                      <strong>{value}</strong>
+                    <div key={label} className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+                      <p className="text-xs text-slate-500">{label}</p>
+                      <strong className="mt-1 block text-slate-900 tabular-nums">{value}</strong>
                     </div>
                   ))}
                 </div>
@@ -896,9 +1031,12 @@ export function FinancialScreen() {
             </>
           )}
           {accessLevel === "owner" && (
-            <Card>
-              <CardContent className="space-y-3 p-4">
-                <h2 className="font-semibold">Acesso ao financeiro</h2>
+            <Card className="border-slate-200 shadow-sm shadow-slate-950/[0.03]">
+              <CardContent className="space-y-3 p-4 sm:p-6">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
+                  <h2 className="font-semibold">Acesso ao financeiro</h2>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Conceda acesso apenas à equipe autorizada a consultar custos e registrar dados
                   financeiros.

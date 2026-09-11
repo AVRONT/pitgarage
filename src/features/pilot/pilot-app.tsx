@@ -312,7 +312,7 @@ function PilotShellLayout({
   return (
     <ResizablePanelGroup
       orientation="horizontal"
-      className="min-h-screen"
+      className="h-screen min-h-0 overflow-hidden"
       resizeTargetMinimumSize={{ fine: 14, coarse: 24 }}
     >
       <ResizablePanel
@@ -337,7 +337,7 @@ function PilotShellLayout({
         {sidebar}
       </ResizablePanel>
       <ResizableHandle className="sidebar-resize-handle bg-transparent" />
-      <ResizablePanel id="pilot-content" minSize={480}>
+      <ResizablePanel id="pilot-content" className="min-h-0 overflow-hidden" minSize={480}>
         {children}
       </ResizablePanel>
     </ResizablePanelGroup>
@@ -948,7 +948,7 @@ export function PilotApp() {
           ) : null
         }
       >
-        <main className="pilot-main min-h-screen min-w-0">
+        <main className="pilot-main min-h-screen min-w-0 lg:h-screen lg:min-h-0 lg:overflow-y-auto">
           <header className="sticky top-0 z-20 flex items-center gap-3 border-b px-4 md:gap-4 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,32rem)_minmax(0,1fr)]">
             <Button
               className="lg:hidden"
