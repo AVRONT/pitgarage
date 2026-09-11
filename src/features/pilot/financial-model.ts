@@ -137,7 +137,7 @@ export function implicitMarkup(cost: number | null, sale: number | null) {
     : null;
 }
 export function prefillPart(
-  item: Pick<BudgetItem, "price"> & Partial<Pick<BudgetItem, "quantity" | "unitPrice">>,
+  item: Pick<BudgetItem, "price" | "quantity" | "unitPrice">,
   saved: { unitCost: number | null; markup: number | null },
 ) {
   const quantity = item.quantity ?? 1;
