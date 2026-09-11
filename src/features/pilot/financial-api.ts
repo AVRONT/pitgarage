@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { FinancialRow, PartFinancialInput } from "./financial-model";
+import type { OrderFinancialRow, PartFinancialInput } from "./financial-model";
 type RpcError = { message: string; code?: string };
 export async function financialRpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await (supabase.rpc(name as never, args as never) as unknown as Promise<{
@@ -25,7 +25,7 @@ export type FinancialMember = {
 };
 export const financialApi = {
   access: () => financialRpc<boolean>("can_view_financial"),
-  report: () => financialRpc<FinancialRow[]>("financial_report"),
+  report: () => financialRpc<OrderFinancialRow[]>("financial_order_report"),
   part: (orderId: string, itemId: string) =>
     financialRpc<{ unitCost: number | null; markup: number | null }>("get_part_financial", {
       order_id: orderId,

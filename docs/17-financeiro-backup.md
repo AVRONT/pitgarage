@@ -1,5 +1,23 @@
 # Financeiro de peças e snapshots — preparação local
 
+## Evolução — financeiro geral das OS
+
+Esta seção amplia o relatório inicial descrito abaixo, sem apagar seus critérios históricos.
+
+- Principal: faturamento das OS, receitas de peças e serviços, custo conhecido das peças, resultado bruto, ticket médio e quantidade de OS. Rentabilidade das peças permanece em detalhamento.
+- Mantidos os três status finais e a data de conclusão. Contabilizados somente itens aprovados e explicitamente executados; sem inferir recebimento/pagamento. OS somente com serviços agora entram. O resumo identifica OS, cliente, veículo, classificação real, data e valores.
+- Filtros de categoria/período afetam indicadores, resumo e os três gráficos: faturamento/custo/resultado no tempo, comparação por categoria e resultado bruto temporal separado em Carros/Motos.
+- Resultado bruto = receita considerada − custo conhecido das peças; não é lucro líquido nem caixa. OS sem peças têm custo de peças zero por ausência de peças. Peças sem custo não recebem estimativas: custo inteiramente ausente deixa resultado da OS e agregado não informado; custo parcialmente conhecido produz resultado provisório, com aviso.
+- Sem valor de venda suficiente, a OS continua no resumo/contagem, mas sai das somas e do ticket. Ticket = receita das OS com valor conhecido / quantidade dessas OS. Sem data de conclusão válida, fica fora do período e é sinalizada. Campos desconhecidos aparecem como “Não informado”.
+- Custo/markup são pré-carregados de `get_part_financial`, cuja fonte canônica é `order_part_financials`. Não há fallback ao custo legado no JSON; sua transferência é responsabilidade da migration anterior. Não foi criada segunda entrada/fonte de custo ao adicionar a peça.
+- Quantidade antiga permanece 1. Na ausência de preço unitário, usa total do item / quantidade. Markup salvo prevalece; na ausência dele, custo positivo e venda final permitem exibir acréscimo implícito = (venda − custo) / custo × 100. Ele é informativo e não é salvo automaticamente. Custo zero não permite essa divisão.
+- Preço manual é preservado; apenas “Usar preço sugerido” o substitui. Lucro unitário = venda unitária − custo unitário; lucro total considera quantidade. Margem do detalhamento = lucro das peças / receita das peças com custo conhecido; não é markup.
+- Nenhum campo persistido novo: os valores do relatório são projeções. Backup/manual/72h, formato de exportação, histórico, concorrência e demais áreas permanecem iguais.
+
+**Aplicação pendente:** revisar/aplicar somente a nova `20260911030000_financial_order_report.sql` após a base financeira anterior, se esta ainda não estiver aplicada. A RPC nova é necessária porque a anterior retorna apenas peças, sem serviços/contexto da OS. Usa o mesmo `can_view_financial`, não altera tabelas, policies, RPCs antigas nem registros. Publicar o frontend correspondente e validar permissões por chamada direta, cálculos com OS reais e apresentação desktop/mobile. Não reaplicar migrations anteriores já presentes.
+
+**Validação desta evolução:** 20 testes direcionados aprovados, incluindo cálculos, filtros, gráficos/handlers com mocks, markup/preço manual, contratos de permissão e compatibilidade do backup. Esses testes não executam PostgreSQL/RLS nem substituem inspeção visual no navegador. TypeScript foi executado e continua bloqueado pelos imports/tipos MCP preexistentes de `@lovable.dev/mcp-js` ausente localmente; não foram identificados erros nos arquivos financeiros. Nenhuma dependência instalada, migration aplicada, configuração remota alterada, commit ou push.
+
 ## Aplicação remota (não executada pelo Codex)
 
 1. Revisar e aplicar `20260911010000_financial_parts_permissions.sql` e depois `20260911020000_structured_backups.sql` em ambiente de teste. Publicar frontend junto com a primeira migration; clientes antigos abertos devem recarregar, pois custo no JSON passa a ser rejeitado.

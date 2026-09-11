@@ -28,6 +28,8 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 ## Financeiro de peças e backup — preparação local
 
+Evolução local adicional: o Financeiro principal passa a considerar OS completas (peças e serviços aprovados/executados), mantendo a rentabilidade de peças como detalhe. A nova migration `20260911030000_financial_order_report.sql` prepara somente a RPC de leitura protegida `financial_order_report`; ainda não aplicada. Mantidos conclusão/período, custos canônicos, permissões e backup de 72h. O editor reaproveita custo/markup salvos e mostra acréscimo implícito sem gravá-lo nem substituir preço manual. Critérios para valores incompletos e implantação estão na seção “Evolução — financeiro geral das OS” do documento abaixo. O registro anterior permanece como histórico da primeira preparação.
+
 Custo e acréscimo preparados em tabela privada por permissão financeira, editor na OS com preço manual preservado, quantidade e preço unitário opcionais, área financeira com filtros e gráficos e snapshots estruturados a cada 72 horas. Duas migrations e um script de pg_cron estão **somente preparados**, sem aplicação remota. Ver [modelo, limites e ativação](17-financeiro-backup.md). Dados financeiros legados são arquivados e migrados pela primeira migration; frontend e migration precisam ser publicados em conjunto. Backup mantém referências de evidências, sem binários, e fica no mesmo banco, não substituindo recuperação de desastre.
 
 ## Evidências reais da OS — integração local de 10/09/2026

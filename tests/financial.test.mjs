@@ -340,6 +340,192 @@ async function uiHarness(api, owner = false) {
   };
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+const orderRows = [
+  {
+    orderId: "service",
+    orderNumber: "OS-1",
+    vehicle: "Carro A",
+    customer: "Cliente A",
+    kind: "Carro",
+    completedAt: "2026-09-10",
+    items: [{ type: "Serviço", quantity: 1, revenue: 200, unitCost: null }],
+  },
+  {
+    orderId: "mixed",
+    orderNumber: "OS-2",
+    vehicle: "Moto B",
+    customer: "Cliente B",
+    kind: "Moto",
+    completedAt: "2026-09-10",
+    items: [
+      { type: "Peça", quantity: 2, revenue: 250, unitCost: 100 },
+      { type: "Serviço", quantity: 1, revenue: 300, unitCost: null },
+    ],
+  },
+  {
+    orderId: "previous",
+    orderNumber: "OS-3",
+    vehicle: "Carro C",
+    customer: "Cliente C",
+    kind: "Carro",
+    completedAt: "2026-08-20",
+    items: [{ type: "Serviço", quantity: 1, revenue: 100, unitCost: null }],
+  },
+];
+test("complete OS report includes service-only orders and mixed part/service totals", () => {
+  const service = model.orderAmounts(orderRows[0]);
+  assert.equal(service.revenue, 200);
+  assert.equal(service.cost, 0);
+  assert.equal(service.result, 200);
+  assert.equal(service.partsRevenue, 0);
+  const mixed = model.orderAmounts(orderRows[1]);
+  assert.equal(mixed.revenue, 550);
+  assert.equal(mixed.partsRevenue, 250);
+  assert.equal(mixed.servicesRevenue, 300);
+  assert.equal(mixed.cost, 200);
+  assert.equal(mixed.result, 350);
+  const all = model.aggregateOrders(orderRows);
+  assert.equal(all.revenue, 850);
+  assert.equal(all.partsRevenue, 250);
+  assert.equal(all.servicesRevenue, 600);
+  assert.equal(all.result, 650);
+  assert.equal(all.ticket, 283.33);
+  assert.equal(all.orders, 3);
+  assert.equal(all.parts.profit, 50);
+});
+test("all/category/period filters drive OS rows, ticket and the three graphs together", () => {
+  const month = model.aggregateOrders(orderRows, "Todos", "2026-09-01", "2026-09-30");
+  assert.equal(month.orders, 2);
+  assert.equal(month.ticket, 375);
+  assert.deepEqual(month.timeline, [
+    { name: "2026-09-10", Faturamento: 750, Custo: 200, Resultado: 550 },
+  ]);
+  assert.deepEqual(month.vehicles, [
+    { name: "Carro", Faturamento: 200, Custo: 0, Resultado: 200 },
+    { name: "Moto", Faturamento: 550, Custo: 200, Resultado: 350 },
+  ]);
+  assert.deepEqual(month.vehicleTimeline, [{ name: "2026-09-10", Carros: 200, Motos: 350 }]);
+  const car = model.aggregateOrders(orderRows, "Carro", "2026-09-10", "2026-09-10");
+  assert.equal(car.rows.length, 1);
+  assert.equal(car.ticket, 200);
+  assert.equal(car.vehicleTimeline[0].Motos, null);
+  assert.equal(model.aggregateOrders(orderRows, "Moto").result, 350);
+  assert.equal(model.aggregateOrders(orderRows, "Todos", "2026-08-01", "2026-08-31").revenue, 100);
+});
+test("unknown cost, sale and dates stay explicit; partial cost is flagged, not fabricated", () => {
+  const unknown = {
+    ...orderRows[1],
+    items: [{ type: "Peça", quantity: 1, revenue: 250, unitCost: null }],
+  };
+  const summary = model.aggregateOrders([orderRows[0], unknown]);
+  assert.equal(summary.cost, 0);
+  assert.equal(summary.result, null);
+  assert.equal(summary.incompleteCosts, 1);
+  assert.equal(summary.vehicles.find((row) => row.name === "Moto").Resultado, null);
+  const partial = model.orderAmounts({
+    ...unknown,
+    items: [...unknown.items, orderRows[1].items[0]],
+  });
+  assert.equal(partial.cost, 200);
+  assert.equal(partial.result, 300);
+  assert.equal(partial.missingCosts, 1);
+  const unpriced = { ...unknown, items: [{ ...unknown.items[0], revenue: null }] };
+  const filtered = model.aggregateOrders([
+    orderRows[0],
+    unpriced,
+    { ...orderRows[2], completedAt: null },
+  ]);
+  assert.equal(filtered.orders, 2);
+  assert.equal(filtered.revenue, 200);
+  assert.equal(filtered.ticket, 200);
+  assert.equal(filtered.unpriced, 1);
+  assert.equal(filtered.undated, 1);
+  assert.equal(model.orderAmounts({ ...unknown, items: [] }).revenue, null);
+  assert.equal(model.aggregateOrders([]).revenue, null);
+  assert.deepEqual(model.aggregateOrders([]).timeline, []);
+});
+test("canonical saved cost/markup prefill legacy and multiple quantities without replacing manual price", () => {
+  assert.deepEqual(model.prefillPart({ price: 125, cost: 999 }, { unitCost: 100, markup: 30 }), {
+    quantity: 1,
+    unitPrice: 125,
+    unitCost: 100,
+    markup: 30,
+    implicit: null,
+  });
+  const values = model.prefillPart({ price: 250, quantity: 2 }, { unitCost: 100, markup: null });
+  assert.equal(values.unitPrice, 125);
+  assert.equal(values.implicit, 25);
+  assert.equal(model.implicitMarkup(100, 90), -10);
+  assert.equal(model.implicitMarkup(0, 125), null);
+  assert.equal(model.implicitMarkup(null, 125), null);
+  assert.equal(
+    model.prefillPart({ price: 250, cost: 100 }, { unitCost: null, markup: null }).unitCost,
+    null,
+  );
+  assert.equal(
+    model.prefillPart({ price: 250, quantity: 2, unitPrice: 125 }, { unitCost: 100, markup: 30 })
+      .unitPrice,
+    125,
+  );
+});
+test("editor shows implied markup without saving it or replacing the negotiated price", async () => {
+  let saved;
+  const harness = await uiHarness({ part: async () => ({ unitCost: 100, markup: null }) });
+  const props = {
+    order: { databaseId: "os", status: "Recebido" },
+    item: { id: "p", type: "Peça", price: 250, quantity: 2, approval: "Aguardando aprovação" },
+    save: async (input) => {
+      saved = input;
+    },
+  };
+  const render = () => nodes(harness.render(harness.ui.PartFinancialEditor, props));
+  render()
+    .find((node) => node.type === "button")
+    .props.onClick();
+  render();
+  await tick();
+  const fields = render().filter((node) => node.type === "input");
+  assert.equal(fields[0].props.value, "100");
+  assert.equal(fields[1].props.value, "");
+  assert.equal(fields[1].props.placeholder, "25% implícito");
+  assert.equal(fields[2].props.value, "2");
+  assert.equal(fields[3].props.value, "125");
+  await render()
+    .find((node) => node.props?.children === "Salvar dados da peça")
+    .props.onClick();
+  assert.equal(saved.markup, null);
+  assert.equal(saved.unitPrice, 125);
+  assert.equal(saved.quantity, 2);
+});
+test("general report RPC is read-only, guarded server-side and includes executed services", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20260911030000_financial_order_report.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(sql, /if not public.can_view_financial\(\)/);
+  assert.match(sql, /set search_path = ''/);
+  assert.match(sql, /revoke all on function public.financial_order_report\(\) from public,anon/);
+  assert.match(sql, /in \('Peça','Serviço'\)/);
+  assert.match(sql, /b->>'approval'='Aprovado' and b->>'executed'='true'/);
+  assert.match(sql, /s.completed_at/);
+  assert.match(sql, /left join public.order_part_financials/);
+  assert.doesNotMatch(sql, /\b(insert|update|delete|alter table)\b/i);
+  let called;
+  const api = await load("financial-api.ts", {
+    "@/integrations/supabase/client": {
+      supabase: {
+        rpc: async (name) => {
+          called = name;
+          return { data: orderRows, error: null };
+        },
+      },
+    },
+  });
+  assert.deepEqual(await api.financialApi.report(), orderRows);
+  assert.equal(called, "financial_order_report");
+});
+
 test("editor preserves manual final price when cost/markup changes; applies suggestion only on click", async () => {
   let saved;
   const harness = await uiHarness({ part: async () => ({ unitCost: 100, markup: 30 }) });
@@ -380,7 +566,7 @@ test("financial screen creates all three charts with data and hides charts on em
   for (const mode of ["data", "empty", "denied"]) {
     const harness = await uiHarness({
       access: async () => mode !== "denied",
-      report: async () => (mode === "data" ? rows : []),
+      report: async () => (mode === "data" ? orderRows : []),
     });
     let tree = nodes(harness.render(harness.ui.FinancialScreen));
     await tick();
@@ -389,8 +575,8 @@ test("financial screen creates all three charts with data and hides charts on em
       const selects = tree.filter((node) => node.type === "select");
       selects[1].props.onChange({ target: { value: "all" } });
       tree = nodes(harness.render(harness.ui.FinancialScreen));
-      assert.equal(tree.filter((node) => node.type === "LineChart").length, 1);
-      assert.equal(tree.filter((node) => node.type === "BarChart").length, 2);
+      assert.equal(tree.filter((node) => node.type === "LineChart").length, 2);
+      assert.equal(tree.filter((node) => node.type === "BarChart").length, 1);
     } else {
       assert.equal(
         tree.filter((node) => node.type === "LineChart" || node.type === "BarChart").length,

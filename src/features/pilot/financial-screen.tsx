@@ -18,13 +18,15 @@ import { useAuth } from "@/features/auth/auth-context";
 import type { BudgetItem, ServiceOrder } from "./pilot-data";
 import { financialApi, type FinancialMember, type SavePart } from "./financial-api";
 import {
-  aggregateFinancial,
+  aggregateOrders,
+  implicitMarkup,
+  prefillPart,
   dateRange,
   partAmounts,
   roundMoney,
   suggestedPrice,
   validatePart,
-  type FinancialRow,
+  type OrderFinancialRow,
 } from "./financial-model";
 
 const money = (value: number | null) =>
@@ -66,10 +68,14 @@ export function PartFinancialEditor({
       .part(order.databaseId, item.id)
       .then((data) => {
         if (!active) return;
-        setCost(data.unitCost === null ? "" : String(data.unitCost));
-        setMarkup(data.markup === null ? "" : String(data.markup));
-        setQuantity(String(item.quantity ?? 1));
-        setPrice(String(item.unitPrice ?? item.price / (item.quantity ?? 1)));
+        const values = prefillPart(
+          { price: item.price, quantity: item.quantity, unitPrice: item.unitPrice },
+          data,
+        );
+        setCost(values.unitCost === null ? "" : String(values.unitCost));
+        setMarkup(values.markup === null ? "" : String(values.markup));
+        setQuantity(String(values.quantity));
+        setPrice(String(values.unitPrice));
         setReady(true);
       })
       .catch((cause) => {
@@ -87,7 +93,8 @@ export function PartFinancialEditor({
     unitPrice: Number(price),
   };
   const validation = price === "" ? "Informe o preço de venda." : validatePart(input);
-  const suggestion = validation ? null : suggestedPrice(input.unitCost, input.markup);
+  const implied = input.markup === null ? implicitMarkup(input.unitCost, input.unitPrice) : null;
+  const suggestion = validation ? null : suggestedPrice(input.unitCost, input.markup ?? implied);
   const amounts = validation
     ? null
     : partAmounts(
@@ -129,7 +136,7 @@ export function PartFinancialEditor({
                     step="0.01"
                     value={markup}
                     onChange={(e) => setMarkup(e.target.value)}
-                    placeholder="Não informado"
+                    placeholder={implied === null ? "Não informado" : `${implied}% implícito`}
                   />
                 </label>
                 <label className="text-sm">
@@ -175,6 +182,12 @@ export function PartFinancialEditor({
                 </span>
                 <span>Lucro total: {money(amounts?.profit ?? null)}</span>
               </div>
+              {implied !== null && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Acréscimo implícito no preço final: {implied.toLocaleString("pt-BR")}% (calculado,
+                  não salvo como percentual manual).
+                </p>
+              )}
               <p className="mt-2 text-xs text-muted-foreground">
                 O acréscimo é calculado sobre o custo. Alterar custo ou percentual não substitui seu
                 preço final.
@@ -221,7 +234,7 @@ export function PartFinancialEditor({
 
 export function FinancialScreen() {
   const { accessLevel, isLocalBypass } = useAuth();
-  const [rows, setRows] = useState<FinancialRow[] | null>(null),
+  const [rows, setRows] = useState<OrderFinancialRow[] | null>(null),
     [members, setMembers] = useState<FinancialMember[]>([]);
   const [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
@@ -267,31 +280,28 @@ export function FinancialScreen() {
   }, [isLocalBypass, accessLevel, revision]);
   const range = period === "custom" ? { start: customStart, end: customEnd } : dateRange(period);
   const invalidRange = Boolean(range.start && range.end && range.start > range.end);
-  const summary = aggregateFinancial(rows ?? [], kind, range.start, range.end);
-  const comparison =
-    summary.profit === null
-      ? []
-      : [
-          {
-            name: "Peças com custo",
-            Receita: summary.knownRevenue,
-            Custo: summary.cost!,
-            Lucro: summary.profit,
-          },
-        ];
+  const summary = aggregateOrders(rows ?? [], kind, range.start, range.end);
   const charts = [
-    { title: "Evolução do lucro bruto", data: summary.timeline, line: true },
-    { title: "Receita × custo × lucro", data: comparison, line: false },
-    { title: "Carros × motos", data: summary.vehicles, line: false },
+    {
+      title: "Faturamento × custo das peças × resultado bruto",
+      data: summary.timeline,
+      mode: "timeline",
+    },
+    { title: "Comparação financeira Carros × Motos", data: summary.vehicles, mode: "comparison" },
+    {
+      title: "Resultado bruto ao longo do tempo — Carros e Motos",
+      data: summary.vehicleTimeline,
+      mode: "vehicles",
+    },
   ];
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Financeiro</h1>
           <p className="text-sm text-muted-foreground">
-            Lucro bruto das peças aprovadas e executadas em OS concluídas. Período pela conclusão;
-            não representa lucro líquido nem fechamento de caixa.
+            Resultado operacional das OS concluídas, com peças e serviços aprovados e executados.
+            Período pela conclusão; não representa lucro líquido nem recebimentos de caixa.
           </p>
         </div>
         <Button variant="outline" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
@@ -358,15 +368,14 @@ export function FinancialScreen() {
             <p role="alert">A data inicial deve ser anterior à data final.</p>
           ) : (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[
-                  ["Receita com peças", money(summary.revenue)],
-                  ["Custo conhecido", money(summary.cost)],
-                  ["Lucro bruto conhecido", money(summary.profit)],
-                  [
-                    "Margem sobre vendas com custo",
-                    summary.margin === null ? "Não informado" : summary.margin.toFixed(1) + "%",
-                  ],
+                  ["Faturamento das OS", money(summary.revenue)],
+                  ["Receita de peças", money(summary.partsRevenue)],
+                  ["Receita de serviços", money(summary.servicesRevenue)],
+                  ["Custo conhecido das peças", money(summary.cost)],
+                  ["Resultado bruto", money(summary.result)],
+                  ["Ticket médio (OS com valor)", money(summary.ticket)],
                   ["OS consideradas", String(summary.orders)],
                 ].map(([label, value]) => (
                   <Card key={label}>
@@ -378,13 +387,16 @@ export function FinancialScreen() {
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">
-                {summary.incomplete} OS com custo incompleto no período. Lucro, margem e gráficos
-                usam somente peças com custo conhecido. {summary.undated} OS sem data de conclusão
-                foram excluídas.
+                {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
+                {summary.incompleteCosts} OS com custo de peças incompleto. Resultados com custo
+                parcial são provisórios; quando o custo de uma OS com peças é totalmente
+                desconhecido, seu resultado e o agregado ficam não informados. {summary.undated} OS
+                sem data de conclusão válida foram excluídas. O custo de OS somente com serviços é
+                zero porque não há peças, não por estimativa.
               </p>
               {summary.orders === 0 && (
                 <p className="rounded-md border border-dashed p-5">
-                  Nenhuma OS com peças elegíveis para estes filtros.
+                  Nenhuma OS concluída para estes filtros.
                 </p>
               )}
               <div className="grid gap-4 xl:grid-cols-3">
@@ -400,30 +412,82 @@ export function FinancialScreen() {
                         <>
                           <div className="h-56 min-w-0" role="img" aria-label={chart.title}>
                             <ResponsiveContainer width="100%" height="100%">
-                              {chart.line ? (
-                                <LineChart data={chart.data}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                                  <YAxis width={65} />
-                                  <Tooltip />
-                                  <Line
-                                    dataKey="Lucro"
-                                    stroke="#173F8F"
-                                    strokeWidth={2}
-                                    isAnimationActive={false}
-                                  />
-                                </LineChart>
-                              ) : (
+                              {chart.mode === "comparison" ? (
                                 <BarChart data={chart.data}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                                   <YAxis width={65} />
                                   <Tooltip />
                                   <Legend />
-                                  <Bar dataKey="Receita" fill="#173F8F" isAnimationActive={false} />
-                                  <Bar dataKey="Custo" fill="#94A3B8" isAnimationActive={false} />
-                                  <Bar dataKey="Lucro" fill="#15803D" isAnimationActive={false} />
+                                  <Bar
+                                    dataKey="Faturamento"
+                                    fill="#173F8F"
+                                    isAnimationActive={false}
+                                  />
+                                  <Bar
+                                    dataKey="Custo"
+                                    name="Custo das peças"
+                                    fill="#94A3B8"
+                                    isAnimationActive={false}
+                                  />
+                                  <Bar
+                                    dataKey="Resultado"
+                                    name="Resultado bruto"
+                                    fill="#15803D"
+                                    isAnimationActive={false}
+                                  />
                                 </BarChart>
+                              ) : (
+                                <LineChart data={chart.data}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                                  <YAxis width={65} />
+                                  <Tooltip />
+                                  <Legend />
+                                  {chart.mode === "vehicles" ? (
+                                    <>
+                                      <Line
+                                        dataKey="Carros"
+                                        stroke="#173F8F"
+                                        strokeWidth={2}
+                                        isAnimationActive={false}
+                                        connectNulls={false}
+                                      />
+                                      <Line
+                                        dataKey="Motos"
+                                        stroke="#B51F26"
+                                        strokeWidth={2}
+                                        isAnimationActive={false}
+                                        connectNulls={false}
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Line
+                                        dataKey="Faturamento"
+                                        stroke="#173F8F"
+                                        strokeWidth={2}
+                                        isAnimationActive={false}
+                                        connectNulls={false}
+                                      />
+                                      <Line
+                                        dataKey="Custo"
+                                        name="Custo das peças"
+                                        stroke="#667085"
+                                        isAnimationActive={false}
+                                        connectNulls={false}
+                                      />
+                                      <Line
+                                        dataKey="Resultado"
+                                        name="Resultado bruto"
+                                        stroke="#15803D"
+                                        strokeWidth={2}
+                                        isAnimationActive={false}
+                                        connectNulls={false}
+                                      />
+                                    </>
+                                  )}
+                                </LineChart>
                               )}
                             </ResponsiveContainer>
                           </div>
@@ -431,8 +495,10 @@ export function FinancialScreen() {
                             <summary>Ver valores em reais</summary>
                             {chart.data.map((row) => (
                               <p key={row.name}>
-                                {row.name}: receita {money(row.Receita)} · custo {money(row.Custo)}{" "}
-                                · lucro {money(row.Lucro)}
+                                {row.name}:{" "}
+                                {"Carros" in row
+                                  ? `Carros ${money(row.Carros)} · Motos ${money(row.Motos)}`
+                                  : `faturamento ${money(row.Faturamento)} · custo conhecido ${money(row.Custo)} · resultado bruto ${money(row.Resultado)}`}
                               </p>
                             ))}
                           </details>
@@ -442,6 +508,103 @@ export function FinancialScreen() {
                   </Card>
                 ))}
               </div>
+              <Card>
+                <CardContent className="min-w-0 p-4">
+                  <h2 className="mb-3 font-semibold">Resumo por OS</h2>
+                  <div
+                    className="max-w-full overflow-x-auto"
+                    tabIndex={0}
+                    aria-label="Resumo financeiro das ordens"
+                  >
+                    <table className="w-full min-w-[1000px] text-left text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          {[
+                            "OS / veículo / cliente",
+                            "Categoria",
+                            "Data de conclusão",
+                            "Total da OS",
+                            "Peças",
+                            "Serviços",
+                            "Custo conhecido",
+                            "Resultado bruto",
+                          ].map((label) => (
+                            <th className="p-2 font-medium" key={label}>
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.rows.map((order) => (
+                          <tr className="border-b align-top" key={order.orderId}>
+                            <td className="p-2">
+                              <strong>{order.orderNumber}</strong>
+                              <p>{order.vehicle ?? "Veículo não informado"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.customer ?? "Cliente não informado"}
+                              </p>
+                            </td>
+                            <td className="p-2">{order.kind ?? "Não informado"}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              {order.completedAt?.split("-").reverse().join("/")}
+                            </td>
+                            <td className="p-2 whitespace-nowrap">{money(order.revenue)}</td>
+                            <td className="p-2 whitespace-nowrap">{money(order.partsRevenue)}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              {money(order.servicesRevenue)}
+                            </td>
+                            <td className="p-2">
+                              {money(order.cost)}
+                              {order.missingCosts > 0 && (
+                                <p className="text-xs text-amber-700">
+                                  {order.missingCosts} peça(s) sem custo suficiente
+                                </p>
+                              )}
+                            </td>
+                            <td className="p-2">
+                              {money(order.result)}
+                              {order.missingCosts > 0 && order.result !== null && (
+                                <p className="text-xs text-amber-700">Provisório — custo parcial</p>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {!summary.rows.length && (
+                    <p className="py-4 text-sm text-muted-foreground">Nenhuma OS no período.</p>
+                  )}
+                </CardContent>
+              </Card>
+              <details className="rounded-md border bg-card p-4">
+                <summary className="cursor-pointer font-semibold">
+                  Detalhamento da rentabilidade das peças
+                </summary>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Somente peças com custo conhecido dos mesmos filtros. Não representa o resultado
+                  completo da oficina.
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    ["Receita com custo conhecido", money(summary.parts.knownRevenue)],
+                    ["Custo", money(summary.parts.cost)],
+                    ["Lucro bruto das peças", money(summary.parts.profit)],
+                    [
+                      "Margem das peças",
+                      summary.parts.margin === null
+                        ? "Não informado"
+                        : summary.parts.margin.toFixed(1) + "%",
+                    ],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-sm text-muted-foreground">{label}</p>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </details>
             </>
           )}
           {accessLevel === "owner" && (
