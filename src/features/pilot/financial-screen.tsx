@@ -33,6 +33,58 @@ const money = (value: number | null) =>
   value === null
     ? "Não informado"
     : value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const chartCurrency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const chartDate = (value: string, full = false) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? full
+      ? value.split("-").reverse().join("/")
+      : value.slice(5).split("-").reverse().join("/")
+    : value;
+function FinancialChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  label?: string | number;
+  payload?: readonly {
+    payload?: { Faturamento: number | null; Custo: number | null; Resultado: number | null };
+  }[];
+}) {
+  const values = payload?.[0]?.payload;
+  if (!active || !values) return null;
+  return (
+    <div className="max-w-[min(19rem,80vw)] rounded-md border bg-card p-3 text-xs text-foreground shadow-sm">
+      <p className="mb-2 border-b pb-2 font-medium">{chartDate(String(label ?? ""), true)}</p>
+      <dl className="space-y-2">
+        {[
+          ["Faturamento", values.Faturamento],
+          ["Custo das peças", values.Custo],
+          ["Resultado bruto", values.Resultado],
+        ].map(([name, value]) => (
+          <div
+            key={String(name)}
+            className={
+              name === "Resultado bruto"
+                ? "flex justify-between gap-4 border-t pt-2 font-semibold"
+                : "flex justify-between gap-4"
+            }
+          >
+            <dt>{name}</dt>
+            <dd className="whitespace-nowrap tabular-nums">{money(value as number | null)}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export function PartFinancialEditor({
   order,
   item,
@@ -283,7 +335,8 @@ export function FinancialScreen() {
   );
   const charts = [
     {
-      title: "Faturamento × custo das peças × resultado bruto",
+      title: "Faturamento, custo e resultado",
+      subtitle: "Valores consolidados no período · resultado bruto em destaque",
       data: summary.orders
         ? [
             {
@@ -296,9 +349,15 @@ export function FinancialScreen() {
         : [],
       mode: "comparison",
     },
-    { title: "Comparação financeira Carros × Motos", data: summary.vehicles, mode: "comparison" },
+    {
+      title: "Carros × Motos",
+      subtitle: "Compare faturamento e resultado por categoria",
+      data: summary.vehicles,
+      mode: "comparison",
+    },
     {
       title: "Evolução do faturamento e resultado bruto",
+      subtitle: "Por data de conclusão · valores em reais, sem acumulação",
       data: summary.timeline,
       mode: "timeline",
     },
@@ -414,55 +473,185 @@ export function FinancialScreen() {
                   Nenhuma OS concluída para estes filtros.
                 </p>
               )}
-              <div className="grid gap-4 xl:grid-cols-3">
+              <div className="grid gap-4 xl:grid-cols-2">
                 {charts.map((chart) => (
-                  <Card key={chart.title}>
-                    <CardContent className="min-w-0 p-4">
-                      <h2 className="mb-4 font-semibold">{chart.title}</h2>
-                      {!chart.data.length ? (
-                        <p className="py-8 text-sm text-muted-foreground">
-                          Sem dados financeiros suficientes.
+                  <Card
+                    key={chart.title}
+                    className={chart.mode === "timeline" ? "min-w-0 xl:col-span-2" : "min-w-0"}
+                  >
+                    <CardContent className="min-w-0 p-4 sm:p-5">
+                      <div className="mb-5 min-h-14">
+                        <h2 className="text-base font-semibold tracking-tight">{chart.title}</h2>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                          {chart.subtitle}
                         </p>
+                      </div>
+                      {!chart.data.length ? (
+                        <div className="flex h-64 flex-col items-center justify-center rounded-md border border-dashed bg-muted/20 px-5 text-center sm:h-72">
+                          <p className="text-sm font-medium">Sem dados neste período</p>
+                          <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                            Os valores das OS consideradas aparecerão aqui. Revise os filtros
+                            selecionados.
+                          </p>
+                        </div>
                       ) : (
                         <>
-                          <div className="h-56 min-w-0" role="img" aria-label={chart.title}>
+                          <div
+                            className="h-64 min-w-0 text-xs tabular-nums sm:h-72"
+                            role="img"
+                            aria-label={chart.title}
+                          >
                             <ResponsiveContainer width="100%" height="100%">
                               {chart.mode === "comparison" ? (
-                                <BarChart data={chart.data}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                                  <YAxis width={65} />
-                                  <Tooltip />
-                                  <Legend />
+                                <BarChart
+                                  data={chart.data}
+                                  margin={{ top: 12, right: 8, bottom: 8, left: 0 }}
+                                  barGap={6}
+                                  barCategoryGap="24%"
+                                >
+                                  <CartesianGrid
+                                    stroke="var(--border)"
+                                    strokeOpacity={0.55}
+                                    strokeDasharray="2 4"
+                                    vertical={false}
+                                  />
+                                  <XAxis
+                                    dataKey="name"
+                                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tickMargin={10}
+                                    minTickGap={40}
+                                    interval="preserveStartEnd"
+                                    tickFormatter={(value) => chartDate(String(value))}
+                                  />
+                                  <YAxis
+                                    width={78}
+                                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tickCount={5}
+                                    tickFormatter={(value) => chartCurrency.format(Number(value))}
+                                  />
+                                  <Tooltip
+                                    content={<FinancialChartTooltip />}
+                                    filterNull={false}
+                                    cursor={{
+                                      stroke: "var(--border)",
+                                      fill: "var(--muted)",
+                                      fillOpacity: 0.3,
+                                    }}
+                                    isAnimationActive={false}
+                                  />
+                                  <Legend
+                                    iconType="square"
+                                    iconSize={8}
+                                    wrapperStyle={{
+                                      paddingTop: 18,
+                                      fontSize: 11,
+                                      lineHeight: "22px",
+                                    }}
+                                    formatter={(value) => (
+                                      <span
+                                        className={
+                                          value === "Resultado bruto"
+                                            ? "font-semibold text-foreground"
+                                            : "text-muted-foreground"
+                                        }
+                                      >
+                                        {value}
+                                      </span>
+                                    )}
+                                  />
                                   <Bar
                                     dataKey="Faturamento"
-                                    fill="#173F8F"
+                                    fill="#315EAD"
+                                    radius={[3, 3, 0, 0]}
+                                    maxBarSize={52}
                                     isAnimationActive={false}
                                   />
                                   <Bar
                                     dataKey="Custo"
                                     name="Custo das peças"
                                     fill="#94A3B8"
+                                    radius={[3, 3, 0, 0]}
+                                    maxBarSize={52}
                                     isAnimationActive={false}
                                   />
                                   <Bar
                                     dataKey="Resultado"
                                     name="Resultado bruto"
                                     fill="#15803D"
+                                    radius={[3, 3, 0, 0]}
+                                    maxBarSize={52}
                                     isAnimationActive={false}
                                   />
                                 </BarChart>
                               ) : (
-                                <LineChart data={chart.data}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                                  <YAxis width={65} />
-                                  <Tooltip />
-                                  <Legend />
+                                <LineChart
+                                  data={chart.data}
+                                  margin={{ top: 12, right: 16, bottom: 8, left: 0 }}
+                                >
+                                  <CartesianGrid
+                                    stroke="var(--border)"
+                                    strokeOpacity={0.55}
+                                    strokeDasharray="2 4"
+                                    vertical={false}
+                                  />
+                                  <XAxis
+                                    dataKey="name"
+                                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tickMargin={10}
+                                    minTickGap={40}
+                                    interval="preserveStartEnd"
+                                    tickFormatter={(value) => chartDate(String(value))}
+                                  />
+                                  <YAxis
+                                    width={78}
+                                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tickCount={5}
+                                    tickFormatter={(value) => chartCurrency.format(Number(value))}
+                                  />
+                                  <Tooltip
+                                    content={<FinancialChartTooltip />}
+                                    filterNull={false}
+                                    cursor={{
+                                      stroke: "var(--border)",
+                                      fill: "var(--muted)",
+                                      fillOpacity: 0.3,
+                                    }}
+                                    isAnimationActive={false}
+                                  />
+                                  <Legend
+                                    iconType="square"
+                                    iconSize={8}
+                                    wrapperStyle={{
+                                      paddingTop: 18,
+                                      fontSize: 11,
+                                      lineHeight: "22px",
+                                    }}
+                                    formatter={(value) => (
+                                      <span
+                                        className={
+                                          value === "Resultado bruto"
+                                            ? "font-semibold text-foreground"
+                                            : "text-muted-foreground"
+                                        }
+                                      >
+                                        {value}
+                                      </span>
+                                    )}
+                                  />
                                   <Line
                                     dataKey="Faturamento"
                                     stroke="#173F8F"
                                     strokeWidth={2}
+                                    dot={chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false}
+                                    activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
                                     isAnimationActive={false}
                                     connectNulls={false}
                                   />
@@ -470,7 +659,9 @@ export function FinancialScreen() {
                                     dataKey="Resultado"
                                     name="Resultado bruto"
                                     stroke="#15803D"
-                                    strokeWidth={2}
+                                    strokeWidth={3}
+                                    dot={chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false}
+                                    activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
                                     isAnimationActive={false}
                                     connectNulls={false}
                                   />

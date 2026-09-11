@@ -348,6 +348,62 @@ async function uiHarness(api, owner = false) {
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
+test("chart presentation formats currency, dates and tooltips without hiding zeros", async () => {
+  const harness = await uiHarness({ access: async () => true, report: async () => orderRows });
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.filter((node) => node.type === "select")[1].props.onChange({ target: { value: "all" } });
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  const axis = tree.find((node) => node.type === "YAxis");
+  assert.match(axis.props.tickFormatter(12400), /12,4.*mil/);
+  assert.match(axis.props.tickFormatter(0), /R\$.*0/);
+  assert.match(axis.props.tickFormatter(-12400), /-.*12,4/);
+  const x = tree.find((node) => node.type === "XAxis");
+  assert.equal(x.props.tickFormatter("2026-09-11"), "11/09");
+  assert.equal(x.props.tickFormatter("Carro"), "Carro");
+  const tooltip = tree.find((node) => node.type === "Tooltip").props.content.type;
+  const textOf = (value) =>
+    Array.isArray(value)
+      ? value.map(textOf).join(" ")
+      : value && typeof value === "object"
+        ? textOf(value.props?.children)
+        : typeof value === "string" || typeof value === "number"
+          ? String(value)
+          : "";
+  const rendered = textOf(
+    tooltip({
+      active: true,
+      label: "2026-09-11",
+      payload: [{ payload: { Faturamento: 0, Custo: null, Resultado: 0 } }],
+    }),
+  );
+  assert.match(rendered, /11\/09\/2026/);
+  assert.match(rendered, /0,00/);
+  assert.match(rendered, /Não informado/);
+  assert.match(rendered, /Resultado bruto/);
+  assert.equal(tooltip({ active: false }), null);
+});
+test("long chart periods use spaced dates and hover points instead of a dot on every day", async () => {
+  const rows = Array.from({ length: 365 }, (_, i) => ({
+    ...orderRows[0],
+    orderId: String(i),
+    completedAt: new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10),
+  }));
+  const harness = await uiHarness({ access: async () => true, report: async () => rows });
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.filter((node) => node.type === "select")[1].props.onChange({ target: { value: "all" } });
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  assert.equal(tree.find((node) => node.type === "LineChart").props.data.length, 365);
+  for (const line of tree.filter((node) => node.type === "Line")) {
+    assert.equal(line.props.dot, false);
+    assert.equal(line.props.connectNulls, false);
+    assert.ok(line.props.activeDot.r > 0);
+  }
+});
+
 test("piece detail uses real names and keeps positional fallbacks for legacy items", async () => {
   const part = { type: "Peça", quantity: 1, revenue: 125, unitCost: 100 };
   const report = [
