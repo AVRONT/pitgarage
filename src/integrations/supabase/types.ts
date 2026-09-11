@@ -708,6 +708,7 @@ export type Database = {
         }
       }
       ensure_my_chat: { Args: never; Returns: string }
+      financial_order_report: { Args: never; Returns: Json }
       financial_report: { Args: never; Returns: Json }
       get_developer_dashboard: { Args: never; Returns: Json }
       get_my_customer: {
