@@ -587,8 +587,8 @@ export function FinancialScreen() {
                 <p className="mt-4 text-sm text-muted-foreground">
                   Detalhe por peça aprovada e executada. O acréscimo abaixo é implícito na venda,
                   não o markup manual salvo. Para consultar ou editar esse markup, use “Custo,
-                  quantidade e preço” na própria OS. Os nomes das peças não são retornados pelo
-                  relatório atual; a numeração abaixo identifica sua posição neste detalhamento.
+                  quantidade e preço” na própria OS. Peças sem nome usam sua posição neste
+                  detalhamento como identificação.
                 </p>
                 <div
                   className="mt-3 max-w-full overflow-x-auto"
@@ -635,7 +635,7 @@ export function FinancialScreen() {
                             return (
                               <tr className="border-b" key={order.orderId + "-" + index}>
                                 <td className="p-2">
-                                  {order.orderNumber} · Peça {index + 1}
+                                  {order.orderNumber} · {item.name?.trim() || `Peça ${index + 1}`}
                                 </td>
                                 <td className="p-2">
                                   {validQuantity ? item.quantity : "Não informado"}

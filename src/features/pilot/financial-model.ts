@@ -124,6 +124,7 @@ export type OrderFinancialRow = {
   completedAt: string | null;
   items: {
     type: "Peça" | "Serviço";
+    name?: string | null;
     quantity: number | null;
     revenue: number | null;
     unitCost: number | null;

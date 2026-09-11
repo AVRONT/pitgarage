@@ -341,6 +341,63 @@ async function uiHarness(api, owner = false) {
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
+test("piece detail uses real names and keeps positional fallbacks for legacy items", async () => {
+  const part = { type: "Peça", quantity: 1, revenue: 125, unitCost: 100 };
+  const report = [
+    {
+      ...orderRows[0],
+      orderNumber: "OS-11",
+      items: [
+        orderRows[0].items[0],
+        { ...part, name: "Pastilha de freio dianteira" },
+        { ...part, name: "Filtro de óleo" },
+        { ...part },
+        { ...part, name: null },
+        { ...part, name: "   " },
+      ],
+    },
+    { ...orderRows[1], orderNumber: "OS-12", items: [{ ...part }] },
+  ];
+  const harness = await uiHarness({ access: async () => true, report: async () => report });
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.filter((node) => node.type === "select")[1].props.onChange({ target: { value: "all" } });
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  const textOf = (value) =>
+    Array.isArray(value)
+      ? value.map(textOf).join("")
+      : value && typeof value === "object"
+        ? textOf(value.props?.children)
+        : typeof value === "string" || typeof value === "number"
+          ? String(value)
+          : "";
+  const cells = tree.filter((node) => node.type === "td").map(textOf);
+  for (const label of [
+    "OS-11 · Pastilha de freio dianteira",
+    "OS-11 · Filtro de óleo",
+    "OS-11 · Peça 3",
+    "OS-11 · Peça 4",
+    "OS-11 · Peça 5",
+    "OS-12 · Peça 1",
+  ])
+    assert.ok(cells.includes(label), label);
+  assert.ok(!cells.includes("OS-11 · Peça 1"));
+});
+test("item name migration only extends the existing report projection and preserves its guard", async () => {
+  const read = (name) =>
+    readFile(new URL("../supabase/migrations/" + name, import.meta.url), "utf8");
+  const previous = await read("20260911030000_financial_order_report.sql");
+  const next = await read("20260911040000_financial_order_report_item_names.sql");
+  const body = (sql) => sql.replace(/\r\n/g, "\n").split("language plpgsql")[1].split("end $$;")[0];
+  const nameProjection =
+    "          'name',case when jsonb_typeof(b->'name')='string' then b->>'name' end,\n";
+  assert.ok(body(next).includes(nameProjection));
+  assert.equal(body(next).replace(nameProjection, ""), body(previous));
+  assert.match(next, /create or replace function public.financial_order_report\(\)/);
+  assert.doesNotMatch(next, /\b(grant|revoke|drop|insert|update|delete|alter)\b/i);
+});
+
 const orderRows = [
   {
     orderId: "service",
