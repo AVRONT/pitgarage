@@ -5061,9 +5061,9 @@ function NewOrderDialog({
   const stages = ["Cliente", "Veículo", "Dados da OS", "Confirmar"];
   return (
     <Dialog open={open} onOpenChange={(value) => (value ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto border-slate-200 bg-slate-50/95 shadow-xl sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto border-slate-200 bg-white shadow-xl sm:max-w-3xl">
         <div>
-          <DialogHeader className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <DialogHeader className="pr-8">
             <DialogTitle className="text-xl tracking-tight">Nova ordem de serviço</DialogTitle>
             <DialogDescription className="leading-relaxed">
               Cadastre ou selecione cliente e veículo antes de confirmar a entrada.
@@ -5117,7 +5117,7 @@ function NewOrderDialog({
             ))}
           </div>
 
-          <div className="min-h-72 space-y-4 rounded-lg border border-slate-200 bg-white/80 p-4 shadow-sm sm:p-5">
+          <div className="min-h-72 space-y-4 border-t border-slate-200/80 pt-5">
             {step === 0 && (
               <>
                 <div className="flex flex-wrap gap-2">
@@ -5419,7 +5419,7 @@ function NewOrderDialog({
             )}
           </div>
 
-          <DialogFooter className="mt-5 border-t border-slate-200 pt-4">
+          <DialogFooter className="mt-6 border-t border-slate-200/80 pt-4">
             <Button variant="outline" onClick={close} disabled={isCreating}>
               Cancelar
             </Button>
