@@ -837,6 +837,28 @@ button:hover > .brand-mark::after {
   }
 }
 
+/* Nova OS: movement only clarifies the transition between wizard stages. */
+.new-order-stage {
+  animation: new-order-stage-in 190ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes new-order-stage-in {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-order-stage {
+    animation: none;
+  }
+}
+
 /* Premium directory treatment shared by Customers, Vehicles and Service Orders. */
 .directory-screen {
   --directory-accent: #173f8f;

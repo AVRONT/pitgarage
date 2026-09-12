@@ -5117,12 +5117,21 @@ function NewOrderDialog({
             ))}
           </div>
 
-          <div className="min-h-72 space-y-4 border-t border-slate-200/80 pt-5">
+          <div
+            key={step}
+            className="new-order-stage min-h-72 space-y-4 border-t border-slate-200/80 pt-5"
+          >
             {step === 0 && (
               <>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
                   <Button
-                    variant={!newCustomer ? "default" : "outline"}
+                    variant="ghost"
+                    className={cn(
+                      "h-9 border-0 shadow-none",
+                      !newCustomer
+                        ? "bg-white text-primary shadow-sm hover:bg-white"
+                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
+                    )}
                     onClick={() => {
                       setNewCustomer(false);
                       setDraftCustomer(undefined);
@@ -5131,7 +5140,13 @@ function NewOrderDialog({
                     Selecionar existente
                   </Button>
                   <Button
-                    variant={newCustomer ? "default" : "outline"}
+                    variant="ghost"
+                    className={cn(
+                      "h-9 border-0 shadow-none",
+                      newCustomer
+                        ? "bg-white text-primary shadow-sm hover:bg-white"
+                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
+                    )}
                     onClick={() => {
                       setNewCustomer(true);
                       setCustomerId("");
@@ -5151,16 +5166,29 @@ function NewOrderDialog({
                 </div>
                 {!newCustomer ? (
                   <>
-                    <Command shouldFilter={false} className="rounded-md border">
+                    <Command
+                      shouldFilter={false}
+                      className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50/50 shadow-sm"
+                    >
                       <CommandInput
                         value={customerSearch}
                         onValueChange={setCustomerSearch}
                         aria-label="Buscar cliente por nome, CPF ou telefone"
                         placeholder="Digite nome, CPF ou telefone"
                       />
-                      <CommandList className="max-h-48">
+                      <CommandList className="max-h-64 p-2">
                         <CommandEmpty>
-                          Nenhum cliente encontrado. Use Cadastrar novo cliente acima.
+                          <div className="grid justify-items-center gap-2 px-4 py-7 text-center">
+                            <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-500">
+                              <UserRound className="h-5 w-5" aria-hidden="true" />
+                            </span>
+                            <strong className="text-sm text-slate-800">
+                              Nenhum cliente encontrado
+                            </strong>
+                            <span className="max-w-xs text-xs leading-relaxed text-muted-foreground">
+                              Revise a busca ou use Cadastrar novo cliente.
+                            </span>
+                          </div>
                         </CommandEmpty>
                         {filteredCustomers.map((customer) => (
                           <CommandItem
@@ -5168,35 +5196,70 @@ function NewOrderDialog({
                             value={customer.id}
                             onSelect={() => selectCustomer(customer)}
                             className={cn(
-                              "flex flex-col items-start rounded-none border-b p-3 text-left last:border-b-0",
-                              customerId === customer.id && "border-orange-500 bg-orange-50",
+                              "group mb-1 flex items-center gap-3 rounded-md border border-transparent px-3 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 last:mb-0 hover:-translate-y-px hover:border-slate-200 hover:bg-white hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/25 motion-reduce:transform-none motion-reduce:transition-none",
+                              customerId === customer.id &&
+                                "border-primary/30 bg-primary/[0.07] shadow-sm data-[selected=true]:bg-primary/[0.09]",
                             )}
                           >
-                            <strong className="block text-sm">{customer.name}</strong>
-                            <span className="text-xs text-muted-foreground">
-                              {customer.phone} · CPF: {customer.cpf || "não informado"}
+                            <span
+                              className={cn(
+                                "grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 transition-colors duration-150",
+                                customerId === customer.id && "bg-primary text-white",
+                              )}
+                              aria-hidden="true"
+                            >
+                              {customer.name
+                                .split(/\s+/)
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map((part) => part[0])
+                                .join("")
+                                .toUpperCase()}
                             </span>
-                            {customer.email && (
-                              <span className="text-xs text-muted-foreground">
-                                {customer.email}
+                            <span className="min-w-0 flex-1">
+                              <strong className="block truncate text-sm text-slate-900">
+                                {customer.name}
+                              </strong>
+                              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                                {[customer.phone, customer.cpf && `CPF: ${customer.cpf}`]
+                                  .filter(Boolean)
+                                  .join(" · ")}
                               </span>
-                            )}
+                              {customer.email && (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {customer.email}
+                                </span>
+                              )}
+                            </span>
+                            <span
+                              className={cn(
+                                "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 text-transparent transition-colors duration-150",
+                                customerId === customer.id &&
+                                  "border-primary bg-primary text-white",
+                              )}
+                              aria-hidden="true"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </span>
                           </CommandItem>
                         ))}
                       </CommandList>
                     </Command>
                     {selectedCustomer && (
                       <div
-                        className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm"
+                        className="flex items-start gap-3 rounded-lg bg-primary/[0.06] px-3 py-2.5 text-sm text-slate-700"
                         role="status"
                       >
-                        <strong>Cliente selecionado: {selectedCustomer.name}</strong>
-                        <p>
-                          {selectedCustomer.phone} · CPF: {selectedCustomer.cpf || "não informado"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Os veículos deste cliente serão exibidos na próxima etapa.
-                        </p>
+                        <CheckCircle2
+                          className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          <strong className="block text-slate-900">{selectedCustomer.name}</strong>
+                          <span className="text-xs text-muted-foreground">
+                            Selecionado. Os veículos deste cliente serão exibidos na próxima etapa.
+                          </span>
+                        </span>
                       </div>
                     )}
                   </>
@@ -5248,12 +5311,19 @@ function NewOrderDialog({
 
             {step === 1 && selectedCustomer && (
               <>
-                <p className="rounded-lg bg-slate-100 p-3 text-sm">
-                  <strong>Cliente:</strong> {selectedCustomer.name}
+                <p className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                  <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <strong className="text-slate-900">{selectedCustomer.name}</strong>
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
                   <Button
-                    variant={!newVehicle ? "default" : "outline"}
+                    variant="ghost"
+                    className={cn(
+                      "h-9 border-0 shadow-none",
+                      !newVehicle
+                        ? "bg-white text-primary shadow-sm hover:bg-white"
+                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
+                    )}
                     onClick={() => {
                       setNewVehicle(false);
                       setDraftVehicle(undefined);
@@ -5262,7 +5332,13 @@ function NewOrderDialog({
                     Selecionar veículo
                   </Button>
                   <Button
-                    variant={newVehicle ? "default" : "outline"}
+                    variant="ghost"
+                    className={cn(
+                      "h-9 border-0 shadow-none",
+                      newVehicle
+                        ? "bg-white text-primary shadow-sm hover:bg-white"
+                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
+                    )}
                     onClick={() => {
                       setNewVehicle(true);
                       setVehicleId("");
@@ -5273,22 +5349,46 @@ function NewOrderDialog({
                   </Button>
                 </div>
                 {!newVehicle ? (
-                  <div className="space-y-2">
+                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                     {customerVehicles.map((vehicle) => (
                       <button
                         key={vehicle.id}
                         type="button"
                         onClick={() => setVehicleId(vehicle.id)}
                         className={cn(
-                          "w-full rounded-lg border p-3 text-left",
-                          vehicleId === vehicle.id && "border-orange-500 bg-orange-50",
+                          "group flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-primary/25 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 motion-reduce:transform-none motion-reduce:transition-none",
+                          vehicleId === vehicle.id &&
+                            "border-primary/35 bg-primary/[0.06] shadow-sm",
                         )}
                       >
-                        <strong>
-                          {vehicle.brand} {vehicle.model}
-                        </strong>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {vehicle.plate} · {vehicle.mileage.toLocaleString("pt-BR")} km
+                        <span
+                          className={cn(
+                            "grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500",
+                            vehicleId === vehicle.id && "bg-primary text-white",
+                          )}
+                        >
+                          {vehicle.kind === "Moto" ? (
+                            <Bike className="h-5 w-5" aria-hidden="true" />
+                          ) : (
+                            <CarFront className="h-5 w-5" aria-hidden="true" />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <strong className="block truncate text-sm text-slate-900">
+                            {vehicle.brand} {vehicle.model}
+                          </strong>
+                          <span className="text-xs text-muted-foreground">
+                            {vehicle.plate} · {vehicle.mileage.toLocaleString("pt-BR")} km
+                          </span>
+                        </span>
+                        <span
+                          className={cn(
+                            "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 text-transparent",
+                            vehicleId === vehicle.id && "border-primary bg-primary text-white",
+                          )}
+                          aria-hidden="true"
+                        >
+                          <Check className="h-3.5 w-3.5" />
                         </span>
                       </button>
                     ))}
@@ -5350,9 +5450,12 @@ function NewOrderDialog({
 
             {step === 2 && selectedVehicle && (
               <>
-                <p className="rounded-lg bg-slate-100 p-3 text-sm">
-                  <strong>{selectedCustomer?.name}</strong> · {selectedVehicle.brand}{" "}
-                  {selectedVehicle.model} · {selectedVehicle.plate}
+                <p className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                  <CarFront className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span>
+                    <strong className="text-slate-900">{selectedCustomer?.name}</strong> ·{" "}
+                    {selectedVehicle.brand} {selectedVehicle.model} · {selectedVehicle.plate}
+                  </span>
                 </p>
                 <div>
                   <label className="text-sm font-semibold">Quilometragem de entrada</label>
@@ -5382,20 +5485,20 @@ function NewOrderDialog({
             )}
 
             {step === 3 && selectedCustomer && selectedVehicle && (
-              <div className="space-y-3 rounded-lg border bg-slate-50 p-5 text-sm">
-                <div>
+              <div className="divide-y divide-slate-200/80 rounded-lg bg-slate-50/70 px-4 text-sm">
+                <div className="py-3">
                   <span className="text-muted-foreground">Cliente</span>
                   <strong className="block">
                     {selectedCustomer.name} · {selectedCustomer.phone}
                   </strong>
                 </div>
-                <div>
+                <div className="py-3">
                   <span className="text-muted-foreground">Veículo</span>
                   <strong className="block">
                     {selectedVehicle.brand} {selectedVehicle.model} · {selectedVehicle.plate}
                   </strong>
                 </div>
-                <div>
+                <div className="py-3">
                   <span className="text-muted-foreground">Entrada</span>
                   <strong className="block">
                     {(entryMileage === ""
@@ -5406,7 +5509,7 @@ function NewOrderDialog({
                   </strong>
                 </div>
                 {(draftCustomer || draftVehicle) && (
-                  <p className="border-t pt-3 text-xs text-muted-foreground">
+                  <p className="py-3 text-xs text-muted-foreground">
                     Os novos cadastros serão salvos somente junto com a OS.
                   </p>
                 )}
