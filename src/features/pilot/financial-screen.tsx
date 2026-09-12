@@ -7,6 +7,7 @@ import {
   ComposedChart,
   Legend,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -144,6 +145,7 @@ function PremiumBarShape({
 }) {
   if (width <= 0 || height <= 0) return <g />;
   const numericValue = Array.isArray(value) ? value[1] - value[0] : value;
+  const baselineY = numericValue < 0 ? y : y + height;
   const delay = seriesIndex * 150 + index * 90;
   const bevel = Math.min(4, Math.max(2, width * 0.1));
   const radius = Math.min(7, width / 3, height / 3);
@@ -158,6 +160,13 @@ function PremiumBarShape({
         } as CSSProperties
       }
     >
+      <ellipse
+        cx={x + width / 2}
+        cy={baselineY + (numericValue < 0 ? -0.5 : 1.5)}
+        rx={Math.max(4, width * 0.44)}
+        ry={2.25}
+        fill="rgba(15, 23, 42, 0.16)"
+      />
       <defs>
         <clipPath id={clipId}>
           <rect x={x} y={y} width={width} height={height} rx={radius} />
@@ -789,6 +798,13 @@ export function FinancialScreen() {
                                       strokeOpacity={0.42}
                                       strokeDasharray="3 5"
                                       vertical={false}
+                                    />
+                                    <ReferenceLine
+                                      y={0}
+                                      stroke="#94A3B8"
+                                      strokeOpacity={0.72}
+                                      strokeWidth={1.25}
+                                      ifOverflow="extendDomain"
                                     />
                                     <XAxis
                                       dataKey="name"
