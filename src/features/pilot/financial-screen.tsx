@@ -1104,14 +1104,48 @@ export function FinancialScreen() {
                                 )}
                               </ResponsiveContainer>
                             </div>
-                            <details className="mt-3 text-xs">
-                              <summary>Ver valores em reais</summary>
-                              {chart.data.map((row) => (
-                                <p key={row.name}>
-                                  {row.name}:{" "}
-                                  {`faturamento ${money(row.Faturamento)} · custo conhecido ${money(row.Custo)} · resultado bruto ${money(row.Resultado)}`}
-                                </p>
-                              ))}
+                            <details className="group mt-4 border-t border-slate-100 pt-3 text-xs">
+                              <summary className="w-fit cursor-pointer rounded-sm font-medium text-slate-600 marker:text-slate-400 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
+                                Ver valores em reais
+                              </summary>
+                              <div className="mt-3 space-y-3">
+                                {chart.data.map((row) => (
+                                  <section
+                                    key={row.name}
+                                    className="rounded-lg border border-slate-200 bg-slate-50/70 p-3"
+                                    aria-label={`Valores de ${row.name}`}
+                                  >
+                                    <h4 className="mb-2 font-semibold text-slate-800">
+                                      {row.name}
+                                    </h4>
+                                    <dl className="grid gap-2 sm:grid-cols-3">
+                                      {[
+                                        ["Faturamento", money(row.Faturamento), "text-blue-800"],
+                                        ["Custo conhecido", money(row.Custo), "text-slate-700"],
+                                        [
+                                          "Resultado bruto",
+                                          money(row.Resultado),
+                                          "text-emerald-800",
+                                        ],
+                                      ].map(([label, value, color]) => (
+                                        <div
+                                          key={label}
+                                          className="rounded-md bg-white px-3 py-2 ring-1 ring-slate-200/80"
+                                        >
+                                          <dt className="text-[11px] font-medium text-slate-500">
+                                            {label}
+                                          </dt>
+                                          <dd
+                                            className={`mt-1 font-semibold tabular-nums ${color}`}
+                                          >
+                                            {value}
+                                          </dd>
+                                        </div>
+                                      ))}
+                                    </dl>
+                                  </section>
+                                ))}
+                              </div>
                             </details>
                           </>
                         )}
