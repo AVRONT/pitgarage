@@ -118,7 +118,8 @@ import { createOperationalRepository, OrderVersionConflict } from "./operational
 import { FinancialScreen, PartFinancialEditor } from "./financial-screen";
 import { financialApi, type SavePart } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
-import type { PartFinancialInput } from "./financial-model";
+import type { BudgetMutation } from "./financial-model";
+import { RemoveBudgetItem } from "./remove-budget-item";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
 import {
   isBasicCpfValid,
@@ -664,7 +665,7 @@ export function PilotApp() {
   };
   const evidenceWrite = useRef(false);
   const financialWrite = useRef(false);
-  const savePart = (id: string, input: PartFinancialInput) => {
+  const savePart = (id: string, input: BudgetMutation) => {
     if (writeFailed.current || financialWrite.current || evidenceWrite.current)
       return Promise.reject(new Error("Aguarde a gravação ou recarregue a OS antes de continuar."));
     financialWrite.current = true;
@@ -680,7 +681,7 @@ export function PilotApp() {
             item.id === id ? migrateOrder(updated) : item,
           );
           setOrders(ordersRef.current);
-          setNotice(input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
+          setNotice("removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
         } catch (error) {
           if (error instanceof OrderVersionConflict) {
             writeFailed.current = true;
@@ -3889,6 +3890,7 @@ function BudgetPanel({
                   <strong className="text-lg">{money(item.price)}</strong>
                   <StatusBadge status={item.approval} />
                 </div>
+                <RemoveBudgetItem order={order} item={item} save={onSavePart} />
                 {item.type === "Peça" && financialAllowed && (
                   <PartFinancialEditor order={order} item={item} save={onSavePart} />
                 )}

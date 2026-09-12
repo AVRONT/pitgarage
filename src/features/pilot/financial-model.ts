@@ -1,4 +1,8 @@
-import type { BudgetItem } from "./pilot-data";
+import type { BudgetItem, ServiceOrder } from "./pilot-data";
+
+export function canRemoveBudgetItem(order: ServiceOrder, item: BudgetItem) {
+  return !item.executed && ["Recebido", "Em diagnóstico", "Aguardando aprovação"].includes(order.status);
+}
 
 export type PartFinancialInput = {
   newItem?: { name: string; type: "Peça" | "Serviço" };
@@ -8,6 +12,7 @@ export type PartFinancialInput = {
   quantity: number;
   unitPrice: number;
 };
+export type BudgetMutation = PartFinancialInput | { removeItem: string };
 export type FinancialRow = {
   orderId: string;
   kind: string;

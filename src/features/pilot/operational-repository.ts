@@ -3,7 +3,7 @@ import type { Json } from "@/integrations/supabase/types";
 
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
 import { financialRpc } from "./financial-api";
-import { roundMoney, validatePart, type PartFinancialInput } from "./financial-model";
+import { roundMoney, validatePart, canRemoveBudgetItem, type BudgetMutation } from "./financial-model";
 
 export interface OperationalData {
   customers: Customer[];
@@ -18,7 +18,7 @@ export interface NewOrderBundle {
 }
 
 export interface OperationalRepository {
-  savePartFinancial(order: ServiceOrder, input: PartFinancialInput): Promise<ServiceOrder>;
+  savePartFinancial(order: ServiceOrder, input: BudgetMutation): Promise<ServiceOrder>;
   reloadOrder(order: ServiceOrder): Promise<ServiceOrder>;
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
@@ -148,14 +148,18 @@ export class OrderVersionConflict extends Error {
 class CloudOperationalRepository implements OperationalRepository {
   private orderVersions = new Map<string, string>();
 
-  async savePartFinancial(order: ServiceOrder, input: PartFinancialInput) {
+  async savePartFinancial(order: ServiceOrder, input: BudgetMutation) {
     if (!order.databaseId) throw new Error("OS sem identificador persistente.");
     const expected = this.orderVersions.get(order.databaseId);
     if (!expected) throw new Error("Recarregue a OS antes de salvar.");
     try {
       const row = await financialRpc<Parameters<typeof mapOrder>[0]>(
-        input.newItem ? "add_budget_item" : "save_part_financial",
-        {
+        "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
+        "removeItem" in input ? {
+          order_id: order.databaseId,
+          expected_version: expected,
+          item_id: input.removeItem,
+        } : {
           ...(input.newItem
             ? { item_name: input.newItem.name, item_type: input.newItem.type }
             : {}),
@@ -308,7 +312,22 @@ class CloudOperationalRepository implements OperationalRepository {
 }
 
 class LocalOperationalRepository implements OperationalRepository {
-  async savePartFinancial(order: ServiceOrder, input: PartFinancialInput): Promise<ServiceOrder> {
+  async savePartFinancial(order: ServiceOrder, input: BudgetMutation): Promise<ServiceOrder> {
+    if ("removeItem" in input) {
+      const item = order.budget.find((entry) => entry.id === input.removeItem);
+      if (!item || !canRemoveBudgetItem(order, item))
+        throw new Error("Volte ao orçamento pelo fluxo da OS antes de remover este item.");
+      const updated: ServiceOrder = {
+        ...order,
+        budget: order.budget.filter((entry) => entry.id !== input.removeItem),
+        activities: [...(order.activities ?? []), {
+          id: "a-" + crypto.randomUUID(), type: "budget",
+          description: "Item removido do orçamento: " + item.name, at: new Date().toISOString(),
+        }],
+      };
+      await this.saveOrder(updated);
+      return updated;
+    }
     // Local demo retains commercial item creation, never private financial data.
     if (!input.newItem || input.unitCost !== null || input.markup !== null)
       throw new Error("O financeiro exige o ambiente da oficina com permissões ativas.");
