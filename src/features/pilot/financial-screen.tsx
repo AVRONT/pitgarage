@@ -273,7 +273,7 @@ export function PartFinancialEditor({
   return (
     <div className="mt-3">
       <Button variant="outline" size="sm" onClick={() => setOpen(!open)} disabled={busy}>
-        {open ? "Fechar dados da peça" : "Custo, quantidade e preço"}
+        {open ? "Fechar dados da peça" : "Editar dados da peça"}
       </Button>
       {open && (
         <div className="mt-3 rounded-md border bg-muted/30 p-4">
@@ -1265,8 +1265,8 @@ export function FinancialScreen() {
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
                   Detalhe por peça aprovada e executada. O acréscimo abaixo é implícito na venda,
-                  não o markup manual salvo. Para consultar ou editar esse markup, use “Custo,
-                  quantidade e preço” na própria OS. Peças sem nome usam sua posição neste
+                  não o markup manual salvo. Para consultar ou editar esse markup, use “Editar
+                  dados da peça” na própria OS. Peças sem nome usam sua posição neste
                   detalhamento como identificação.
                 </p>
                 <div

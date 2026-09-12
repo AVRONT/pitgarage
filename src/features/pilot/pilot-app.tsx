@@ -116,7 +116,8 @@ import {
 } from "./pilot-data";
 import { createOperationalRepository, OrderVersionConflict } from "./operational-repository";
 import { FinancialScreen, PartFinancialEditor } from "./financial-screen";
-import type { SavePart } from "./financial-api";
+import { financialApi, type SavePart } from "./financial-api";
+import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import type { PartFinancialInput } from "./financial-model";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
 import {
@@ -679,7 +680,7 @@ export function PilotApp() {
             item.id === id ? migrateOrder(updated) : item,
           );
           setOrders(ordersRef.current);
-          setNotice("Dados da peça salvos.");
+          setNotice(input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
         } catch (error) {
           if (error instanceof OrderVersionConflict) {
             writeFailed.current = true;
@@ -3581,7 +3582,11 @@ function ClientQuotePreview({
                 >
                   <div>
                     <p className="font-semibold">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.type}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.type}
+                      {item.type === "Peça" &&
+                        ` · ${item.quantity ?? 1} un. × ${money(item.unitPrice ?? item.price / (item.quantity ?? 1))}`}
+                    </p>
                   </div>
                   <strong>{money(item.price)}</strong>
                   <StatusBadge status={item.approval} />
@@ -3635,9 +3640,31 @@ function BudgetPanel({
   const [clientPreviewOpen, setClientPreviewOpen] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [itemType, setItemType] = useState<"Serviço" | "Peça">("Serviço");
-  const [itemValue, setItemValue] = useState("");
+  const { identity, isLocalBypass } = useAuth();
+  const [financialAllowed, setFinancialAllowed] = useState(false);
+  const [checkingFinancial, setCheckingFinancial] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setFinancialAllowed(false);
+    setCheckingFinancial(true);
+    if (isLocalBypass) {
+      setCheckingFinancial(false);
+      return;
+    }
+    void financialApi.access()
+      .then((allowed) => {
+        if (active) setFinancialAllowed(allowed);
+      })
+      .catch(() => {
+        if (active) setFinancialAllowed(false);
+      })
+      .finally(() => {
+        if (active) setCheckingFinancial(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [identity?.userId, isLocalBypass]);
   const [budgetError, setBudgetError] = useState("");
   const [pendingBudgetChange, setPendingBudgetChange] = useState<PendingWorkflowConfirmation>();
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
@@ -3778,36 +3805,6 @@ function BudgetPanel({
     setAdditionalOpen(false);
     notify("Problema adicional aguardando aprovação");
   };
-  const addBudgetItem = () => {
-    const cleanName = itemName.trim();
-    const value = Number(itemValue);
-    if (!cleanName) return setBudgetError("Informe a descrição do item.");
-    if (!itemValue || !Number.isFinite(value) || value < 0)
-      return setBudgetError("Informe um valor válido, igual ou maior que zero.");
-    onUpdate((current) =>
-      withActivity(current, "budget", `Item incluído no orçamento: ${cleanName}`, {
-        budget: [
-          ...current.budget,
-          {
-            id: `i-${Date.now()}`,
-            type: itemType,
-            name: cleanName,
-            price: value,
-            approval: "Aguardando aprovação",
-            ...(itemType === "Peça"
-              ? { quantity: 1, unitPrice: value, availability: "Disponível" as const }
-              : {}),
-            executed: false,
-          },
-        ],
-      }),
-    );
-    setItemName("");
-    setItemValue("");
-    setBudgetError("");
-    setItemOpen(false);
-    notify("Item adicionado ao orçamento");
-  };
   return (
     <>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -3892,7 +3889,7 @@ function BudgetPanel({
                   <strong className="text-lg">{money(item.price)}</strong>
                   <StatusBadge status={item.approval} />
                 </div>
-                {item.type === "Peça" && (
+                {item.type === "Peça" && financialAllowed && (
                   <PartFinancialEditor order={order} item={item} save={onSavePart} />
                 )}
                 <div className="mt-4 flex flex-wrap gap-2 lg:justify-end">
@@ -4006,73 +4003,14 @@ function BudgetPanel({
           />
         </DialogContent>
       </Dialog>
-      <Dialog open={itemOpen} onOpenChange={setItemOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar item ao orçamento</DialogTitle>
-            <DialogDescription>
-              O item será criado aguardando a decisão do cliente.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold">Tipo do item</label>
-              <select
-                value={itemType}
-                onChange={(e) => setItemType(e.target.value as "Serviço" | "Peça")}
-                className="mt-2 h-10 w-full rounded-lg border bg-white px-3 text-sm"
-              >
-                <option>Serviço</option>
-                <option>Peça</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Descrição</label>
-              <Input
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-                className="mt-2"
-                placeholder={
-                  itemType === "Peça" ? "Ex.: Bobina de ignição" : "Ex.: Diagnóstico eletrônico"
-                }
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold">
-                {itemType === "Peça" ? "Preço de venda unitário" : "Valor da mão de obra"}
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={itemValue}
-                onChange={(e) => setItemValue(e.target.value)}
-                className="mt-2"
-                placeholder="0,00"
-              />
-              {itemType === "Peça" && Number(itemValue) > 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Após adicionar, use “Custo, quantidade e preço” para registrar custo e acréscimo
-                  com acesso financeiro.
-                </p>
-              )}
-            </div>
-            {budgetError && (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {budgetError}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setItemOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={addBudgetItem} className="bg-orange-500 hover:bg-orange-600">
-              Adicionar ao orçamento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {itemOpen && (
+        <AddBudgetItemDialog
+          onClose={() => setItemOpen(false)}
+          save={onSavePart}
+          financialAllowed={financialAllowed}
+          checkingPermission={checkingFinancial}
+        />
+      )}
       <Dialog open={additionalOpen} onOpenChange={setAdditionalOpen}>
         <DialogContent>
           <DialogHeader>

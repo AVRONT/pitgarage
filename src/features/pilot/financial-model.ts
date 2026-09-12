@@ -1,6 +1,7 @@
 import type { BudgetItem } from "./pilot-data";
 
 export type PartFinancialInput = {
+  newItem?: { name: string; type: "Peça" | "Serviço" };
   itemId: string;
   unitCost: number | null;
   markup: number | null;

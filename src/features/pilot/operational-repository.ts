@@ -3,7 +3,7 @@ import type { Json } from "@/integrations/supabase/types";
 
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
 import { financialRpc } from "./financial-api";
-import type { PartFinancialInput } from "./financial-model";
+import { roundMoney, validatePart, type PartFinancialInput } from "./financial-model";
 
 export interface OperationalData {
   customers: Customer[];
@@ -153,15 +153,21 @@ class CloudOperationalRepository implements OperationalRepository {
     const expected = this.orderVersions.get(order.databaseId);
     if (!expected) throw new Error("Recarregue a OS antes de salvar.");
     try {
-      const row = await financialRpc<Parameters<typeof mapOrder>[0]>("save_part_financial", {
-        order_id: order.databaseId,
-        expected_version: expected,
-        item_id: input.itemId,
-        unit_cost: input.unitCost,
-        markup: input.markup,
-        quantity: input.quantity,
-        unit_price: input.unitPrice,
-      });
+      const row = await financialRpc<Parameters<typeof mapOrder>[0]>(
+        input.newItem ? "add_budget_item" : "save_part_financial",
+        {
+          ...(input.newItem
+            ? { item_name: input.newItem.name, item_type: input.newItem.type }
+            : {}),
+          order_id: order.databaseId,
+          expected_version: expected,
+          item_id: input.itemId,
+          unit_cost: input.unitCost,
+          markup: input.markup,
+          quantity: input.quantity,
+          unit_price: input.unitPrice,
+        },
+      );
       this.orderVersions.set(row.id, row.updated_at);
       return mapOrder(row);
     } catch (error) {
@@ -302,8 +308,46 @@ class CloudOperationalRepository implements OperationalRepository {
 }
 
 class LocalOperationalRepository implements OperationalRepository {
-  async savePartFinancial(): Promise<ServiceOrder> {
-    throw new Error("O financeiro exige o ambiente da oficina com permissões ativas.");
+  async savePartFinancial(order: ServiceOrder, input: PartFinancialInput): Promise<ServiceOrder> {
+    // Local demo retains commercial item creation, never private financial data.
+    if (!input.newItem || input.unitCost !== null || input.markup !== null)
+      throw new Error("O financeiro exige o ambiente da oficina com permissões ativas.");
+    const issue = validatePart(input);
+    if (issue || !input.newItem.name.trim()) throw new Error(issue || "Informe a descrição.");
+    if (order.budget.some((item) => item.id === input.itemId)) throw new OrderVersionConflict();
+    const now = new Date().toISOString();
+    const updated: ServiceOrder = {
+      ...order,
+      budget: [
+        ...order.budget,
+        {
+          id: input.itemId,
+          name: input.newItem.name.trim(),
+          type: input.newItem.type,
+          price: roundMoney(input.unitPrice * input.quantity),
+          approval: "Aguardando aprovação",
+          executed: false,
+          ...(input.newItem.type === "Peça"
+            ? {
+                quantity: input.quantity,
+                unitPrice: input.unitPrice,
+                availability: "Disponível" as const,
+              }
+            : {}),
+        },
+      ],
+      activities: [
+        ...(order.activities ?? []),
+        {
+          id: "a-" + crypto.randomUUID(),
+          type: "budget",
+          description: "Item incluído no orçamento: " + input.newItem.name.trim(),
+          at: now,
+        },
+      ],
+    };
+    await this.saveOrder(updated);
+    return updated;
   }
   async reloadOrder(order: ServiceOrder) {
     const latest = this.read().orders.find((item) => item.id === order.id);
