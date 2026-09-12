@@ -794,10 +794,11 @@ export function FinancialScreen() {
                                     </defs>
                                     <CartesianGrid
                                       className="financial-grid-fade"
-                                      stroke="var(--border)"
-                                      strokeOpacity={0.42}
-                                      strokeDasharray="3 5"
+                                      horizontal
                                       vertical={false}
+                                      stroke="#CBD5E1"
+                                      strokeOpacity={0.38}
+                                      strokeDasharray="2 6"
                                     />
                                     <ReferenceLine
                                       y={0}
@@ -920,10 +921,18 @@ export function FinancialScreen() {
                                     </defs>
                                     <CartesianGrid
                                       className="financial-grid-fade"
-                                      stroke="var(--border)"
-                                      strokeOpacity={0.42}
-                                      strokeDasharray="3 5"
+                                      horizontal
                                       vertical={false}
+                                      stroke="#CBD5E1"
+                                      strokeOpacity={0.38}
+                                      strokeDasharray="2 6"
+                                    />
+                                    <ReferenceLine
+                                      y={0}
+                                      stroke="#94A3B8"
+                                      strokeOpacity={0.72}
+                                      strokeWidth={1.25}
+                                      ifOverflow="extendDomain"
                                     />
                                     <XAxis
                                       dataKey="name"
