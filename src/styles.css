@@ -1138,11 +1138,6 @@ button:hover > .brand-mark::after {
   }
 }
 /* Financial charts: depth remains subtle so the plotted values stay primary. */
-.financial-grid-fade {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-}
-
 .financial-chart-tooltip {
   animation: financial-tooltip-in 140ms cubic-bezier(0.23, 1, 0.32, 1) both;
   transform-origin: center bottom;

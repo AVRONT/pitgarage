@@ -791,13 +791,24 @@ export function FinancialScreen() {
                                         <stop offset="50%" stopColor="white" stopOpacity="0.45" />
                                         <stop offset="100%" stopColor="white" stopOpacity="0" />
                                       </linearGradient>
+                                      <linearGradient
+                                        id={`financial-grid-${chartIndex}`}
+                                        gradientUnits="userSpaceOnUse"
+                                        x1="0%"
+                                        y1="0%"
+                                        x2="100%"
+                                        y2="0%"
+                                      >
+                                        <stop offset="0%" stopColor="#CBD5E1" stopOpacity="0" />
+                                        <stop offset="8%" stopColor="#CBD5E1" stopOpacity="0.55" />
+                                        <stop offset="92%" stopColor="#CBD5E1" stopOpacity="0.55" />
+                                        <stop offset="100%" stopColor="#CBD5E1" stopOpacity="0" />
+                                      </linearGradient>
                                     </defs>
                                     <CartesianGrid
-                                      className="financial-grid-fade"
                                       horizontal
                                       vertical={false}
-                                      stroke="#CBD5E1"
-                                      strokeOpacity={0.38}
+                                      stroke={`url(#financial-grid-${chartIndex})`}
                                       strokeDasharray="2 6"
                                     />
                                     <ReferenceLine
@@ -918,13 +929,24 @@ export function FinancialScreen() {
                                         <stop offset="72%" stopColor="#315ead" stopOpacity="0.04" />
                                         <stop offset="100%" stopColor="#315ead" stopOpacity="0" />
                                       </linearGradient>
+                                      <linearGradient
+                                        id={`financial-grid-${chartIndex}`}
+                                        gradientUnits="userSpaceOnUse"
+                                        x1="0%"
+                                        y1="0%"
+                                        x2="100%"
+                                        y2="0%"
+                                      >
+                                        <stop offset="0%" stopColor="#CBD5E1" stopOpacity="0" />
+                                        <stop offset="8%" stopColor="#CBD5E1" stopOpacity="0.55" />
+                                        <stop offset="92%" stopColor="#CBD5E1" stopOpacity="0.55" />
+                                        <stop offset="100%" stopColor="#CBD5E1" stopOpacity="0" />
+                                      </linearGradient>
                                     </defs>
                                     <CartesianGrid
-                                      className="financial-grid-fade"
                                       horizontal
                                       vertical={false}
-                                      stroke="#CBD5E1"
-                                      strokeOpacity={0.38}
+                                      stroke={`url(#financial-grid-${chartIndex})`}
                                       strokeDasharray="2 6"
                                     />
                                     <ReferenceLine
