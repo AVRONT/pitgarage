@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -60,7 +61,11 @@ const chartDate = (value: string, full = false) =>
     : value;
 
 function useReducedMotion() {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReduced(query.matches);
@@ -84,7 +89,7 @@ function FinancialChartTooltip({
   const values = payload?.[0]?.payload;
   if (!active || !values) return null;
   return (
-    <div className="max-w-[min(19rem,80vw)] rounded-lg border border-slate-200 bg-white/95 p-3 text-xs text-foreground shadow-lg shadow-slate-950/10 backdrop-blur-sm">
+    <div className="financial-chart-tooltip max-w-[min(19rem,80vw)] rounded-lg border border-slate-200 bg-white/95 p-3 text-xs text-foreground shadow-lg shadow-slate-950/10 backdrop-blur-sm">
       <p className="mb-2 border-b border-slate-100 pb-2 font-semibold">
         {chartDate(String(label ?? ""), true)}
       </p>
@@ -108,6 +113,86 @@ function FinancialChartTooltip({
         ))}
       </dl>
     </div>
+  );
+}
+
+type PremiumBarShapeProps = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  index?: number;
+  value?: number | [number, number];
+  fill?: string;
+};
+
+function PremiumBarShape({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  index = 0,
+  value = 0,
+  fill = "currentColor",
+  chartIndex,
+  seriesIndex,
+  pulse,
+}: PremiumBarShapeProps & {
+  chartIndex: number;
+  seriesIndex: number;
+  pulse: boolean;
+}) {
+  if (width <= 0 || height <= 0) return <g />;
+  const numericValue = Array.isArray(value) ? value[1] - value[0] : value;
+  const delay = seriesIndex * 150 + index * 90;
+  const bevel = Math.min(4, Math.max(2, width * 0.1));
+  const radius = Math.min(7, width / 3, height / 3);
+  const clipId = `financial-bar-clip-${chartIndex}-${seriesIndex}-${index}`;
+  return (
+    <g
+      className={`financial-premium-bar ${pulse ? "financial-premium-bar--pulse" : ""}`}
+      style={
+        {
+          "--bar-delay": `${delay}ms`,
+          transformOrigin: numericValue < 0 ? "center top" : "center bottom",
+        } as CSSProperties
+      }
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <rect x={x} y={y} width={width} height={height} rx={radius} />
+        </clipPath>
+      </defs>
+      <rect x={x} y={y} width={width} height={height} rx={radius} fill={fill} />
+      <path
+        d={`M ${x + width - bevel} ${y + radius / 2} L ${x + width} ${y + radius} L ${x + width} ${y + height - 1} L ${x + width - bevel} ${y + height - 1} Z`}
+        fill="rgba(15, 23, 42, 0.14)"
+      />
+      <path
+        d={`M ${x + radius / 2} ${y} H ${x + width - radius} L ${x + width - bevel} ${y + bevel} H ${x + radius} Z`}
+        fill="rgba(255, 255, 255, 0.18)"
+      />
+      <rect
+        x={x + 2}
+        y={y + 2}
+        width={Math.max(0, width * 0.22)}
+        height={Math.max(0, height - 4)}
+        rx={Math.max(1, radius - 2)}
+        fill="rgba(255, 255, 255, 0.1)"
+      />
+      {pulse && (
+        <g clipPath={`url(#${clipId})`}>
+          <rect
+            className="financial-bar-sheen"
+            x={x - width}
+            y={y}
+            width={Math.max(8, width * 0.45)}
+            height={height}
+            fill={`url(#financial-sheen-${chartIndex})`}
+          />
+        </g>
+      )}
+    </g>
   );
 }
 
@@ -310,6 +395,7 @@ export function PartFinancialEditor({
 export function FinancialScreen() {
   const { accessLevel, isLocalBypass } = useAuth();
   const reducedMotion = useReducedMotion();
+  const [lineMotionReady, setLineMotionReady] = useState(false);
   const [rows, setRows] = useState<OrderFinancialRow[] | null>(null),
     [members, setMembers] = useState<FinancialMember[]>([]);
   const [error, setError] = useState(""),
@@ -321,6 +407,21 @@ export function FinancialScreen() {
     [period, setPeriod] = useState("month"),
     [customStart, setCustomStart] = useState(""),
     [customEnd, setCustomEnd] = useState("");
+  useEffect(() => {
+    if (reducedMotion) {
+      setLineMotionReady(true);
+      return;
+    }
+    setLineMotionReady(false);
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setLineMotionReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [reducedMotion, kind, period, customStart, customEnd, rows]);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -607,7 +708,7 @@ export function FinancialScreen() {
                   </p>
                 </div>
                 <div className="grid gap-4 xl:grid-cols-2">
-                  {charts.map((chart) => (
+                  {charts.map((chart, chartIndex) => (
                     <Card
                       key={chart.title}
                       className={
@@ -636,11 +737,15 @@ export function FinancialScreen() {
                         ) : (
                           <>
                             <div
-                              className="h-64 min-w-0 text-xs tabular-nums sm:h-72 xl:h-80"
+                              className={`h-64 min-w-0 text-xs tabular-nums sm:h-72 xl:h-80 ${chart.mode === "comparison" ? "financial-bar-chart" : ""}`}
                               role="img"
                               aria-label={chart.title}
                             >
-                              <ResponsiveContainer width="100%" height="100%">
+                              <ResponsiveContainer
+                                key={`${chart.title}-${kind}-${period}-${customStart}-${customEnd}`}
+                                width="100%"
+                                height="100%"
+                              >
                                 {chart.mode === "comparison" ? (
                                   <BarChart
                                     data={chart.data}
@@ -648,10 +753,41 @@ export function FinancialScreen() {
                                     barGap={3}
                                     barCategoryGap="18%"
                                   >
+                                    <defs>
+                                      {[
+                                        ["revenue", "#173f8f", "#4d7dcc"],
+                                        ["cost", "#6f7e92", "#b4becb"],
+                                        ["result", "#11652f", "#36a463"],
+                                      ].map(([name, dark, light]) => (
+                                        <linearGradient
+                                          key={name}
+                                          id={`financial-bar-${chartIndex}-${name}`}
+                                          x1="0"
+                                          y1="1"
+                                          x2="0"
+                                          y2="0"
+                                        >
+                                          <stop offset="0%" stopColor={dark} />
+                                          <stop offset="100%" stopColor={light} />
+                                        </linearGradient>
+                                      ))}
+                                      <linearGradient
+                                        id={`financial-sheen-${chartIndex}`}
+                                        x1="0"
+                                        y1="0"
+                                        x2="1"
+                                        y2="0"
+                                      >
+                                        <stop offset="0%" stopColor="white" stopOpacity="0" />
+                                        <stop offset="50%" stopColor="white" stopOpacity="0.45" />
+                                        <stop offset="100%" stopColor="white" stopOpacity="0" />
+                                      </linearGradient>
+                                    </defs>
                                     <CartesianGrid
+                                      className="financial-grid-fade"
                                       stroke="var(--border)"
-                                      strokeOpacity={0.55}
-                                      strokeDasharray="2 4"
+                                      strokeOpacity={0.42}
+                                      strokeDasharray="3 5"
                                       vertical={false}
                                     />
                                     <XAxis
@@ -705,43 +841,72 @@ export function FinancialScreen() {
                                     />
                                     <Bar
                                       dataKey="Faturamento"
-                                      fill="#315EAD"
-                                      radius={[3, 3, 0, 0]}
+                                      fill={`url(#financial-bar-${chartIndex}-revenue)`}
                                       maxBarSize={52}
-                                      isAnimationActive={!reducedMotion}
-                                      animationDuration={320}
-                                      animationEasing="ease-out"
+                                      isAnimationActive={false}
+                                      shape={(props: unknown) => (
+                                        <PremiumBarShape
+                                          {...(props as PremiumBarShapeProps)}
+                                          chartIndex={chartIndex}
+                                          seriesIndex={0}
+                                          pulse={chartIndex === 0}
+                                        />
+                                      )}
                                     />
                                     <Bar
                                       dataKey="Custo"
                                       name="Custo das peças"
-                                      fill="#94A3B8"
-                                      radius={[3, 3, 0, 0]}
+                                      fill={`url(#financial-bar-${chartIndex}-cost)`}
                                       maxBarSize={52}
-                                      isAnimationActive={!reducedMotion}
-                                      animationDuration={320}
-                                      animationEasing="ease-out"
+                                      isAnimationActive={false}
+                                      shape={(props: unknown) => (
+                                        <PremiumBarShape
+                                          {...(props as PremiumBarShapeProps)}
+                                          chartIndex={chartIndex}
+                                          seriesIndex={1}
+                                          pulse={false}
+                                        />
+                                      )}
                                     />
                                     <Bar
                                       dataKey="Resultado"
                                       name="Resultado bruto"
-                                      fill="#15803D"
-                                      radius={[3, 3, 0, 0]}
+                                      fill={`url(#financial-bar-${chartIndex}-result)`}
                                       maxBarSize={52}
-                                      isAnimationActive={!reducedMotion}
-                                      animationDuration={320}
-                                      animationEasing="ease-out"
+                                      isAnimationActive={false}
+                                      shape={(props: unknown) => (
+                                        <PremiumBarShape
+                                          {...(props as PremiumBarShapeProps)}
+                                          chartIndex={chartIndex}
+                                          seriesIndex={2}
+                                          pulse={false}
+                                        />
+                                      )}
                                     />
                                   </BarChart>
                                 ) : (
-                                  <LineChart
+                                  <ComposedChart
                                     data={chart.data}
                                     margin={{ top: 12, right: 16, bottom: 8, left: 0 }}
                                   >
+                                    <defs>
+                                      <linearGradient
+                                        id={`financial-area-${chartIndex}`}
+                                        x1="0"
+                                        y1="0"
+                                        x2="0"
+                                        y2="1"
+                                      >
+                                        <stop offset="0%" stopColor="#315ead" stopOpacity="0.2" />
+                                        <stop offset="72%" stopColor="#315ead" stopOpacity="0.04" />
+                                        <stop offset="100%" stopColor="#315ead" stopOpacity="0" />
+                                      </linearGradient>
+                                    </defs>
                                     <CartesianGrid
+                                      className="financial-grid-fade"
                                       stroke="var(--border)"
-                                      strokeOpacity={0.55}
-                                      strokeDasharray="2 4"
+                                      strokeOpacity={0.42}
+                                      strokeDasharray="3 5"
                                       vertical={false}
                                     />
                                     <XAxis
@@ -793,34 +958,98 @@ export function FinancialScreen() {
                                         </span>
                                       )}
                                     />
+                                    <Area
+                                      dataKey="Faturamento"
+                                      type="monotoneX"
+                                      fill={`url(#financial-area-${chartIndex})`}
+                                      stroke="none"
+                                      legendType="none"
+                                      tooltipType="none"
+                                      isAnimationActive={false}
+                                      connectNulls={false}
+                                    />
                                     <Line
                                       dataKey="Faturamento"
+                                      type="monotoneX"
                                       stroke="#173F8F"
                                       strokeWidth={2}
-                                      dot={
-                                        chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeDasharray={reducedMotion ? undefined : "3000 3000"}
+                                      strokeDashoffset={reducedMotion || lineMotionReady ? 0 : 3000}
+                                      style={
+                                        reducedMotion
+                                          ? undefined
+                                          : {
+                                              transition:
+                                                "stroke-dashoffset 1000ms cubic-bezier(0.23, 1, 0.32, 1)",
+                                            }
                                       }
-                                      activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
-                                      isAnimationActive={!reducedMotion}
-                                      animationDuration={360}
-                                      animationEasing="ease-out"
+                                      dot={
+                                        chart.data.length <= 8
+                                          ? {
+                                              r: 3,
+                                              strokeWidth: 0,
+                                              opacity: reducedMotion || lineMotionReady ? 1 : 0,
+                                              style: reducedMotion
+                                                ? undefined
+                                                : {
+                                                    transition: "opacity 180ms ease-out 1000ms",
+                                                  },
+                                            }
+                                          : false
+                                      }
+                                      activeDot={{
+                                        r: 5,
+                                        stroke: "var(--card)",
+                                        strokeWidth: 3,
+                                        fill: "#173F8F",
+                                      }}
+                                      isAnimationActive={false}
                                       connectNulls={false}
                                     />
                                     <Line
                                       dataKey="Resultado"
                                       name="Resultado bruto"
+                                      type="monotoneX"
                                       stroke="#15803D"
                                       strokeWidth={3}
-                                      dot={
-                                        chart.data.length <= 8 ? { r: 3, strokeWidth: 0 } : false
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeDasharray={reducedMotion ? undefined : "3000 3000"}
+                                      strokeDashoffset={reducedMotion || lineMotionReady ? 0 : 3000}
+                                      style={
+                                        reducedMotion
+                                          ? undefined
+                                          : {
+                                              transition:
+                                                "stroke-dashoffset 1000ms cubic-bezier(0.23, 1, 0.32, 1) 140ms",
+                                            }
                                       }
-                                      activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
-                                      isAnimationActive={!reducedMotion}
-                                      animationDuration={360}
-                                      animationEasing="ease-out"
+                                      dot={
+                                        chart.data.length <= 8
+                                          ? {
+                                              r: 3,
+                                              strokeWidth: 0,
+                                              opacity: reducedMotion || lineMotionReady ? 1 : 0,
+                                              style: reducedMotion
+                                                ? undefined
+                                                : {
+                                                    transition: "opacity 180ms ease-out 1140ms",
+                                                  },
+                                            }
+                                          : false
+                                      }
+                                      activeDot={{
+                                        r: 5,
+                                        stroke: "var(--card)",
+                                        strokeWidth: 3,
+                                        fill: "#15803D",
+                                      }}
+                                      isAnimationActive={false}
                                       connectNulls={false}
                                     />
-                                  </LineChart>
+                                  </ComposedChart>
                                 )}
                               </ResponsiveContainer>
                             </div>

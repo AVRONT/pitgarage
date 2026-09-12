@@ -1137,3 +1137,86 @@ button:hover > .brand-mark::after {
     display: none !important;
   }
 }
+/* Financial charts: depth remains subtle so the plotted values stay primary. */
+.financial-grid-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.financial-chart-tooltip {
+  animation: financial-tooltip-in 140ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  transform-origin: center bottom;
+}
+
+.financial-premium-bar {
+  animation: financial-bar-grow 720ms cubic-bezier(0.85, 0, 0.15, 1) var(--bar-delay) both;
+  transform-box: fill-box;
+  transition:
+    opacity 180ms ease,
+    filter 180ms ease;
+}
+
+.financial-bar-chart:has(.financial-premium-bar:hover) .financial-premium-bar:not(:hover) {
+  opacity: 0.38;
+}
+
+.financial-premium-bar:hover {
+  filter: brightness(1.05) drop-shadow(0 5px 5px rgb(15 23 42 / 0.16));
+}
+
+.financial-bar-sheen {
+  opacity: 0;
+  transform: translateX(0);
+}
+
+.financial-premium-bar--pulse:hover .financial-bar-sheen {
+  animation: financial-bar-sheen 620ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes financial-bar-grow {
+  from {
+    opacity: 0.25;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes financial-bar-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  22% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(300%);
+  }
+}
+
+@keyframes financial-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .financial-premium-bar,
+  .financial-premium-bar--pulse:hover .financial-bar-sheen,
+  .financial-chart-tooltip {
+    animation: none;
+  }
+
+  .financial-premium-bar {
+    transition: none;
+  }
+}
