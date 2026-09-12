@@ -68,6 +68,7 @@ Logs, diagnósticos e notificações devem conter somente metadados seguros.
 ## 7. Frontend
 
 - Preserve responsividade, scroll, tabelas, drawers, filtros, loading e interações que não façam parte da tarefa.
+- Quando uma decisão visual for explicitamente aprovada como padrão global ou compartilhado, implemente-a de forma reutilizável e aplique-a aos elementos semanticamente equivalentes. Não extrapole para componentes ou ações diferentes sem solicitação explícita.
 - Não altere regra de negócio durante ajuste puramente visual.
 - Preserve memoização, debounce, cache e otimizações existentes.
 - Evite `transition-all`, animações pesadas, efeitos desnecessários, rerenders evitáveis e cálculos repetidos.

@@ -360,7 +360,7 @@ export function OperationalDashboard({
             Situação atual da oficina e caminhos diretos para o próximo passo.
           </p>
         </div>
-        <Button onClick={onNewOrder} className="h-10 gap-2 px-5 shadow-sm">
+        <Button onClick={onNewOrder} className="create-order-action h-10 gap-2 px-5">
           <Plus className="h-4 w-4" /> Nova ordem de serviço
         </Button>
       </header>

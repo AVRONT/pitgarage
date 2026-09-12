@@ -1882,7 +1882,7 @@ function CustomersScreen({
         text="Encontre rapidamente quem chegou à oficina e os veículos relacionados."
         icon={Users}
         action={
-          <Button onClick={onNew} className="directory-primary-action gap-2">
+          <Button onClick={onNew} className="create-order-action gap-2">
             <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
@@ -2013,7 +2013,7 @@ function VehiclesScreen({
         text="Carros e motos com informações, serviços atuais e histórico em um só lugar."
         icon={CarFront}
         action={
-          <Button onClick={onNew} className="directory-primary-action gap-2">
+          <Button onClick={onNew} className="create-order-action gap-2">
             <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
@@ -2143,7 +2143,7 @@ function OrdersScreen({
         text="Acompanhe diagnóstico, aprovação, execução e entrega sem perder o histórico."
         icon={ClipboardList}
         action={
-          <Button onClick={onNew} className="directory-primary-action gap-2">
+          <Button onClick={onNew} className="create-order-action gap-2">
             <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
@@ -2387,10 +2387,7 @@ function VehicleDetail({
                 >
                   <Trash2 className="h-4 w-4" /> Excluir veículo
                 </Button>
-                <Button
-                  onClick={onNewOrder}
-                  className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600"
-                >
+                <Button onClick={onNewOrder} className="create-order-action gap-2">
                   <Plus className="h-4 w-4" /> Criar ordem de serviço
                 </Button>
               </>
@@ -5432,7 +5429,7 @@ function NewOrderDialog({
             )}
             {step === 3 && (
               <Button
-                className="bg-orange-500 hover:bg-orange-600"
+                className="create-order-action"
                 onClick={() => void createAll()}
                 disabled={isCreating}
               >

@@ -854,7 +854,7 @@ button:hover > .brand-mark::after {
     0 5px 12px rgb(23 63 143 / 0.18);
 }
 
-.directory-primary-action {
+.create-order-action {
   border: 1px solid #d94b18;
   background: linear-gradient(180deg, #f97316, #ea580c);
   color: white;
@@ -867,7 +867,7 @@ button:hover > .brand-mark::after {
     filter 140ms ease;
 }
 
-.directory-primary-action:hover {
+.create-order-action:hover {
   background: linear-gradient(180deg, #fb7d22, #e5520a);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.28),
@@ -876,7 +876,7 @@ button:hover > .brand-mark::after {
   transform: translateY(-1px);
 }
 
-.directory-primary-action:active {
+.create-order-action:active {
   transform: translateY(0) scale(0.98);
 }
 
@@ -1046,7 +1046,7 @@ button:hover > .brand-mark::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .directory-primary-action,
+  .create-order-action,
   .directory-metric,
   .directory-search input,
   .directory-table .pilot-table-row,
@@ -1054,8 +1054,8 @@ button:hover > .brand-mark::after {
     transition: none;
   }
 
-  .directory-primary-action:hover,
-  .directory-primary-action:active,
+  .create-order-action:hover,
+  .create-order-action:active,
   .directory-metric:hover,
   .directory-table .pilot-table-row:hover,
   .directory-table .pilot-table-row:hover > svg:last-child {
