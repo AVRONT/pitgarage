@@ -988,8 +988,10 @@ export function FinancialScreen() {
                                       dot={
                                         chart.data.length <= 8
                                           ? {
-                                              r: 3,
-                                              strokeWidth: 0,
+                                              r: 3.5,
+                                              fill: "#315EAD",
+                                              stroke: "#0F2F6C",
+                                              strokeWidth: 1.5,
                                               opacity: reducedMotion || lineMotionReady ? 1 : 0,
                                               style: reducedMotion
                                                 ? undefined
@@ -1000,10 +1002,10 @@ export function FinancialScreen() {
                                           : false
                                       }
                                       activeDot={{
-                                        r: 5,
-                                        stroke: "var(--card)",
-                                        strokeWidth: 3,
-                                        fill: "#173F8F",
+                                        r: 5.5,
+                                        stroke: "#0F2F6C",
+                                        strokeWidth: 2,
+                                        fill: "#315EAD",
                                       }}
                                       isAnimationActive={false}
                                       connectNulls={false}
@@ -1029,8 +1031,10 @@ export function FinancialScreen() {
                                       dot={
                                         chart.data.length <= 8
                                           ? {
-                                              r: 3,
-                                              strokeWidth: 0,
+                                              r: 3.5,
+                                              fill: "#22A052",
+                                              stroke: "#0D5A2A",
+                                              strokeWidth: 1.5,
                                               opacity: reducedMotion || lineMotionReady ? 1 : 0,
                                               style: reducedMotion
                                                 ? undefined
@@ -1041,10 +1045,10 @@ export function FinancialScreen() {
                                           : false
                                       }
                                       activeDot={{
-                                        r: 5,
-                                        stroke: "var(--card)",
-                                        strokeWidth: 3,
-                                        fill: "#15803D",
+                                        r: 5.5,
+                                        stroke: "#0D5A2A",
+                                        strokeWidth: 2,
+                                        fill: "#22A052",
                                       }}
                                       isAnimationActive={false}
                                       connectNulls={false}
