@@ -5123,15 +5123,14 @@ function NewOrderDialog({
           >
             {step === 0 && (
               <>
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                <div
+                  className="new-order-segmented"
+                  data-selection={newCustomer ? "secondary" : "primary"}
+                >
                   <Button
                     variant="ghost"
-                    className={cn(
-                      "h-9 border-0 shadow-none",
-                      !newCustomer
-                        ? "bg-white text-primary shadow-sm hover:bg-white"
-                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
-                    )}
+                    className="new-order-segment"
+                    aria-pressed={!newCustomer}
                     onClick={() => {
                       setNewCustomer(false);
                       setDraftCustomer(undefined);
@@ -5141,12 +5140,8 @@ function NewOrderDialog({
                   </Button>
                   <Button
                     variant="ghost"
-                    className={cn(
-                      "h-9 border-0 shadow-none",
-                      newCustomer
-                        ? "bg-white text-primary shadow-sm hover:bg-white"
-                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
-                    )}
+                    className="new-order-segment"
+                    aria-pressed={newCustomer}
                     onClick={() => {
                       setNewCustomer(true);
                       setCustomerId("");
@@ -5168,7 +5163,7 @@ function NewOrderDialog({
                   <>
                     <Command
                       shouldFilter={false}
-                      className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50/50 shadow-sm"
+                      className="new-order-content-enter overflow-hidden rounded-lg border border-slate-200 bg-slate-50/50 shadow-sm"
                     >
                       <CommandInput
                         value={customerSearch}
@@ -5176,9 +5171,9 @@ function NewOrderDialog({
                         aria-label="Buscar cliente por nome, CPF ou telefone"
                         placeholder="Digite nome, CPF ou telefone"
                       />
-                      <CommandList className="max-h-64 p-2">
+                      <CommandList className="new-order-results max-h-64 p-2">
                         <CommandEmpty>
-                          <div className="grid justify-items-center gap-2 px-4 py-7 text-center">
+                          <div className="new-order-empty grid justify-items-center gap-2 px-4 py-7 text-center">
                             <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-500">
                               <UserRound className="h-5 w-5" aria-hidden="true" />
                             </span>
@@ -5196,7 +5191,7 @@ function NewOrderDialog({
                             value={customer.id}
                             onSelect={() => selectCustomer(customer)}
                             className={cn(
-                              "group mb-1 flex items-center gap-3 rounded-md border border-transparent px-3 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 last:mb-0 hover:-translate-y-px hover:border-slate-200 hover:bg-white hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/25 motion-reduce:transform-none motion-reduce:transition-none",
+                              "new-order-result group mb-1 flex items-center gap-3 rounded-md border border-transparent px-3 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 last:mb-0 hover:-translate-y-px hover:border-slate-200 hover:bg-white hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/25 motion-reduce:transform-none motion-reduce:transition-none",
                               customerId === customer.id &&
                                 "border-primary/30 bg-primary/[0.07] shadow-sm data-[selected=true]:bg-primary/[0.09]",
                             )}
@@ -5234,9 +5229,11 @@ function NewOrderDialog({
                             <span
                               className={cn(
                                 "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 text-transparent transition-colors duration-150",
+                                "new-order-selection-mark",
                                 customerId === customer.id &&
                                   "border-primary bg-primary text-white",
                               )}
+                              data-active={customerId === customer.id}
                               aria-hidden="true"
                             >
                               <Check className="h-3.5 w-3.5" />
@@ -5264,7 +5261,7 @@ function NewOrderDialog({
                     )}
                   </>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="new-order-content-enter grid gap-3 sm:grid-cols-2">
                     <label className="space-y-1 text-sm font-medium">
                       Nome
                       <Input
@@ -5315,15 +5312,14 @@ function NewOrderDialog({
                   <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
                   <strong className="text-slate-900">{selectedCustomer.name}</strong>
                 </p>
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                <div
+                  className="new-order-segmented"
+                  data-selection={newVehicle ? "secondary" : "primary"}
+                >
                   <Button
                     variant="ghost"
-                    className={cn(
-                      "h-9 border-0 shadow-none",
-                      !newVehicle
-                        ? "bg-white text-primary shadow-sm hover:bg-white"
-                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
-                    )}
+                    className="new-order-segment"
+                    aria-pressed={!newVehicle}
                     onClick={() => {
                       setNewVehicle(false);
                       setDraftVehicle(undefined);
@@ -5333,12 +5329,8 @@ function NewOrderDialog({
                   </Button>
                   <Button
                     variant="ghost"
-                    className={cn(
-                      "h-9 border-0 shadow-none",
-                      newVehicle
-                        ? "bg-white text-primary shadow-sm hover:bg-white"
-                        : "text-slate-600 hover:bg-white/60 hover:text-slate-900",
-                    )}
+                    className="new-order-segment"
+                    aria-pressed={newVehicle}
                     onClick={() => {
                       setNewVehicle(true);
                       setVehicleId("");
@@ -5349,7 +5341,7 @@ function NewOrderDialog({
                   </Button>
                 </div>
                 {!newVehicle ? (
-                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                  <div className="new-order-content-enter max-h-64 space-y-2 overflow-y-auto pr-1">
                     {customerVehicles.map((vehicle) => (
                       <button
                         key={vehicle.id}
@@ -5383,9 +5375,10 @@ function NewOrderDialog({
                         </span>
                         <span
                           className={cn(
-                            "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 text-transparent",
+                            "new-order-selection-mark grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 text-transparent",
                             vehicleId === vehicle.id && "border-primary bg-primary text-white",
                           )}
+                          data-active={vehicleId === vehicle.id}
                           aria-hidden="true"
                         >
                           <Check className="h-3.5 w-3.5" />
@@ -5399,7 +5392,7 @@ function NewOrderDialog({
                     )}
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="new-order-content-enter grid gap-3 sm:grid-cols-2">
                     <select
                       value={kind}
                       onChange={(event) => setKind(event.target.value as Vehicle["kind"])}
