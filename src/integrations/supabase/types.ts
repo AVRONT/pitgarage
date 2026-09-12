@@ -870,6 +870,10 @@ export type Database = {
         Args: { notification_id?: string }
         Returns: undefined
       }
+      remove_budget_item: {
+        Args: { expected_version: string; item_id: string; order_id: string }
+        Returns: Json
+      }
       reserve_invite_budget: { Args: { owner_id: string }; Returns: boolean }
       reserve_registration_attempt: {
         Args: {
