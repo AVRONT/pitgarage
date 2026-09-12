@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
   Bike,
@@ -1545,12 +1546,14 @@ function PageTitle({
   text,
   action,
   back,
+  icon: Icon,
 }: {
   eyebrow?: string;
   title: string;
   text: string;
   action?: ReactNode;
   back?: () => void;
+  icon?: LucideIcon;
 }) {
   return (
     <div className="page-heading mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -1563,17 +1566,97 @@ function PageTitle({
             <ArrowLeft className="h-4 w-4" /> Voltar
           </button>
         )}
-        {eyebrow && (
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-600">
-            {eyebrow}
-          </p>
+        {Icon ? (
+          <div className="flex items-start gap-3">
+            <span className="page-heading-icon mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              {eyebrow && (
+                <p className="mb-1.5 text-sm font-semibold uppercase tracking-wide text-orange-600">
+                  {eyebrow}
+                </p>
+              )}
+              <h1 className="text-balance text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
+                {title}
+              </h1>
+              <p className="mt-1.5 max-w-2xl text-muted-foreground">{text}</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {eyebrow && (
+              <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-600">
+                {eyebrow}
+              </p>
+            )}
+            <h1 className="text-balance text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
+              {title}
+            </h1>
+            <p className="mt-2 max-w-2xl text-muted-foreground">{text}</p>
+          </>
         )}
-        <h1 className="text-balance text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
-          {title}
-        </h1>
-        <p className="mt-2 max-w-2xl text-muted-foreground">{text}</p>
       </div>
       {action}
+    </div>
+  );
+}
+
+type DirectoryMetric = {
+  label: string;
+  value: number;
+  description: string;
+  icon: LucideIcon;
+  tone?: "navy" | "orange" | "green" | "slate";
+};
+
+function DirectoryMetrics({ items }: { items: DirectoryMetric[] }) {
+  return (
+    <div className="directory-metrics mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {items.map(({ label, value, description, icon: Icon, tone = "slate" }) => (
+        <Card key={label} className={cn("directory-metric group", `directory-metric--${tone}`)}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-600">{label}</p>
+              <strong className="mt-2 block text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">
+                {value}
+              </strong>
+            </div>
+            <span className="directory-metric-icon grid h-8 w-8 shrink-0 place-items-center rounded-md">
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </div>
+          <p className="mt-2 hidden text-xs leading-relaxed text-slate-500 sm:block">
+            {description}
+          </p>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function DirectorySearch({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="directory-search relative mb-5 max-w-lg">
+      <Search
+        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+        aria-hidden="true"
+      />
+      <Input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 bg-white pl-10 pr-4"
+        placeholder={placeholder}
+        aria-label={placeholder}
+      />
     </div>
   );
 }
@@ -1792,53 +1875,61 @@ function CustomersScreen({
     `${c.name} ${c.phone}`.toLowerCase().includes(filter.toLowerCase()),
   );
   return (
-    <>
+    <div className="directory-screen">
       <PageTitle
         eyebrow="Relacionamento"
         title="Clientes"
         text="Encontre rapidamente quem chegou à oficina e os veículos relacionados."
+        icon={Users}
         action={
-          <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
+          <Button onClick={onNew} className="directory-primary-action gap-2">
             <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          ["Clientes ativos", customers.length],
-          [
-            "Com veículos",
-            customers.filter((customer) =>
+      <DirectoryMetrics
+        items={[
+          {
+            label: "Clientes ativos",
+            value: customers.length,
+            description: "Cadastros disponíveis para atendimento.",
+            icon: Users,
+            tone: "navy",
+          },
+          {
+            label: "Com veículos",
+            value: customers.filter((customer) =>
               vehicles.some((vehicle) => vehicle.customerId === customer.id),
             ).length,
-          ],
-          [
-            "Com OS em aberto",
-            customers.filter((customer) =>
+            description: "Clientes com ao menos um veículo vinculado.",
+            icon: CarFront,
+          },
+          {
+            label: "Com OS em aberto",
+            value: customers.filter((customer) =>
               orders.some(
                 (order) => order.customerId === customer.id && order.status !== "Entregue",
               ),
             ).length,
-          ],
-          ["Veículos vinculados", vehicles.length],
-        ].map(([label, value]) => (
-          <Card key={label} className="bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {label}
-            </p>
-            <strong className="mt-1 block text-2xl">{value}</strong>
-          </Card>
-        ))}
-      </div>
-      <div className="mb-5 max-w-md">
-        <Input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="h-11 rounded-xl bg-white"
-          placeholder="Pesquisar por nome ou telefone"
-        />
-      </div>
-      <div className="pilot-table">
+            description: "Atendimentos ainda em andamento.",
+            icon: ClipboardList,
+            tone: "orange",
+          },
+          {
+            label: "Veículos vinculados",
+            value: vehicles.length,
+            description: "Frota relacionada aos clientes ativos.",
+            icon: Gauge,
+            tone: "green",
+          },
+        ]}
+      />
+      <DirectorySearch
+        value={filter}
+        onChange={setFilter}
+        placeholder="Pesquisar por nome ou telefone"
+      />
+      <div className="pilot-table directory-table">
         <div className="pilot-table-header grid-cols-[minmax(0,1.4fr)_190px_160px_120px_28px] px-4 md:grid">
           <span>Cliente</span>
           <span>Contato</span>
@@ -1867,7 +1958,7 @@ function CustomersScreen({
               className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_190px_160px_120px_28px] md:px-4"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-orange-100 text-sm font-bold text-orange-700">
+                <div className="directory-avatar grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sm font-bold">
                   {customer.name
                     .split(" ")
                     .slice(0, 2)
@@ -1891,7 +1982,7 @@ function CustomersScreen({
           );
         })}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -1915,46 +2006,57 @@ function VehiclesScreen({
       .includes(filter.toLowerCase()),
   );
   return (
-    <>
+    <div className="directory-screen">
       <PageTitle
         eyebrow="Histórico centralizado"
         title="Veículos"
         text="Carros e motos com informações, serviços atuais e histórico em um só lugar."
+        icon={CarFront}
         action={
-          <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
+          <Button onClick={onNew} className="directory-primary-action gap-2">
             <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          ["Veículos ativos", vehicles.length],
-          ["Carros", vehicles.filter((vehicle) => vehicle.kind === "Carro").length],
-          ["Motos", vehicles.filter((vehicle) => vehicle.kind === "Moto").length],
-          [
-            "Com OS em aberto",
-            vehicles.filter((vehicle) =>
+      <DirectoryMetrics
+        items={[
+          {
+            label: "Veículos ativos",
+            value: vehicles.length,
+            description: "Veículos disponíveis no cadastro da oficina.",
+            icon: CarFront,
+            tone: "navy",
+          },
+          {
+            label: "Carros",
+            value: vehicles.filter((vehicle) => vehicle.kind === "Carro").length,
+            description: "Automóveis cadastrados.",
+            icon: CarFront,
+          },
+          {
+            label: "Motos",
+            value: vehicles.filter((vehicle) => vehicle.kind === "Moto").length,
+            description: "Motocicletas cadastradas.",
+            icon: Bike,
+            tone: "green",
+          },
+          {
+            label: "Com OS em aberto",
+            value: vehicles.filter((vehicle) =>
               orders.some((order) => order.vehicleId === vehicle.id && order.status !== "Entregue"),
             ).length,
-          ],
-        ].map(([label, value]) => (
-          <Card key={label} className="bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {label}
-            </p>
-            <strong className="mt-1 block text-2xl">{value}</strong>
-          </Card>
-        ))}
-      </div>
-      <div className="mb-5 max-w-md">
-        <Input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="h-11 rounded-xl bg-white"
-          placeholder="Pesquisar placa, modelo ou proprietário"
-        />
-      </div>
-      <div className="pilot-table">
+            description: "Veículos em atendimento no momento.",
+            icon: Wrench,
+            tone: "orange",
+          },
+        ]}
+      />
+      <DirectorySearch
+        value={filter}
+        onChange={setFilter}
+        placeholder="Pesquisar placa, modelo ou proprietário"
+      />
+      <div className="pilot-table directory-table">
         <div className="pilot-table-header grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_160px_28px] px-4 md:grid">
           <span>Veículo</span>
           <span>Placa</span>
@@ -1985,7 +2087,7 @@ function VehiclesScreen({
               className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_160px_28px] md:px-4"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-900 text-white">
+                <div className="directory-vehicle-icon grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-900 text-white">
                   <VehicleIcon kind={vehicle.kind} className="h-6 w-6" />
                 </div>
                 <span className="min-w-0">
@@ -2014,7 +2116,7 @@ function VehiclesScreen({
           );
         })}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -2034,34 +2136,35 @@ function OrdersScreen({
   const [filter, setFilter] = useState("Todas");
   const visible = filter === "Todas" ? orders : orders.filter((o) => o.status === filter);
   return (
-    <>
+    <div className="directory-screen">
       <PageTitle
         eyebrow="Núcleo operacional"
         title="Ordens de serviço"
         text="Acompanhe diagnóstico, aprovação, execução e entrega sem perder o histórico."
+        icon={ClipboardList}
         action={
-          <Button onClick={onNew} className="gap-2 rounded-xl bg-orange-500 hover:bg-orange-600">
+          <Button onClick={onNew} className="directory-primary-action gap-2">
             <Plus className="h-4 w-4" /> Criar ordem de serviço
           </Button>
         }
       />
-      <div className="mb-5 flex gap-1 overflow-x-auto border-b pb-0">
+      <div className="directory-status-filter mb-5 flex gap-1 overflow-x-auto p-1">
         {["Todas", ...orderStatuses].map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
             className={cn(
-              "whitespace-nowrap border-b-2 border-x-0 border-t-0 px-3 py-2.5 text-xs font-semibold",
+              "whitespace-nowrap rounded-md border px-3 py-2 text-xs font-semibold transition-[color,background-color,border-color,box-shadow] duration-150 motion-reduce:transition-none",
               filter === status
-                ? "border-orange-600 bg-orange-50/60 text-orange-800"
-                : "border-transparent bg-transparent text-muted-foreground hover:text-slate-900",
+                ? "border-orange-200 bg-white text-orange-800 shadow-sm"
+                : "border-transparent bg-transparent text-muted-foreground hover:bg-white/70 hover:text-slate-900",
             )}
           >
             {status}
           </button>
         ))}
       </div>
-      <Card className="overflow-hidden bg-white">
+      <Card className="pilot-table directory-table overflow-hidden bg-white">
         <div>
           <div className="pilot-table-header hidden grid-cols-[90px_1.2fr_1fr_160px_120px_24px] px-6 md:grid">
             <span>OS</span>
@@ -2093,7 +2196,7 @@ function OrdersScreen({
               >
                 <strong className="hidden text-sm md:block">{order.id}</strong>
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100">
+                  <span className="directory-order-icon grid h-10 w-10 shrink-0 place-items-center rounded-lg">
                     <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
                   </span>
                   <span className="min-w-0">
@@ -2116,7 +2219,7 @@ function OrdersScreen({
           })}
         </div>
       </Card>
-    </>
+    </div>
   );
 }
 
