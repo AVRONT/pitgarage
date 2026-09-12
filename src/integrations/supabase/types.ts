@@ -641,6 +641,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_budget_item: {
+        Args: {
+          expected_version: string
+          item_id: string
+          item_name: string
+          item_type: string
+          markup: number
+          order_id: string
+          quantity: number
+          unit_cost: number
+          unit_price: number
+        }
+        Returns: Json
+      }
       administer_user_profile: {
         Args: {
           new_access_level: Database["public"]["Enums"]["access_level"]
