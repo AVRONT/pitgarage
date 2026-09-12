@@ -5061,31 +5061,54 @@ function NewOrderDialog({
   const stages = ["Cliente", "Veículo", "Dados da OS", "Confirmar"];
   return (
     <Dialog open={open} onOpenChange={(value) => (value ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto border-slate-200 bg-slate-50/95 shadow-xl sm:max-w-3xl">
         <div>
-          <DialogHeader>
-            <DialogTitle>Nova ordem de serviço</DialogTitle>
-            <DialogDescription>
+          <DialogHeader className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <DialogTitle className="text-xl tracking-tight">Nova ordem de serviço</DialogTitle>
+            <DialogDescription className="leading-relaxed">
               Cadastre ou selecione cliente e veículo antes de confirmar a entrada.
             </DialogDescription>
           </DialogHeader>
-          <div className="my-5 grid grid-cols-4 gap-2">
+          <div
+            className="my-6 grid grid-cols-4 px-1 sm:px-3"
+            role="progressbar"
+            aria-label={`Etapa ${step + 1} de ${stages.length}: ${stages[step]}`}
+            aria-valuemin={1}
+            aria-valuemax={stages.length}
+            aria-valuenow={step + 1}
+          >
             {stages.map((label, index) => (
-              <div key={label} className="text-center">
+              <div key={label} className="relative text-center">
+                {index < stages.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-[calc(50%+1rem)] top-4 h-0.5 w-[calc(100%-2rem)] overflow-hidden bg-slate-200"
+                  >
+                    <span
+                      className={cn(
+                        "block h-full origin-left bg-primary transition-transform duration-300 ease-out motion-reduce:transition-none",
+                        index < step ? "scale-x-100" : "scale-x-0",
+                      )}
+                    />
+                  </span>
+                )}
                 <span
                   className={cn(
-                    "mx-auto grid h-7 w-7 place-items-center rounded-full border text-xs font-bold",
-                    index <= step
-                      ? "border-orange-500 bg-orange-500 text-white"
-                      : "border-slate-300 text-slate-400",
+                    "relative z-10 mx-auto grid h-8 w-8 place-items-center rounded-full border-2 bg-white text-xs font-bold transition-[border-color,background-color,color,box-shadow] duration-200 motion-reduce:transition-none",
+                    index < step && "border-primary bg-primary text-primary-foreground",
+                    index === step &&
+                      "border-primary text-primary shadow-[0_0_0_4px_rgba(49,94,173,0.12)]",
+                    index > step && "border-slate-300 text-slate-400",
                   )}
                 >
-                  {index + 1}
+                  {index < step ? <Check className="h-4 w-4" aria-hidden="true" /> : index + 1}
                 </span>
                 <span
                   className={cn(
-                    "mt-1 block text-[10px] font-semibold",
-                    index === step ? "text-orange-700" : "text-muted-foreground",
+                    "mt-2 block text-[10px] font-semibold leading-tight sm:text-xs",
+                    index < step && "text-primary",
+                    index === step && "text-primary",
+                    index > step && "text-muted-foreground",
                   )}
                 >
                   {label}
@@ -5094,7 +5117,7 @@ function NewOrderDialog({
             ))}
           </div>
 
-          <div className="min-h-72 space-y-4">
+          <div className="min-h-72 space-y-4 rounded-lg border border-slate-200 bg-white/80 p-4 shadow-sm sm:p-5">
             {step === 0 && (
               <>
                 <div className="flex flex-wrap gap-2">
@@ -5396,7 +5419,7 @@ function NewOrderDialog({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-5 border-t border-slate-200 pt-4">
             <Button variant="outline" onClick={close} disabled={isCreating}>
               Cancelar
             </Button>
