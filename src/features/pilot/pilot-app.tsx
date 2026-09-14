@@ -3124,7 +3124,94 @@ function OrderDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelOpen(false);
+            setCancelReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar {order.id}?</DialogTitle>
+            <DialogDescription>
+              Nada será apagado: cliente, veículo, orçamento e histórico continuam disponíveis para
+              consulta. A OS sai das listas ativas e não aceita mais alterações.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelBlocker ? (
+            <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              {cancelBlocker}
+            </p>
+          ) : (
+            <Textarea
+              value={cancelReason}
+              onChange={(event) => setCancelReason(event.target.value)}
+              placeholder="Motivo do cancelamento"
+              className="min-h-20 rounded-xl"
+              maxLength={200}
+            />
+          )}
+          {actionError && <p className="text-sm font-semibold text-rose-700">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={Boolean(cancelBlocker) || !cancelReason.trim() || actionBusy}
+              onClick={() => {
+                void onCancel(cancelReason.trim()).then((done) => {
+                  if (!done) return;
+                  setCancelOpen(false);
+                  setCancelReason("");
+                });
+              }}
+            >
+              {actionBusy ? "Cancelando…" : "Confirmar cancelamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir {order.id} definitivamente?</DialogTitle>
+            <DialogDescription>
+              {deleteBlockers.length
+                ? "Esta OS já tem movimentação registrada e não pode ser excluída."
+                : `A ${order.id} será apagada para sempre e não poderá ser recuperada. O número não será reaproveitado: a próxima OS continua a numeração.`}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteBlockers.length > 0 && (
+            <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              Não é possível excluir porque {deleteBlockers.join(", ")}. Use o cancelamento para
+              preservar o histórico.
+            </p>
+          )}
+          {actionError && <p className="text-sm font-semibold text-rose-700">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteBlockers.length > 0 || actionBusy}
+              onClick={() => {
+                void onDelete().then((done) => {
+                  if (done) setDeleteOpen(false);
+                });
+              }}
+            >
+              {actionBusy ? "Excluindo…" : `Excluir ${order.id}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }
 
