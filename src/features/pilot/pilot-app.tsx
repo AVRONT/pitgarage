@@ -28,6 +28,8 @@ import {
   LayoutDashboard,
   Menu,
   MessageCircle,
+  MoreVertical,
+
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -105,9 +107,12 @@ import { loadWorkshop } from "./workshop-api";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
+  isOrderCancelled,
   logicallyDeleteCustomer,
   logicallyDeleteVehicle,
   money,
+  orderCancelBlocker,
+  orderDeleteBlockers,
   orderStatuses,
   type ApprovalStatus,
   type Customer,
@@ -115,6 +120,7 @@ import {
   type ServiceOrder,
   type Vehicle,
 } from "./pilot-data";
+
 import { createOperationalRepository, OrderVersionConflict } from "./operational-repository";
 import { FinancialScreen, PartFinancialEditor } from "./financial-screen";
 import { financialApi, type SavePart } from "./financial-api";
@@ -535,6 +541,9 @@ export function PilotApp() {
   }, [orders]);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+  const [orderActionBusy, setOrderActionBusy] = useState(false);
+  const [orderActionError, setOrderActionError] = useState("");
+
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const [quickView, setQuickView] = useState<QuickView | null>(null);
