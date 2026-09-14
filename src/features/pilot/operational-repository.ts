@@ -329,6 +329,24 @@ class CloudOperationalRepository implements OperationalRepository {
     return mapOrder(row);
   }
 
+  async updateComplaint(order: ServiceOrder, complaint: string) {
+    if (!order.databaseId) throw new Error("OS sem identificador persistente.");
+    const expected = this.orderVersions.get(order.databaseId);
+    if (!expected) throw new Error("Recarregue a OS antes de salvar.");
+    const { data, error } = await supabase.rpc("update_order_complaint", {
+      order_id: order.databaseId,
+      expected_version: expected,
+      new_complaint: complaint,
+    });
+    if (error) {
+      if (error.code === "40001") throw new OrderVersionConflict();
+      throw new Error(error.message);
+    }
+    const row = data as unknown as Parameters<typeof mapOrder>[0];
+    this.orderVersions.set(row.id, row.updated_at);
+    return mapOrder(row);
+  }
+
   async updateVehicle(vehicle: Vehicle) {
     const { data, error } = await supabase
       .from("vehicles")
