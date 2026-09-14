@@ -58,11 +58,14 @@ export function TeamSettings() {
     }
   }, []);
 
-  useEffect(() => {
-    if (accessLevel === "owner" && !isLocalBypass) void load();
-  }, [accessLevel, isLocalBypass, load]);
+  const isOwnerActor = accessLevel === "owner";
+  const canAdminister = isOwnerActor || accessLevel === "admin";
 
-  if (accessLevel !== "owner") return null;
+  useEffect(() => {
+    if (canAdminister && !isLocalBypass) void load();
+  }, [canAdminister, isLocalBypass, load]);
+
+  if (!canAdminister) return null;
   if (isLocalBypass) {
     return (
       <section id="equipe" className="mt-7 scroll-mt-28 rounded-lg border bg-white p-5 sm:p-6">
