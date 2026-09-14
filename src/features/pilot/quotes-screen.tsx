@@ -27,6 +27,8 @@ import {
   type QuoteStatus,
 } from "./quotes-api";
 
+const CONTACT_OPTION = "__contact__";
+
 const editableStatuses: QuoteStatus[] = ["Rascunho", "Enviado", "Aprovado", "Recusado", "Expirado"];
 
 export function QuotesScreen({
@@ -418,14 +420,19 @@ function NewQuoteDialog({
   onClose: () => void;
   onCreated: (quote: Quote) => void;
 }) {
-  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? CONTACT_OPTION);
   const [vehicleId, setVehicleId] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const lock = useRef(false);
-  const options = vehicles.filter((vehicle) => vehicle.customerId === customerId);
+  const contact = customerId === CONTACT_OPTION;
+  const options = contact ? [] : vehicles.filter((vehicle) => vehicle.customerId === customerId);
+  const ready = contact ? Boolean(contactName.trim() && contactPhone.trim()) : Boolean(customerId);
   return (
     <Dialog
       open
@@ -456,8 +463,43 @@ function NewQuoteDialog({
                   {customer.name}
                 </option>
               ))}
+              <option value={CONTACT_OPTION}>+ Novo contato / cliente avulso</option>
             </select>
           </label>
+          {contact && (
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                O contato fica guardado apenas neste orçamento. Nenhum cliente é cadastrado agora.
+              </p>
+              <label className="block text-sm font-medium">
+                Nome
+                <Input
+                  className="mt-1 h-11"
+                  value={contactName}
+                  onChange={(event) => setContactName(event.target.value)}
+                  placeholder="Nome de quem pediu o preço"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Telefone / WhatsApp
+                <Input
+                  className="mt-1 h-11"
+                  value={contactPhone}
+                  onChange={(event) => setContactPhone(event.target.value)}
+                  placeholder="(11) 99999-0000"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                E-mail (opcional)
+                <Input
+                  className="mt-1 h-11"
+                  value={contactEmail}
+                  onChange={(event) => setContactEmail(event.target.value)}
+                />
+              </label>
+            </div>
+          )}
+          {!contact && (
           <label className="block text-sm font-medium">
             Veículo (opcional)
             <select
@@ -473,6 +515,7 @@ function NewQuoteDialog({
               ))}
             </select>
           </label>
+          )}
           <label className="block text-sm font-medium">
             Problema / descrição
             <Input
@@ -502,7 +545,7 @@ function NewQuoteDialog({
             Cancelar
           </Button>
           <Button
-            disabled={busy || !customerId}
+            disabled={busy || !ready}
             onClick={async () => {
               if (lock.current) return;
               lock.current = true;
@@ -511,10 +554,17 @@ function NewQuoteDialog({
               try {
                 onCreated(
                   await quotesApi.create({
-                    customerId,
-                    vehicleId: vehicleId || null,
+                    customerId: contact ? null : customerId,
+                    vehicleId: contact ? null : vehicleId || null,
                     description: description.trim(),
                     notes: notes.trim(),
+                    ...(contact
+                      ? {
+                          contactName: contactName.trim(),
+                          contactPhone: contactPhone.trim(),
+                          contactEmail: contactEmail.trim(),
+                        }
+                      : {}),
                   }),
                 );
               } catch (failure) {
