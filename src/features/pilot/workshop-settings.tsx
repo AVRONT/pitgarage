@@ -41,6 +41,7 @@ export function WorkshopSettings({
           className="min-w-0 space-y-5 rounded-lg border bg-white p-5 sm:p-6"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!canEdit || saving) return;
             const clean = Object.fromEntries(
               Object.entries(draft).map(([key, value]) => [
                 key,
@@ -52,18 +53,23 @@ export function WorkshopSettings({
               setMessage("Informe o nome da oficina.");
               return;
             }
-            try {
-              localStorage.setItem(workshopStorageKey, JSON.stringify(createWorkshopRecord(clean)));
-              onSave(clean);
-              setDraft(clean);
-              setError(false);
-              setMessage("Configurações salvas");
-            } catch {
-              setError(true);
-              setMessage(
-                "Não foi possível salvar. Seus campos foram mantidos; verifique se o navegador permite salvar dados e tente novamente.",
-              );
-            }
+            setSaving(true);
+            setMessage("");
+            setError(false);
+            void saveWorkshop(clean)
+              .then((saved) => {
+                onSave(saved);
+                setDraft(saved);
+                setError(false);
+                setMessage("Configurações salvas");
+              })
+              .catch(() => {
+                setError(true);
+                setMessage(
+                  "Não foi possível salvar. Seus campos foram mantidos; verifique a conexão e tente novamente.",
+                );
+              })
+              .finally(() => setSaving(false));
           }}
         >
           <div className="border-b pb-4">
