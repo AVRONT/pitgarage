@@ -23,6 +23,8 @@ export interface OperationalRepository {
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
   saveOrder(order: ServiceOrder): Promise<void>;
+  deleteOrder(order: ServiceOrder): Promise<void>;
+  cancelOrder(order: ServiceOrder, reason: string): Promise<ServiceOrder>;
   deleteCustomer(customerId: string, deletedAt: string): Promise<void>;
   deleteVehicle(vehicleId: string, deletedAt: string): Promise<void>;
   reset(): Promise<OperationalData>;
@@ -103,6 +105,9 @@ function mapOrder(row: {
   activities: Json;
   workshop_snapshot: Json | null;
   updated_at: string;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
 }): ServiceOrder {
   return {
     id: `OS-${row.order_number}`,
@@ -133,6 +138,9 @@ function mapOrder(row: {
         }
       : {}),
     updatedAt: row.updated_at,
+    ...(row.cancelled_at ? { cancelledAt: row.cancelled_at } : {}),
+    ...(row.cancelled_by ? { cancelledBy: row.cancelled_by } : {}),
+    ...(row.cancel_reason ? { cancelReason: row.cancel_reason } : {}),
   };
 }
 
@@ -286,6 +294,39 @@ class CloudOperationalRepository implements OperationalRepository {
     this.orderVersions.set(data.id, data.updated_at);
   }
 
+  async deleteOrder(order: ServiceOrder) {
+    if (!order.databaseId) throw new Error("OS sem identificador persistente.");
+    const expected = this.orderVersions.get(order.databaseId);
+    if (!expected) throw new Error("Recarregue a OS antes de excluir.");
+    const { error } = await supabase.rpc("delete_service_order", {
+      order_id: order.databaseId,
+      expected_version: expected,
+    });
+    if (error) {
+      if (error.code === "40001") throw new OrderVersionConflict();
+      throw new Error(error.message);
+    }
+    this.orderVersions.delete(order.databaseId);
+  }
+
+  async cancelOrder(order: ServiceOrder, reason: string) {
+    if (!order.databaseId) throw new Error("OS sem identificador persistente.");
+    const expected = this.orderVersions.get(order.databaseId);
+    if (!expected) throw new Error("Recarregue a OS antes de cancelar.");
+    const { data, error } = await supabase.rpc("cancel_service_order", {
+      order_id: order.databaseId,
+      expected_version: expected,
+      reason,
+    });
+    if (error) {
+      if (error.code === "40001") throw new OrderVersionConflict();
+      throw new Error(error.message);
+    }
+    const row = data as unknown as Parameters<typeof mapOrder>[0];
+    this.orderVersions.set(row.id, row.updated_at);
+    return mapOrder(row);
+  }
+
   async deleteCustomer(customerId: string, deletedAt: string) {
     const { error } = await supabase
       .from("customers")
@@ -422,6 +463,30 @@ class LocalOperationalRepository implements OperationalRepository {
       ...data,
       orders: data.orders.map((item) => (item.id === order.id ? order : item)),
     });
+  }
+
+  async deleteOrder(order: ServiceOrder) {
+    const data = this.read();
+    this.write({ ...data, orders: data.orders.filter((item) => item.id !== order.id) });
+  }
+
+  async cancelOrder(order: ServiceOrder, reason: string) {
+    const updated: ServiceOrder = {
+      ...order,
+      cancelledAt: new Date().toISOString(),
+      cancelReason: reason.trim(),
+      activities: [
+        ...(order.activities ?? []),
+        {
+          id: "a-" + crypto.randomUUID(),
+          type: "status",
+          description: "OS cancelada: " + reason.trim(),
+          at: new Date().toISOString(),
+        },
+      ],
+    };
+    await this.saveOrder(updated);
+    return updated;
   }
 
   async deleteCustomer(customerId: string, deletedAt: string) {

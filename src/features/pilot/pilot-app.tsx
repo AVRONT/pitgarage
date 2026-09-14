@@ -28,6 +28,8 @@ import {
   LayoutDashboard,
   Menu,
   MessageCircle,
+  MoreVertical,
+
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -64,7 +66,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+
 import {
   Command,
   CommandInput,
@@ -105,9 +115,12 @@ import { loadWorkshop } from "./workshop-api";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
+  isOrderCancelled,
   logicallyDeleteCustomer,
   logicallyDeleteVehicle,
   money,
+  orderCancelBlocker,
+  orderDeleteBlockers,
   orderStatuses,
   type ApprovalStatus,
   type Customer,
@@ -115,6 +128,7 @@ import {
   type ServiceOrder,
   type Vehicle,
 } from "./pilot-data";
+
 import { createOperationalRepository, OrderVersionConflict } from "./operational-repository";
 import { FinancialScreen, PartFinancialEditor } from "./financial-screen";
 import { financialApi, type SavePart } from "./financial-api";
@@ -535,6 +549,9 @@ export function PilotApp() {
   }, [orders]);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+  const [orderActionBusy, setOrderActionBusy] = useState(false);
+  const [orderActionError, setOrderActionError] = useState("");
+
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const [quickView, setQuickView] = useState<QuickView | null>(null);
@@ -656,9 +673,11 @@ export function PilotApp() {
   );
   const operationalOrders = orders.filter(
     (order) =>
+      !isOrderCancelled(order) &&
       activeCustomers.some((customer) => customer.id === order.customerId) &&
       activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
   );
+
   const persist = (operation: () => Promise<void>, savingOrder?: ServiceOrder) => {
     if (writeFailed.current) return;
     setPendingWrites((count) => count + 1);
@@ -757,11 +776,79 @@ export function PilotApp() {
     if (writeFailed.current) return;
     const order = ordersRef.current.find((item) => item.id === id);
     if (!order) return;
+    if (isOrderCancelled(order)) {
+      setNotice("OS cancelada é somente leitura.");
+      return;
+    }
     const updated = updater(order);
     ordersRef.current = ordersRef.current.map((item) => (item.id === id ? updated : item));
     setOrders(ordersRef.current);
     persist(() => repository.saveOrder(updated), updated);
   };
+  const runOrderAction = async (
+    id: string,
+    action: (order: ServiceOrder) => Promise<ServiceOrder | null>,
+  ) => {
+    if (writeFailed.current || orderActionBusy || evidenceWrite.current || financialWrite.current) {
+      setOrderActionError("Aguarde a gravação em andamento antes de continuar.");
+      return false;
+    }
+    setOrderActionBusy(true);
+    setOrderActionError("");
+    setPendingWrites((count) => count + 1);
+    const operation = writeQueue.current
+      .then(async () => {
+        const current = ordersRef.current.find((item) => item.id === id);
+        if (!current) throw new Error("OS não encontrada.");
+        try {
+          const result = await action(current);
+          ordersRef.current = result
+            ? ordersRef.current.map((item) => (item.id === id ? migrateOrder(result) : item))
+            : ordersRef.current.filter((item) => item.id !== id);
+          setOrders(ordersRef.current);
+          return true;
+        } catch (error) {
+          if (error instanceof OrderVersionConflict) {
+            writeFailed.current = true;
+            setOrderConflict({ order: current, message: error.message });
+          }
+          throw error;
+        }
+      })
+      .finally(() => {
+        setOrderActionBusy(false);
+        setPendingWrites((count) => count - 1);
+      });
+    writeQueue.current = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      return await operation;
+    } catch (error) {
+      setOrderActionError(
+        error instanceof Error ? error.message : "Não foi possível concluir a ação.",
+      );
+      return false;
+    }
+  };
+  const deleteOrderPermanently = async (id: string) => {
+    const done = await runOrderAction(id, async (order) => {
+      await repository.deleteOrder(order);
+      return null;
+    });
+    if (done) {
+      setNotice(`${id} excluída definitivamente.`);
+      navigate("orders");
+    }
+    return done;
+  };
+  const cancelOrderWithReason = async (id: string, reason: string) => {
+    const done = await runOrderAction(id, (order) => repository.cancelOrder(order, reason));
+    if (done) setNotice(`${id} cancelada. Os dados foram preservados no histórico.`);
+    return done;
+  };
+
 
   const reloadConflictedOrder = async () => {
     if (!orderConflict || reloadingOrder) return;
@@ -1096,7 +1183,8 @@ export function PilotApp() {
             )}
             {screen === "orders" && (
               <OrdersScreen
-                orders={orders}
+                orders={orders.filter((item) => !isOrderCancelled(item))}
+
                 vehicles={vehicles}
                 customers={customers}
                 onOpen={(id) => setQuickView({ type: "order", id })}
@@ -1172,6 +1260,14 @@ export function PilotApp() {
                     saveEvidence(selectedOrder.id, change, description)
                   }
                   notify={setNotice}
+                  canManage={
+                    (accessLevel === "owner" || accessLevel === "admin") && !isLocalBypass
+                  }
+                  actionBusy={orderActionBusy}
+                  actionError={orderActionError}
+                  onDelete={() => deleteOrderPermanently(selectedOrder.id)}
+                  onCancel={(reason) => cancelOrderWithReason(selectedOrder.id, reason)}
+
                 />
               </div>
             )}
@@ -2661,6 +2757,11 @@ function OrderDetail({
   onVehicle,
   onUpdate,
   notify,
+  canManage,
+  onDelete,
+  onCancel,
+  actionBusy,
+  actionError,
 }: {
   order: ServiceOrder;
   initialTab?: string;
@@ -2673,6 +2774,11 @@ function OrderDetail({
   onVehicle: (id: string) => void;
   onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
+  canManage: boolean;
+  onDelete: () => Promise<boolean>;
+  onCancel: (reason: string) => Promise<boolean>;
+  actionBusy: boolean;
+  actionError: string;
 }) {
   const [activeTab, setActiveTab] = useState(initialTab ?? "overview");
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -2681,7 +2787,14 @@ function OrderDetail({
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingWorkflowConfirmation>();
   const [reversalPlan, setReversalPlan] = useState<WorkflowReversalPlan>();
   const [futureMessage, setFutureMessage] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const cancelled = isOrderCancelled(order);
+  const deleteBlockers = orderDeleteBlockers(order);
+  const cancelBlocker = orderCancelBlocker(order);
   const workflow = evaluateOrderWorkflow(order);
+
   const availableReversal = getWorkflowReversal(order);
   const approved = order.budget
     .filter((item) => item.approval === "Aprovado")
@@ -2762,24 +2875,49 @@ function OrderDetail({
               Status atual · provisório
             </span>
             <StatusBadge status={order.status} />
+            {cancelled && <Badge variant="outline">Cancelada</Badge>}
             {["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status) && (
               <Button variant="outline" size="sm" onClick={() => setSummaryOpen(true)}>
                 <FileText className="mr-2 h-4 w-4" />
                 Resumo final
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-2 text-muted-foreground"
-              onClick={() => {
-                setManualStatus(order.status);
-                setManualStatusOpen(true);
-              }}
-            >
-              <Settings2 className="h-4 w-4" /> Ajustar status manualmente
-            </Button>
+            {!cancelled && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-2 text-muted-foreground"
+                onClick={() => {
+                  setManualStatus(order.status);
+                  setManualStatusOpen(true);
+                }}
+              >
+                <Settings2 className="h-4 w-4" /> Ajustar status manualmente
+              </Button>
+            )}
+            {canManage && !cancelled && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground">
+                    <MoreVertical className="h-4 w-4" /> Mais opções
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => setCancelOpen(true)}>
+                    <XCircle className="mr-2 h-4 w-4" /> Cancelar OS
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Excluir OS
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
+
         }
       />
       <div className="order-metadata mb-5 flex flex-wrap gap-2">
@@ -2807,7 +2945,18 @@ function OrderDetail({
           {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
+      {cancelled && (
+        <div className="mb-5 rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-950">
+          <p className="font-bold">OS cancelada · somente leitura</p>
+          <p className="mt-1 text-sm">
+            {order.cancelReason ? `Motivo: ${order.cancelReason}. ` : ""}
+            Os dados foram preservados para auditoria e não podem mais ser alterados.
+          </p>
+        </div>
+      )}
+      <div inert={cancelled ? true : undefined}>
       <OrderTeamAssignment
+
         team={order.team}
         onSave={(team) => {
           onUpdate((current) => ({ ...current, team }));
@@ -2983,6 +3132,8 @@ function OrderDetail({
           />
         </TabsContent>
       </Tabs>
+      </div>
+
       <Dialog
         open={Boolean(pendingConfirmation)}
         onOpenChange={(open) => !open && setPendingConfirmation(undefined)}
@@ -3124,7 +3275,94 @@ function OrderDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelOpen(false);
+            setCancelReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar {order.id}?</DialogTitle>
+            <DialogDescription>
+              Nada será apagado: cliente, veículo, orçamento e histórico continuam disponíveis para
+              consulta. A OS sai das listas ativas e não aceita mais alterações.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelBlocker ? (
+            <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              {cancelBlocker}
+            </p>
+          ) : (
+            <Textarea
+              value={cancelReason}
+              onChange={(event) => setCancelReason(event.target.value)}
+              placeholder="Motivo do cancelamento"
+              className="min-h-20 rounded-xl"
+              maxLength={200}
+            />
+          )}
+          {actionError && <p className="text-sm font-semibold text-rose-700">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={Boolean(cancelBlocker) || !cancelReason.trim() || actionBusy}
+              onClick={() => {
+                void onCancel(cancelReason.trim()).then((done) => {
+                  if (!done) return;
+                  setCancelOpen(false);
+                  setCancelReason("");
+                });
+              }}
+            >
+              {actionBusy ? "Cancelando…" : "Confirmar cancelamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir {order.id} definitivamente?</DialogTitle>
+            <DialogDescription>
+              {deleteBlockers.length
+                ? "Esta OS já tem movimentação registrada e não pode ser excluída."
+                : `A ${order.id} será apagada para sempre e não poderá ser recuperada. O número não será reaproveitado: a próxima OS continua a numeração.`}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteBlockers.length > 0 && (
+            <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              Não é possível excluir porque {deleteBlockers.join(", ")}. Use o cancelamento para
+              preservar o histórico.
+            </p>
+          )}
+          {actionError && <p className="text-sm font-semibold text-rose-700">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteBlockers.length > 0 || actionBusy}
+              onClick={() => {
+                void onDelete().then((done) => {
+                  if (done) setDeleteOpen(false);
+                });
+              }}
+            >
+              {actionBusy ? "Excluindo…" : `Excluir ${order.id}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }
 

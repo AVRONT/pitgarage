@@ -111,6 +111,34 @@ export interface ServiceOrder {
   statusHistory?: StatusHistoryEntry[];
   activities?: OrderActivity[];
   updatedAt?: string;
+  cancelledAt?: string | undefined;
+  cancelledBy?: string | undefined;
+  cancelReason?: string | undefined;
+}
+
+export const isOrderCancelled = (order: ServiceOrder) => Boolean(order.cancelledAt);
+
+/** Mesmas regras aplicadas em public.delete_service_order. */
+export function orderDeleteBlockers(order: ServiceOrder): string[] {
+  const blockers: string[] = [];
+  if (isOrderCancelled(order)) blockers.push("a OS está cancelada");
+  if (order.status !== "Recebido") blockers.push("a OS já saiu da etapa Recebido");
+  if (order.diagnosis.trim() || order.findings.trim()) blockers.push("há diagnóstico registrado");
+  if (order.budget.length) blockers.push("há itens no orçamento");
+  if (order.evidence.length) blockers.push("há fotos ou vídeos anexados");
+  if (order.payment) blockers.push("há pagamento registrado");
+  if (order.completedAt) blockers.push("o serviço já foi concluído");
+  return blockers;
+}
+
+/** Mesmas regras aplicadas em public.cancel_service_order. */
+export function orderCancelBlocker(order: ServiceOrder): string | null {
+  if (isOrderCancelled(order)) return "Esta OS já está cancelada.";
+  if (order.payment || order.budget.some((item) => item.executed))
+    return "Esta OS tem pagamento registrado ou serviço executado: o cancelamento precisa de tratamento manual.";
+  if (["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status))
+    return "OS concluída ou entregue não pode ser cancelada automaticamente.";
+  return null;
 }
 
 export function logicallyDeleteCustomer(
