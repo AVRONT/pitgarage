@@ -1281,6 +1281,9 @@ export function PilotApp() {
                   actionError={orderActionError}
                   onDelete={() => deleteOrderPermanently(selectedOrder.id)}
                   onCancel={(reason) => cancelOrderWithReason(selectedOrder.id, reason)}
+                  onEditComplaint={(complaint) =>
+                    updateOrderComplaint(selectedOrder.id, complaint)
+                  }
 
                 />
               </div>
