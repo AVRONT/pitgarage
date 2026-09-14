@@ -476,6 +476,8 @@ export type Database = {
           status: string
           updated_at: string
           vehicle_id: string | null
+          vehicle_model_text: string | null
+          vehicle_plate_text: string | null
           warranty_days: number
         }
         Insert: {
@@ -495,6 +497,8 @@ export type Database = {
           status?: string
           updated_at?: string
           vehicle_id?: string | null
+          vehicle_model_text?: string | null
+          vehicle_plate_text?: string | null
           warranty_days?: number
         }
         Update: {
@@ -514,6 +518,8 @@ export type Database = {
           status?: string
           updated_at?: string
           vehicle_id?: string | null
+          vehicle_model_text?: string | null
+          vehicle_plate_text?: string | null
           warranty_days?: number
         }
         Relationships: [
@@ -958,6 +964,16 @@ export type Database = {
         }
         Returns: Json
       }
+      convert_quote_with_vehicle: {
+        Args: {
+          entry_mileage: number
+          expected_version: string
+          new_vehicle: Json
+          quote_id: string
+          vehicle: string
+        }
+        Returns: Json
+      }
       create_quote: {
         Args: {
           contact_email?: string
@@ -967,6 +983,20 @@ export type Database = {
           quote_description: string
           quote_notes: string
           vehicle: string
+        }
+        Returns: Json
+      }
+      create_quote_snapshot: {
+        Args: {
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          customer: string
+          quote_description: string
+          quote_notes: string
+          vehicle: string
+          vehicle_model_text: string
+          vehicle_plate_text: string
         }
         Returns: Json
       }
@@ -1178,6 +1208,8 @@ export type Database = {
           status: string
           updated_at: string
           vehicle_id: string | null
+          vehicle_model_text: string | null
+          vehicle_plate_text: string | null
           warranty_days: number
         }[]
         SetofOptions: {
@@ -1216,6 +1248,7 @@ export type Database = {
           phone: string
         }[]
       }
+      match_quote_vehicle: { Args: { quote_id: string }; Returns: Json }
       order_receivables: { Args: never; Returns: Json }
       record_order_payment: {
         Args: { expected_version: string; order_id: string; receipt: Json }
