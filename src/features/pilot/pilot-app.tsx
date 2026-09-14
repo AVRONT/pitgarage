@@ -3133,6 +3133,8 @@ function OrderDetail({
             total={total}
             onQuickAction={setActiveTab}
             workflow={workflow}
+            onEditComplaint={onEditComplaint}
+            complaintBusy={actionBusy}
           />
         </TabsContent>
         <TabsContent value="diagnosis" className="mt-6">
