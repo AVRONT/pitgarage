@@ -446,7 +446,7 @@ export function FinancialScreen() {
         throw new Error("Você não tem permissão financeira. Solicite acesso ao proprietário.");
       const report = await financialApi.report();
       if (active) setRows(report);
-      if (accessLevel === "owner") {
+      if (accessLevel === "owner" || accessLevel === "admin") {
         const list = await financialApi.members();
         if (active) setMembers(list);
       }
@@ -1344,7 +1344,7 @@ export function FinancialScreen() {
               </details>
             </>
           )}
-          {accessLevel === "owner" && (
+          {(accessLevel === "owner" || accessLevel === "admin") && (
             <Card className="border-slate-200 shadow-sm shadow-slate-950/[0.03]">
               <CardContent className="space-y-3 p-4 sm:p-6">
                 <div className="flex items-center gap-2">

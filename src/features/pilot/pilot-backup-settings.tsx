@@ -23,10 +23,11 @@ export function ExportOperationalBackup({ load, disabled = false }: {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
-  if (accessLevel !== "owner") return null;
+  const canAdminister = accessLevel === "owner" || accessLevel === "admin";
+  if (!canAdminister) return null;
   return <div className="mt-4">
     <Button type="button" variant="outline" disabled={disabled || busy} onClick={async () => {
-      if (accessLevel !== "owner" || disabled || lock.current) return;
+      if (!canAdminister || disabled || lock.current) return;
       lock.current = true;
       setBusy(true); setMessage(""); setFailed(false);
       try {

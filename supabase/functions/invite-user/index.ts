@@ -17,8 +17,8 @@ Deno.serve(async (request) => {
       .select("access_level,is_active")
       .eq("user_id", data.user.id)
       .single();
-    if (!profile?.is_active || profile.access_level !== "owner")
-      return json({ message: "Somente o proprietário pode enviar convites." }, 403);
+    if (!profile?.is_active || !["owner", "admin"].includes(profile.access_level))
+      return json({ message: "Somente proprietário ou administrador pode enviar convites." }, 403);
     const { email, fullName } = await request.json();
     if (typeof email !== "string" || !email.includes("@"))
       return json({ message: "Informe um e-mail válido." }, 400);
