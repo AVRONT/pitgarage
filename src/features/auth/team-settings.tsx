@@ -83,7 +83,8 @@ export function TeamSettings() {
     );
 
   const save = async (user: TeamUser) => {
-    if (savingRef.current || accessLevel !== "owner" || user.access_level === "owner") return;
+    if (savingRef.current || !canAdminister) return;
+    if (user.access_level === "owner" && !isOwnerActor) return;
     if (user.access_level !== "customer" && !user.operational_role?.trim()) {
       return setMessage("Informe o cargo operacional para staff ou admin.");
     }
@@ -123,8 +124,9 @@ export function TeamSettings() {
         Equipe
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Somente o proprietário altera níveis de acesso. Contas nunca são excluídas por esta tela.{" "}
-        Ajuste o nível, cargo e situação e clique em Salvar para confirmar.
+        Proprietário e administrador ajustam a equipe; somente o proprietário gerencia contas de
+        proprietário. Contas nunca são excluídas por esta tela e a oficina precisa manter ao menos um
+        proprietário ativo. Ajuste o nível, cargo e situação e clique em Salvar para confirmar.
       </p>
       <InviteForm />
       {loading && (
@@ -153,6 +155,7 @@ export function TeamSettings() {
       <div className="mt-5 space-y-3">
         {users.map((user) => {
           const isOwner = user.access_level === "owner";
+          const locked = isOwner && !isOwnerActor;
           return (
             <article
               key={user.user_id}
@@ -170,13 +173,13 @@ export function TeamSettings() {
                 <select
                   className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm"
                   value={user.access_level}
-                  disabled={isOwner || saving || loading || loadError}
+                  disabled={locked || saving || loading || loadError}
                   onChange={(event) =>
                     updateDraft(user.user_id, { access_level: event.target.value as AccessLevel })
                   }
                 >
-                  {isOwner && <option value="owner">Owner</option>}
-                  {managedLevels.map((level) => (
+                  {locked && <option value="owner">Proprietário</option>}
+                  {(isOwnerActor ? ownerManagedLevels : managedLevels).map((level) => (
                     <option key={level} value={level}>
                       {
                         {
@@ -196,14 +199,14 @@ export function TeamSettings() {
                   id={`role-${user.user_id}`}
                   className="mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm"
                   value={
-                    isOwner
+                    locked
                       ? "Proprietário"
                       : customRoleUsers.has(user.user_id)
                         ? "Outro"
                         : (roleSelection(user.operational_role) ?? "")
                   }
                   disabled={
-                    isOwner || user.access_level === "customer" || saving || loading || loadError
+                    locked || user.access_level === "customer" || saving || loading || loadError
                   }
                   onChange={(event) => {
                     const custom = event.target.value === "Outro";
@@ -218,7 +221,7 @@ export function TeamSettings() {
                     });
                   }}
                 >
-                  {isOwner ? (
+                  {locked ? (
                     <option value="Proprietário">Proprietário</option>
                   ) : (
                     <>
@@ -232,7 +235,7 @@ export function TeamSettings() {
                     </>
                   )}
                 </select>
-                {!isOwner &&
+                {!locked &&
                   user.access_level !== "customer" &&
                   customRoleUsers.has(user.user_id) && (
                     <Input
@@ -249,7 +252,7 @@ export function TeamSettings() {
                   )}
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 xl:col-span-1">
-                {!isOwner ? (
+                {!locked ? (
                   <>
                     <Button
                       type="button"
