@@ -2813,6 +2813,7 @@ function OrderDetail({
   canManage: boolean;
   onDelete: () => Promise<boolean>;
   onCancel: (reason: string) => Promise<boolean>;
+  onEditComplaint: (complaint: string) => Promise<boolean>;
   actionBusy: boolean;
   actionError: string;
 }) {
