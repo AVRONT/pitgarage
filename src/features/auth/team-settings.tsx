@@ -18,6 +18,7 @@ type TeamUser = {
 };
 
 const managedLevels: AccessLevel[] = ["customer", "staff", "admin"];
+const ownerManagedLevels: AccessLevel[] = ["customer", "staff", "admin", "owner"];
 const standardRoles = ["Mecânico", "Atendente", "Gestor da oficina", "Administrativo"] as const;
 
 const roleSelection = (role: string | null) =>
