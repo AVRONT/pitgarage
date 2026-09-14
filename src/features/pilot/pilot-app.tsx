@@ -120,6 +120,8 @@ import { financialApi, type SavePart } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import type { BudgetMutation } from "./financial-model";
 import { RemoveBudgetItem } from "./remove-budget-item";
+import { ExportOperationalBackup } from "./pilot-backup-settings";
+import { createBackup } from "./pilot-storage";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
 import {
   isBasicCpfValid,
@@ -1024,8 +1026,12 @@ export function PilotApp() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {isLocalBypass
                       ? "Este ambiente usa dados locais de desenvolvimento isolados. O backup legado do piloto não é carregado automaticamente."
-                      : "O backup JSON manual local não protege os dados cloud. Snapshots automáticos estruturados estão preparados e dependem de ativação do agendamento no servidor. Fotos e vídeos não são copiados."}
+                      : "Exporte clientes, veículos, OS e configurações da oficina em JSON. Fotos e vídeos não são incluídos, apenas suas referências. Este arquivo não substitui o backup completo do cloud e não inclui as tabelas financeiras protegidas. O backup automático de 72h não é alterado por esta ação."}
                   </p>
+                  <ExportOperationalBackup
+                    disabled={dataLoading || pendingWrites > 0 || Boolean(dataError)}
+                    load={async () => createBackup(await createOperationalRepository(isLocalBypass).load(), workshop)}
+                  />
                 </section>
                 <TeamSettings />
               </>

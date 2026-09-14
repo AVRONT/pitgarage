@@ -12,6 +12,52 @@ import {
 import type { Workshop } from "./workshop-data";
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
 import { createBackup, parseBackup, type PilotBackup } from "./pilot-storage";
+import { useAuth } from "@/features/auth/auth-context";
+
+export function ExportOperationalBackup({ load, disabled = false }: {
+  load: () => Promise<PilotBackup>;
+  disabled?: boolean;
+}) {
+  const { accessLevel } = useAuth();
+  const lock = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
+  if (accessLevel !== "owner") return null;
+  return <div className="mt-4">
+    <Button type="button" variant="outline" disabled={disabled || busy} onClick={async () => {
+      if (accessLevel !== "owner" || disabled || lock.current) return;
+      lock.current = true;
+      setBusy(true); setMessage(""); setFailed(false);
+      try {
+        const backup = await load();
+        downloadBackup(backup);
+        setMessage("Backup gerado. Download solicitado ao navegador.");
+      } catch {
+        setFailed(true);
+        setMessage("Não foi possível gerar o backup. Tente novamente.");
+      } finally {
+        lock.current = false; setBusy(false);
+      }
+    }}><Download className="h-4 w-4" />{busy ? "Gerando backup…" : "Exportar backup JSON"}</Button>
+    {message && <p role={failed ? "alert" : "status"} className={failed ? "mt-2 text-sm text-destructive" : "mt-2 text-sm text-muted-foreground"}>{message}</p>}
+  </div>;
+}
+
+function downloadBackup(backup: PilotBackup) {
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  try {
+    link.href = url;
+    link.download = `pitgarage-backup-${backup.exportedAt.slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
 
 export function PilotBackupSettings({
   customers,
@@ -61,15 +107,7 @@ export function PilotBackupSettings({
           variant="outline"
           onClick={() => {
             const backup = createBackup({ customers, vehicles, orders }, workshop);
-            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `pitgarage-backup-${backup.exportedAt.slice(0, 10)}.json`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.setTimeout(() => URL.revokeObjectURL(url), 0);
+            downloadBackup(backup);
             setError(false);
             setMessage("Backup exportado.");
           }}
