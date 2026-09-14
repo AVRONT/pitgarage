@@ -1032,6 +1032,7 @@ export function PilotApp() {
                 <WorkshopSettings
                   key={JSON.stringify(workshop)}
                   workshop={workshop}
+                  canEdit={canEditWorkshop && !isLocalBypass}
                   onSave={setWorkshop}
                 />
                 <section
