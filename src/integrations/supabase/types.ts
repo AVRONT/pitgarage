@@ -981,6 +981,14 @@ export type Database = {
         Returns: string
       }
       try_link_my_customer: { Args: never; Returns: string }
+      update_order_complaint: {
+        Args: {
+          expected_version: string
+          new_complaint: string
+          order_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       access_level: "customer" | "staff" | "admin" | "owner"
