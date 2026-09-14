@@ -58,6 +58,21 @@ test("removal only in budget stages, legacy parts/services and partial approval"
   assert.equal(model.canRemoveBudgetItem({ status: "Em diagnóstico" }, { executed: true }), false);
   for (const status of ["Aguardando peça", "Em manutenção", "Serviço concluído", "Aguardando retirada", "Entregue"])
     assert.equal(model.canRemoveBudgetItem({ status }, { executed: false }), false);
+  // refused and never executed items are removable while the order is still running
+  for (const status of ["Aguardando peça", "Em manutenção"])
+    assert.equal(
+      model.canRemoveBudgetItem({ status }, { executed: false, approval: "Recusado" }),
+      true,
+    );
+  const refused = { executed: false, approval: "Recusado" };
+  assert.equal(model.canRemoveBudgetItem({ status: "Em manutenção", cancelledAt: "x" }, refused), false);
+  assert.equal(model.canRemoveBudgetItem({ status: "Entregue" }, refused), false);
+  assert.equal(model.canRemoveBudgetItem({ status: "Em manutenção", completedAt: "2026-01-01" }, refused), false);
+  assert.equal(model.canRemoveBudgetItem({ status: "Em manutenção", payment: { amount: 1 } }, refused), false);
+  assert.match(
+    model.budgetItemRemovalBlocker({ status: "Em manutenção", payment: { amount: 1 } }, refused),
+    /pagamento/,
+  );
 });
 test("removal confirmation blocks customers, duplicate clicks and keeps dialog on failure", async () => {
   const states = [], refs = []; let index = 0, refIndex = 0, calls = 0, reject;
