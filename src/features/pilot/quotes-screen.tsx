@@ -18,7 +18,16 @@ import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import { RemoveBudgetItem } from "./remove-budget-item";
 import { WorkshopIdentity } from "./workshop-document-header";
 import type { Workshop } from "./workshop-data";
-import { quoteLabel, quoteTotal, quotesApi, type Quote, type QuoteStatus } from "./quotes-api";
+import {
+  quoteLabel,
+  quoteTotal,
+  quotesApi,
+  type Quote,
+  type QuoteContactMatch,
+  type QuoteStatus,
+} from "./quotes-api";
+
+const CONTACT_OPTION = "__contact__";
 
 const editableStatuses: QuoteStatus[] = ["Rascunho", "Enviado", "Aprovado", "Recusado", "Expirado"];
 
@@ -46,6 +55,7 @@ export function QuotesScreen({
   const [financialAllowed, setFinancialAllowed] = useState(false);
   const [checkingPermission, setCheckingPermission] = useState(true);
   const [document, setDocument] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
 
@@ -72,7 +82,11 @@ export function QuotesScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [internal]);
 
-  const customerName = (id: string) => customers.find((c) => c.id === id)?.name ?? "Cliente";
+  /** Cliente cadastrado ou contato avulso guardado no próprio orçamento. */
+  const partyName = (quote: Quote) =>
+    quote.customerId
+      ? (customers.find((c) => c.id === quote.customerId)?.name ?? "Cliente")
+      : (quote.contactName ?? "Contato");
   const vehicleLabel = (id: string | null) => {
     const vehicle = vehicles.find((v) => v.id === id);
     return vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : "Sem veículo";
@@ -172,7 +186,7 @@ export function QuotesScreen({
             {quotes.map((quote) => (
               <tr key={quote.id} className="border-t">
                 <td className="p-3 font-medium">{quoteLabel(quote)}</td>
-                <td className="p-3">{customerName(quote.customerId)}</td>
+                <td className="p-3">{partyName(quote)}</td>
                 <td className="p-3">{vehicleLabel(quote.vehicleId)}</td>
                 <td className="p-3">{new Date(quote.createdAt).toLocaleDateString("pt-BR")}</td>
                 <td className="p-3">{money(quoteTotal(quote))}</td>
@@ -215,7 +229,7 @@ export function QuotesScreen({
           <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>
-                {quoteLabel(open)} · {customerName(open.customerId)}
+                {quoteLabel(open)} · {partyName(open)}
               </DialogTitle>
               <DialogDescription>
                 {vehicleLabel(open.vehicleId)} · situação: {open.status} · garantia de{" "}
@@ -277,6 +291,11 @@ export function QuotesScreen({
                     disabled={busy || open.items.length === 0}
                     onClick={async () => {
                       if (lock.current) return;
+                      if (!open.customerId) {
+                        setError("");
+                        setLinking(true);
+                        return;
+                      }
                       const vehicleId =
                         open.vehicleId ??
                         vehicles.find((v) => v.customerId === open.customerId)?.id ??
@@ -327,7 +346,15 @@ export function QuotesScreen({
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <dt className="text-slate-500">Cliente</dt>
-                    <dd>{customerName(open.customerId)}</dd>
+                    <dd>{partyName(open)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Contato</dt>
+                    <dd>
+                      {open.customerId
+                        ? (customers.find((c) => c.id === open.customerId)?.phone ?? "—")
+                        : [open.contactPhone, open.contactEmail].filter(Boolean).join(" · ")}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">Veículo</dt>
@@ -356,6 +383,20 @@ export function QuotesScreen({
         </Dialog>
       )}
 
+      {linking && open && !open.customerId && (
+        <LinkContactDialog
+          quote={open}
+          onClose={() => setLinking(false)}
+          onLinked={(updated) => {
+            setQuotes((list) => list.map((item) => (item.id === updated.id ? updated : item)));
+            setLinking(false);
+            setNotice(
+              "Contato vinculado a um cliente. Confirme o veículo e converta o orçamento em OS.",
+            );
+          }}
+        />
+      )}
+
       {addingItem && open && (
         <AddBudgetItemDialog
           onClose={() => setAddingItem(false)}
@@ -379,14 +420,19 @@ function NewQuoteDialog({
   onClose: () => void;
   onCreated: (quote: Quote) => void;
 }) {
-  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? CONTACT_OPTION);
   const [vehicleId, setVehicleId] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const lock = useRef(false);
-  const options = vehicles.filter((vehicle) => vehicle.customerId === customerId);
+  const contact = customerId === CONTACT_OPTION;
+  const options = contact ? [] : vehicles.filter((vehicle) => vehicle.customerId === customerId);
+  const ready = contact ? Boolean(contactName.trim() && contactPhone.trim()) : Boolean(customerId);
   return (
     <Dialog
       open
@@ -417,8 +463,43 @@ function NewQuoteDialog({
                   {customer.name}
                 </option>
               ))}
+              <option value={CONTACT_OPTION}>+ Novo contato / cliente avulso</option>
             </select>
           </label>
+          {contact && (
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                O contato fica guardado apenas neste orçamento. Nenhum cliente é cadastrado agora.
+              </p>
+              <label className="block text-sm font-medium">
+                Nome
+                <Input
+                  className="mt-1 h-11"
+                  value={contactName}
+                  onChange={(event) => setContactName(event.target.value)}
+                  placeholder="Nome de quem pediu o preço"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Telefone / WhatsApp
+                <Input
+                  className="mt-1 h-11"
+                  value={contactPhone}
+                  onChange={(event) => setContactPhone(event.target.value)}
+                  placeholder="(11) 99999-0000"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                E-mail (opcional)
+                <Input
+                  className="mt-1 h-11"
+                  value={contactEmail}
+                  onChange={(event) => setContactEmail(event.target.value)}
+                />
+              </label>
+            </div>
+          )}
+          {!contact && (
           <label className="block text-sm font-medium">
             Veículo (opcional)
             <select
@@ -434,6 +515,7 @@ function NewQuoteDialog({
               ))}
             </select>
           </label>
+          )}
           <label className="block text-sm font-medium">
             Problema / descrição
             <Input
@@ -463,7 +545,7 @@ function NewQuoteDialog({
             Cancelar
           </Button>
           <Button
-            disabled={busy || !customerId}
+            disabled={busy || !ready}
             onClick={async () => {
               if (lock.current) return;
               lock.current = true;
@@ -472,10 +554,17 @@ function NewQuoteDialog({
               try {
                 onCreated(
                   await quotesApi.create({
-                    customerId,
-                    vehicleId: vehicleId || null,
+                    customerId: contact ? null : customerId,
+                    vehicleId: contact ? null : vehicleId || null,
                     description: description.trim(),
                     notes: notes.trim(),
+                    ...(contact
+                      ? {
+                          contactName: contactName.trim(),
+                          contactPhone: contactPhone.trim(),
+                          contactEmail: contactEmail.trim(),
+                        }
+                      : {}),
                   }),
                 );
               } catch (failure) {
@@ -490,6 +579,128 @@ function NewQuoteDialog({
           >
             {busy ? "Criando…" : "Criar orçamento"}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LinkContactDialog({
+  quote,
+  onClose,
+  onLinked,
+}: {
+  quote: Quote;
+  onClose: () => void;
+  onLinked: (quote: Quote) => void;
+}) {
+  const [matches, setMatches] = useState<QuoteContactMatch[] | null>(null);
+  const [chosen, setChosen] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+
+  useEffect(() => {
+    quotesApi
+      .matchContact(quote.id)
+      .then((list) => setMatches(list ?? []))
+      .catch((failure: unknown) => {
+        setMatches([]);
+        setError(
+          failure instanceof Error ? failure.message : "Não foi possível buscar clientes compatíveis.",
+        );
+      });
+  }, [quote.id]);
+
+  const link = async (existing: string | null) => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      onLinked(await quotesApi.linkCustomer(quote, existing));
+    } catch (failure) {
+      setError(
+        `${failure instanceof Error ? failure.message : "Não foi possível vincular."} Atualize a lista antes de tentar novamente.`,
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(value) => {
+        if (!value && !lock.current) onClose();
+      }}
+    >
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Vincular contato a um cliente</DialogTitle>
+          <DialogDescription>
+            {quote.contactName} · {quote.contactPhone}
+            {quote.contactEmail ? ` · ${quote.contactEmail}` : ""}. A OS precisa de um cliente
+            cadastrado.
+          </DialogDescription>
+        </DialogHeader>
+
+        {matches === null && <p className="text-sm text-muted-foreground">Buscando…</p>}
+
+        {matches !== null && matches.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm">
+              Já existe cliente compatível. Escolha qual deseja vincular:
+            </p>
+            {matches.map((match) => (
+              <label key={match.id} className="flex items-start gap-2 rounded-md border p-3 text-sm">
+                <input
+                  type="radio"
+                  name="cliente-compativel"
+                  className="mt-1"
+                  value={match.id}
+                  checked={chosen === match.id}
+                  onChange={() => setChosen(match.id)}
+                />
+                <span>
+                  <span className="font-medium">{match.name}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {match.phone}
+                    {match.email ? ` · ${match.email}` : ""}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {matches !== null && matches.length === 0 && (
+          <p className="text-sm">
+            Nenhum cliente compatível encontrado. O cliente será criado com os dados deste contato.
+          </p>
+        )}
+
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          {matches !== null && matches.length > 0 && (
+            <Button disabled={busy || !chosen} onClick={() => void link(chosen)}>
+              {busy ? "Vinculando…" : "Vincular ao cliente escolhido"}
+            </Button>
+          )}
+          {matches !== null && matches.length === 0 && (
+            <Button disabled={busy} onClick={() => void link(null)}>
+              {busy ? "Criando…" : "Criar cliente com estes dados"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

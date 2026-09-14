@@ -1,7 +1,23 @@
 import type { BudgetItem, ServiceOrder } from "./pilot-data";
 
+const budgetStages = ["Recebido", "Em diagnóstico", "Aguardando aprovação"];
+const closedStages = ["Serviço concluído", "Aguardando retirada", "Entregue"];
+
+/** Mesmas condições aplicadas em public.remove_budget_item; devolve o motivo real do bloqueio. */
+export function budgetItemRemovalBlocker(order: ServiceOrder, item: BudgetItem): string | null {
+  if (item.executed)
+    return "Este item já foi executado e não pode ser removido; ele permanece no histórico.";
+  if (order.cancelledAt) return "Esta OS está cancelada: o orçamento é somente leitura.";
+  if (closedStages.includes(order.status) || order.completedAt)
+    return "Esta OS já foi concluída ou entregue: o orçamento é somente leitura.";
+  if (order.payment)
+    return "Esta OS tem pagamento registrado: a remoção precisa de tratamento manual.";
+  if (item.approval === "Recusado" || budgetStages.includes(order.status)) return null;
+  return `A OS está em “${order.status}”. Nesta etapa só é possível remover itens recusados e nunca executados.`;
+}
+
 export function canRemoveBudgetItem(order: ServiceOrder, item: BudgetItem) {
-  return !item.executed && ["Recebido", "Em diagnóstico", "Aguardando aprovação"].includes(order.status);
+  return budgetItemRemovalBlocker(order, item) === null;
 }
 
 export type PartFinancialInput = {

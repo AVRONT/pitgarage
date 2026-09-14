@@ -409,10 +409,13 @@ export type Database = {
       }
       quotes: {
         Row: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           converted_at: string | null
           created_at: string
           created_by: string | null
-          customer_id: string
+          customer_id: string | null
           description: string
           id: string
           items: Json
@@ -425,10 +428,13 @@ export type Database = {
           warranty_days: number
         }
         Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           converted_at?: string | null
           created_at?: string
           created_by?: string | null
-          customer_id: string
+          customer_id?: string | null
           description?: string
           id?: string
           items?: Json
@@ -441,10 +447,13 @@ export type Database = {
           warranty_days?: number
         }
         Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           converted_at?: string | null
           created_at?: string
           created_by?: string | null
-          customer_id?: string
+          customer_id?: string | null
           description?: string
           id?: string
           items?: Json
@@ -867,6 +876,9 @@ export type Database = {
       }
       create_quote: {
         Args: {
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
           customer: string
           quote_description: string
           quote_notes: string
@@ -970,6 +982,14 @@ export type Database = {
         Returns: Json
       }
       has_developer_access: { Args: never; Returns: boolean }
+      link_quote_customer: {
+        Args: {
+          existing_customer: string
+          expected_version: string
+          quote_id: string
+        }
+        Returns: Json
+      }
       list_assignable_members: {
         Args: never
         Returns: {
@@ -1057,10 +1077,13 @@ export type Database = {
       list_quotes: {
         Args: never
         Returns: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           converted_at: string | null
           created_at: string
           created_by: string | null
-          customer_id: string
+          customer_id: string | null
           description: string
           id: string
           items: Json
@@ -1098,6 +1121,15 @@ export type Database = {
       mark_my_notifications_read: {
         Args: { notification_id?: string }
         Returns: undefined
+      }
+      match_quote_contact: {
+        Args: { quote_id: string }
+        Returns: {
+          email: string
+          id: string
+          name: string
+          phone: string
+        }[]
       }
       remove_budget_item: {
         Args: { expected_version: string; item_id: string; order_id: string }

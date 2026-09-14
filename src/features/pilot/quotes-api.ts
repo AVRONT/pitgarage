@@ -16,7 +16,11 @@ export type QuoteStatus = (typeof quoteStatuses)[number];
 export interface Quote {
   id: string;
   quoteNumber: number;
-  customerId: string;
+  /** Nulo enquanto o orçamento existir apenas para um contato avulso. */
+  customerId: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
   vehicleId: string | null;
   description: string;
   notes: string;
@@ -32,7 +36,10 @@ export interface Quote {
 type QuoteRow = {
   id: string;
   quote_number: number;
-  customer_id: string;
+  customer_id: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
   vehicle_id: string | null;
   description: string;
   notes: string;
@@ -49,6 +56,9 @@ const mapQuote = (row: QuoteRow): Quote => ({
   id: row.id,
   quoteNumber: row.quote_number,
   customerId: row.customer_id,
+  contactName: row.contact_name,
+  contactPhone: row.contact_phone,
+  contactEmail: row.contact_email,
   vehicleId: row.vehicle_id,
   description: row.description ?? "",
   notes: row.notes ?? "",
@@ -66,13 +76,18 @@ export const quoteLabel = (quote: Pick<Quote, "quoteNumber">) => `ORC-${quote.qu
 export const quoteTotal = (quote: Pick<Quote, "items">) =>
   quote.items.reduce((sum, item) => sum + (item.price ?? 0), 0);
 
+export type QuoteContactMatch = { id: string; name: string; phone: string; email: string };
+
 export const quotesApi = {
   list: async () => (await financialRpc<QuoteRow[]>("list_quotes")).map(mapQuote),
   create: async (input: {
-    customerId: string;
+    customerId: string | null;
     vehicleId: string | null;
     description: string;
     notes: string;
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
   }) =>
     mapQuote(
       await financialRpc<QuoteRow>("create_quote", {
@@ -80,6 +95,21 @@ export const quotesApi = {
         vehicle: input.vehicleId,
         quote_description: input.description,
         quote_notes: input.notes,
+        contact_name: input.contactName ?? null,
+        contact_phone: input.contactPhone ?? null,
+        contact_email: input.contactEmail ?? null,
+      }),
+    ),
+  /** Candidatos compatíveis por telefone/e-mail; a escolha é sempre do usuário. */
+  matchContact: (quoteId: string) =>
+    financialRpc<QuoteContactMatch[]>("match_quote_contact", { quote_id: quoteId }),
+  /** existing_customer nulo só cria cliente quando não existe nenhum candidato compatível. */
+  linkCustomer: async (quote: Quote, existingCustomerId: string | null) =>
+    mapQuote(
+      await financialRpc<QuoteRow>("link_quote_customer", {
+        quote_id: quote.id,
+        expected_version: quote.updatedAt,
+        existing_customer: existingCustomerId,
       }),
     ),
   update: async (quote: Quote, input: { description: string; notes: string; vehicleId: string | null }) =>

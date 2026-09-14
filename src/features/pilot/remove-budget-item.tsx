@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
-import { canRemoveBudgetItem } from "./financial-model";
+import { budgetItemRemovalBlocker } from "./financial-model";
 import type { BudgetItem, ServiceOrder } from "./pilot-data";
 import type { SavePart } from "./financial-api";
 
@@ -32,14 +32,8 @@ export function RemoveBudgetItem({
   const [error, setError] = useState("");
   const lock = useRef(false);
   if (!isLocalBypass && !["owner", "admin", "staff"].includes(accessLevel ?? "")) return null;
-  const allowed = !blocked && (order ? canRemoveBudgetItem(order, item) : true);
-  const blocker = allowed
-    ? ""
-    : blocked
-      ? blocked
-      : item.executed
-        ? "Este item já foi executado e não pode ser removido; ele permanece no histórico."
-        : `A OS está em “${order?.status}”. A remoção só é permitida nas etapas Recebido, Em diagnóstico e Aguardando aprovação.`;
+  const blocker = blocked ?? (order ? budgetItemRemovalBlocker(order, item) : null) ?? "";
+  const allowed = !blocker;
 
   return (
     <>
