@@ -28,7 +28,7 @@ export type PartFinancialInput = {
   quantity: number;
   unitPrice: number;
 };
-export type BudgetMutation = PartFinancialInput | { removeItem: string };
+export type BudgetMutation = PartFinancialInput | { removeItem: string } | { receipt: import("./payment-model").ReceiptInput };
 export type FinancialRow = {
   orderId: string;
   kind: string;

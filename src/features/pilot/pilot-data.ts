@@ -62,9 +62,11 @@ export interface Evidence {
 }
 
 export interface Payment {
+  receipts?: import("./payment-model").Receipt[];
+  legacy?: Record<string, unknown>;
   amount: number;
   method: "PIX" | "Cartão";
-  status: "Pendente" | "Pago";
+  status: "Pendente" | "Pago" | "Parcial" | "Em aberto";
   date: string;
 }
 

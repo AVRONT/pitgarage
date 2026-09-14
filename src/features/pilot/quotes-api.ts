@@ -22,6 +22,8 @@ export interface Quote {
   contactPhone: string | null;
   contactEmail: string | null;
   vehicleId: string | null;
+  vehicleModelText?: string | null;
+  vehiclePlateText?: string | null;
   description: string;
   notes: string;
   status: QuoteStatus;
@@ -41,6 +43,8 @@ type QuoteRow = {
   contact_phone: string | null;
   contact_email: string | null;
   vehicle_id: string | null;
+  vehicle_model_text?: string | null;
+  vehicle_plate_text?: string | null;
   description: string;
   notes: string;
   status: QuoteStatus;
@@ -60,6 +64,8 @@ const mapQuote = (row: QuoteRow): Quote => ({
   contactPhone: row.contact_phone,
   contactEmail: row.contact_email,
   vehicleId: row.vehicle_id,
+  vehicleModelText: row.vehicle_model_text ?? null,
+  vehiclePlateText: row.vehicle_plate_text ?? null,
   description: row.description ?? "",
   notes: row.notes ?? "",
   status: row.status,
@@ -88,9 +94,11 @@ export const quotesApi = {
     contactName?: string;
     contactPhone?: string;
     contactEmail?: string;
+    vehicleModelText?: string;
+    vehiclePlateText?: string;
   }) =>
     mapQuote(
-      await financialRpc<QuoteRow>("create_quote", {
+      await financialRpc<QuoteRow>("create_quote_snapshot", {
         customer: input.customerId,
         vehicle: input.vehicleId,
         quote_description: input.description,
@@ -98,6 +106,8 @@ export const quotesApi = {
         contact_name: input.contactName ?? null,
         contact_phone: input.contactPhone ?? null,
         contact_email: input.contactEmail ?? null,
+        vehicle_model_text: input.vehicleModelText ?? null,
+        vehicle_plate_text: input.vehiclePlateText ?? null,
       }),
     ),
   /** Candidatos compatíveis por telefone/e-mail; a escolha é sempre do usuário. */
@@ -132,6 +142,7 @@ export const quotesApi = {
     ),
   /** Mesma camada de domínio usada no orçamento da OS: adicionar ou remover item. */
   mutateItem: async (quote: Quote, mutation: BudgetMutation) => {
+    if ("receipt" in mutation) throw new Error("Registre pagamentos na OS, não no orçamento.");
     if ("removeItem" in mutation)
       return mapQuote(
         await financialRpc<QuoteRow>("remove_quote_item", {
@@ -166,6 +177,9 @@ export const quotesApi = {
       quote_id: quoteId,
       item_id: itemId,
     }),
+  matchVehicle: (quoteId: string) => financialRpc<{ id: string; customerId: string; model: string; plate: string; deleted: boolean }[]>("match_quote_vehicle", { quote_id: quoteId }),
+  convertWithVehicle: (quote: Quote, vehicleId: string | null, newVehicle: { kind: string; brand: string; model: string; plate: string; year: number; color: string } | null, mileage: number) =>
+    financialRpc<{ id: string }>("convert_quote_with_vehicle", { quote_id: quote.id, expected_version: quote.updatedAt, vehicle: vehicleId, new_vehicle: newVehicle, entry_mileage: mileage }),
 };
 
 export type ConvertedOrderRef = Pick<ServiceOrder, "id">;

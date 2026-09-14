@@ -168,8 +168,10 @@ class CloudOperationalRepository implements OperationalRepository {
     if (!expected) throw new Error("Recarregue a OS antes de salvar.");
     try {
       const row = await financialRpc<Parameters<typeof mapOrder>[0]>(
-        "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
-        "removeItem" in input ? {
+        "receipt" in input ? "record_order_payment" : "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
+        "receipt" in input ? {
+          order_id: order.databaseId, expected_version: expected, receipt: input.receipt,
+        } : "removeItem" in input ? {
           order_id: order.databaseId,
           expected_version: expected,
           item_id: input.removeItem,
@@ -407,6 +409,7 @@ class CloudOperationalRepository implements OperationalRepository {
 
 class LocalOperationalRepository implements OperationalRepository {
   async savePartFinancial(order: ServiceOrder, input: BudgetMutation): Promise<ServiceOrder> {
+    if ("receipt" in input) throw new Error("Pagamentos exigem uma sessão real da oficina.");
     if ("removeItem" in input) {
       const item = order.budget.find((entry) => entry.id === input.removeItem);
       if (!item || !canRemoveBudgetItem(order, item))

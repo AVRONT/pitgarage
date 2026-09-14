@@ -193,4 +193,14 @@ Demonstrar o Piloto v0.1.15 aos responsáveis pela oficina. Validar o momento pr
 
 # Histórico
 
+## Evolução local — recebimentos, receitas extras e veículo do ORC (2026-09-14)
+
+- Recebimentos ficam no pagamento da OS, com valor, data/hora, forma, observação e autor. Saldo e estados Em aberto/Parcial/Pago são calculados; entrega não elimina dívida. Pagamentos legados preservados.
+- Decisão expressamente aprovada: Voltar etapa mantém os recebimentos. Eventual crédito excedente é sinalizado, sem estorno automático; demais regras de regressão preservadas.
+- Financeiro separa faturamento, recebimentos e contas a receber. Receitas extras têm categorias/subcategorias arquiváveis e custo opcional zero; resultado bruto = receita menos custo. Escrita exige owner/admin com acesso financeiro; leitura exige permissão financeira, nunca customer.
+- Extras não têm classificação Carro/Moto; esse filtro aplica-se somente às OS. O consolidado soma OS filtradas + extras do período/categoria. Recebimentos usam a data local do pagamento; contas a receber usam conclusão ou entrada da OS. Custos desconhecidos das OS continuam desconhecidos.
+- ORC aceita modelo/placa comercial sem cadastrar veículo. Conversão exige cliente vinculado e escolha explícita/criação transacional do veículo, preservando o snapshot original.
+- Quatro migrations locais (prefixos 20260914210007, 20260914210009, 20260914210010 e 20260914211122) precisam de revisão/aplicação autorizada e validação real. Nada aplicado remotamente nesta rodada.
+- Snapshot estruturado inclui categorias, receitas extras, ORC e custos do ORC; período de 72h e scheduler preservados. Backup manual operacional mantém o escopo anterior.
+
 Consultar [`historico/README.md`](historico/README.md), [`versoes/README.md`](versoes/README.md) e o [`CHANGELOG.md`](../CHANGELOG.md).

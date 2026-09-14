@@ -1,4 +1,5 @@
 import { orderStatuses, type OrderStatus, type ServiceOrder } from "./pilot-data";
+import { paymentSummary } from "./payment-model";
 
 export type WorkflowTab = "overview" | "diagnosis" | "budget" | "execution" | "payment";
 export type WorkflowActionId =
@@ -88,7 +89,7 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
   ).length;
   const executedCount = approved.filter((item) => item.executed).length;
   const blockingPartCount = approved.filter(isPartBlocked).length;
-  const paymentPending = !order.payment || order.payment.status !== "Pago";
+  const paymentPending = paymentSummary(order).balance > 0;
   const blockers: string[] = [];
   const warnings: string[] = [];
 
@@ -225,12 +226,10 @@ export function getWorkflowReversal(order: ServiceOrder): WorkflowReversalPlan |
       ? ["decisões de aprovação ou recusa dos itens"]
       : []),
     ...(order.budget.some((item) => item.executed) ? ["marcações de itens executados"] : []),
-    ...(order.payment ? ["pagamento registrado"] : []),
     ...(order.completedAt ? ["data de conclusão"] : []),
   ];
   const executionLosses = [
     ...(order.budget.some((item) => item.executed) ? ["marcações de itens executados"] : []),
-    ...(order.payment ? ["pagamento registrado"] : []),
     ...(order.completedAt ? ["data de conclusão"] : []),
   ];
 
@@ -247,7 +246,6 @@ export function getWorkflowReversal(order: ServiceOrder): WorkflowReversalPlan |
             : []),
           ...(order.evidence.length ? ["evidências anexadas"] : []),
           ...(order.budget.length ? ["itens do orçamento"] : []),
-          ...(order.payment ? ["pagamento registrado"] : []),
           ...(order.completedAt ? ["data de conclusão"] : []),
         ],
       };
@@ -270,7 +268,6 @@ export function getWorkflowReversal(order: ServiceOrder): WorkflowReversalPlan |
         from: order.status,
         to: "Em manutenção",
         losses: [
-          ...(order.payment ? ["pagamento registrado"] : []),
           ...(order.completedAt ? ["data de conclusão"] : []),
         ],
       };
@@ -302,7 +299,7 @@ export function reverseOrderWorkflow(
       notes: "",
       evidence: [],
       budget: [],
-      payment: undefined,
+      payment: order.payment,
       completedAt: undefined,
     };
   } else if (
@@ -317,18 +314,18 @@ export function reverseOrderWorkflow(
         approval: "Aguardando aprovação",
         executed: false,
       })),
-      payment: undefined,
+      payment: order.payment,
       completedAt: undefined,
     };
   } else if (plan.from === "Em manutenção") {
     reversed = {
       ...reversed,
       budget: order.budget.map((item) => ({ ...item, executed: false })),
-      payment: undefined,
+      payment: order.payment,
       completedAt: undefined,
     };
   } else if (plan.from === "Serviço concluído") {
-    reversed = { ...reversed, payment: undefined, completedAt: undefined };
+    reversed = { ...reversed, payment: order.payment, completedAt: undefined };
   }
 
   const description = `Fluxo revertido: ${plan.from} → ${plan.to}`;

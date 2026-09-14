@@ -17,6 +17,7 @@ import { financialApi } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import { RemoveBudgetItem } from "./remove-budget-item";
 import { WorkshopIdentity } from "./workshop-document-header";
+import { QuoteVehicleConversion } from "./quote-vehicle-conversion";
 import type { Workshop } from "./workshop-data";
 import {
   quoteLabel,
@@ -56,6 +57,7 @@ export function QuotesScreen({
   const [checkingPermission, setCheckingPermission] = useState(true);
   const [document, setDocument] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
 
@@ -87,9 +89,11 @@ export function QuotesScreen({
     quote.customerId
       ? (customers.find((c) => c.id === quote.customerId)?.name ?? "Cliente")
       : (quote.contactName ?? "Contato");
-  const vehicleLabel = (id: string | null) => {
-    const vehicle = vehicles.find((v) => v.id === id);
-    return vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : "Sem veículo";
+  const vehicleLabel = (quote: Quote) => {
+    const vehicle = vehicles.find((v) => v.id === quote.vehicleId);
+    return quote.vehicleModelText || quote.vehiclePlateText
+      ? [quote.vehicleModelText, quote.vehiclePlateText].filter(Boolean).join(" · ")
+      : vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : "Sem veículo";
   };
   const open = useMemo(() => quotes.find((quote) => quote.id === openId) ?? null, [quotes, openId]);
 
@@ -187,7 +191,7 @@ export function QuotesScreen({
               <tr key={quote.id} className="border-t">
                 <td className="p-3 font-medium">{quoteLabel(quote)}</td>
                 <td className="p-3">{partyName(quote)}</td>
-                <td className="p-3">{vehicleLabel(quote.vehicleId)}</td>
+                <td className="p-3">{vehicleLabel(quote)}</td>
                 <td className="p-3">{new Date(quote.createdAt).toLocaleDateString("pt-BR")}</td>
                 <td className="p-3">{money(quoteTotal(quote))}</td>
                 <td className="p-3">{quote.status}</td>
@@ -232,7 +236,7 @@ export function QuotesScreen({
                 {quoteLabel(open)} · {partyName(open)}
               </DialogTitle>
               <DialogDescription>
-                {vehicleLabel(open.vehicleId)} · situação: {open.status} · garantia de{" "}
+                {vehicleLabel(open)} · situação: {open.status} · garantia de{" "}
                 {open.warrantyDays} dias
               </DialogDescription>
             </DialogHeader>
@@ -296,32 +300,7 @@ export function QuotesScreen({
                         setLinking(true);
                         return;
                       }
-                      const vehicleId =
-                        open.vehicleId ??
-                        vehicles.find((v) => v.customerId === open.customerId)?.id ??
-                        null;
-                      if (!vehicleId) {
-                        setError(
-                          "Cadastre um veículo para este cliente antes de converter o orçamento em OS.",
-                        );
-                        return;
-                      }
-                      lock.current = true;
-                      setBusy(true);
-                      setError("");
-                      try {
-                        const order = await quotesApi.convert(open, vehicleId, null);
-                        await reload();
-                        setOpenId(null);
-                        onConverted(order.id);
-                      } catch (failure) {
-                        setError(
-                          `${failure instanceof Error ? failure.message : "Não foi possível converter."} Recarregue a lista antes de tentar novamente.`,
-                        );
-                      } finally {
-                        lock.current = false;
-                        setBusy(false);
-                      }
+                      setConverting(true);
                     }}
                   >
                     {busy ? "Processando…" : "Converter em OS"}
@@ -358,7 +337,7 @@ export function QuotesScreen({
                   </div>
                   <div>
                     <dt className="text-slate-500">Veículo</dt>
-                    <dd>{vehicleLabel(open.vehicleId)}</dd>
+                    <dd>{vehicleLabel(open)}</dd>
                   </div>
                 </dl>
                 <ul className="mt-4 space-y-1 text-sm">
@@ -383,6 +362,10 @@ export function QuotesScreen({
         </Dialog>
       )}
 
+      {converting && open && open.customerId && (
+        <QuoteVehicleConversion quote={open} vehicles={vehicles} onClose={() => setConverting(false)}
+          onConverted={id => { setConverting(false); setOpenId(null); void reload(); onConverted(id); }} />
+      )}
       {linking && open && !open.customerId && (
         <LinkContactDialog
           quote={open}
@@ -422,6 +405,8 @@ function NewQuoteDialog({
 }) {
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? CONTACT_OPTION);
   const [vehicleId, setVehicleId] = useState("");
+  const [vehicleModelText, setVehicleModelText] = useState("");
+  const [vehiclePlateText, setVehiclePlateText] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -507,7 +492,7 @@ function NewQuoteDialog({
               value={vehicleId}
               onChange={(event) => setVehicleId(event.target.value)}
             >
-              <option value="">Sem veículo</option>
+              <option value="">Informar modelo/placa sem cadastrar</option>
               {options.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
                   {vehicle.brand} {vehicle.model} · {vehicle.plate}
@@ -525,6 +510,10 @@ function NewQuoteDialog({
               placeholder="Ex.: revisão de freios"
             />
           </label>
+          {!vehicleId && <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">Modelo do veículo<Input maxLength={200} value={vehicleModelText} onChange={e => setVehicleModelText(e.target.value)} placeholder="Ex.: Honda CB 500" /></label>
+            <label className="text-sm">Placa<Input maxLength={7} value={vehiclePlateText} onChange={e => setVehiclePlateText(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} placeholder="ABC1D23" /></label>
+          </div>}
           <label className="block text-sm font-medium">
             Observações comerciais
             <Input
@@ -548,6 +537,10 @@ function NewQuoteDialog({
             disabled={busy || !ready}
             onClick={async () => {
               if (lock.current) return;
+              if (!vehicleId && vehiclePlateText && !/^[A-Z0-9]{7}$/.test(vehiclePlateText)) {
+                setError("Informe uma placa com 7 letras/números.");
+                return;
+              }
               lock.current = true;
               setBusy(true);
               setError("");
@@ -556,6 +549,8 @@ function NewQuoteDialog({
                   await quotesApi.create({
                     customerId: contact ? null : customerId,
                     vehicleId: contact ? null : vehicleId || null,
+                    vehicleModelText: vehicleId ? "" : vehicleModelText.trim(),
+                    vehiclePlateText: vehicleId ? "" : vehiclePlateText,
                     description: description.trim(),
                     notes: notes.trim(),
                     ...(contact

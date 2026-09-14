@@ -140,6 +140,8 @@ import { financialApi, type SavePart } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import type { BudgetMutation } from "./financial-model";
 import { RemoveBudgetItem } from "./remove-budget-item";
+import { OrderPayments } from "./order-payments";
+import { paymentSummary, customerDebts } from "./payment-model";
 import { QuotesScreen } from "./quotes-screen";
 import { ExportOperationalBackup } from "./pilot-backup-settings";
 import { createBackup } from "./pilot-storage";
@@ -759,7 +761,7 @@ export function PilotApp() {
             item.id === id ? migrateOrder(updated) : item,
           );
           setOrders(ordersRef.current);
-          setNotice("removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
+          setNotice("receipt" in input ? "Recebimento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
         } catch (error) {
           if (error instanceof OrderVersionConflict) requireOrderSync(current, error.message);
           throw error;
@@ -2432,6 +2434,7 @@ function CustomerDetail({
   const { accessLevel, isLocalBypass } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const relatedOrders = orders.filter((o) => o.customerId === customer.id);
+  const debt = customerDebts(orders, customer.id);
   return (
     <>
       <PageTitle
@@ -2454,6 +2457,11 @@ function CustomerDetail({
         }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="rounded-lg border bg-white p-5 xl:col-span-2">
+          <h2 className="font-semibold">Saldo em aberto: {money(debt.balance)}</h2>
+          {debt.debts.length ? <><p className="text-sm">{debt.debts.length} OS com saldo pendente</p><ul className="mt-2 space-y-2">{debt.debts.map(entry =>
+            <li key={entry.order.id}><Button variant="link" onClick={() => onOrder(entry.order.id)}>{entry.order.id} · {money(entry.balance)} · {entry.status}</Button></li>)}</ul></> : <p className="text-sm">Nenhum débito em aberto.</p>}
+        </section>
         {(accessLevel === "owner" || accessLevel === "admin") && !isLocalBypass && (
           <section className="rounded-lg border bg-white p-5 xl:col-span-2">
             <h2 className="font-semibold">
@@ -3062,11 +3070,11 @@ function OrderDetail({
         {[
           ["Orçado", money(total)],
           ["Aprovado", money(approved)],
-          ["Pago", money(order.payment?.status === "Pago" ? order.payment.amount : 0)],
+          ["Pago", money(paymentSummary(order).paid)],
           [
             "Saldo aprovado",
             money(
-              Math.max(approved - (order.payment?.status === "Pago" ? order.payment.amount : 0), 0),
+              paymentSummary(order).balance,
             ),
           ],
         ].map(([label, value]) => (
@@ -3220,9 +3228,8 @@ function OrderDetail({
         <TabsContent value="payment" className="mt-6">
           <PaymentPanel
             order={order}
-            onUpdate={onUpdate}
+            save={onSavePart}
             warrantyEnd={warrantyEnd}
-            notify={notify}
           />
         </TabsContent>
       </Tabs>
@@ -3494,7 +3501,7 @@ function OrderOverview({
   const refused = order.budget
     .filter((item) => item.approval === "Recusado")
     .reduce((sum, item) => sum + item.price, 0);
-  const paid = order.payment?.status === "Pago" ? order.payment.amount : 0;
+  const paid = paymentSummary(order).paid;
   const paymentPending = Math.max(approved - paid, 0);
   const sections = [
     {
@@ -4657,134 +4664,17 @@ function ExecutionPanel({
 }
 
 function PaymentPanel({
-  order,
-  onUpdate,
-  warrantyEnd,
-  notify,
+  order, save, warrantyEnd,
 }: {
   order: ServiceOrder;
-  onUpdate: (updater: OrderUpdater) => void;
+  save: SavePart;
   warrantyEnd: Date | null;
-  notify: (text: string) => void;
 }) {
-  const approved = order.budget
-    .filter((i) => i.approval === "Aprovado")
-    .reduce((sum, item) => sum + item.price, 0);
-  const [method, setMethod] = useState<"PIX" | "Cartão">(order.payment?.method ?? "PIX");
-  const [status, setStatus] = useState<"Pendente" | "Pago">(order.payment?.status ?? "Pendente");
-  const [amount, setAmount] = useState(order.payment?.amount.toString() ?? approved.toString());
-  const [paymentError, setPaymentError] = useState("");
-  const [paymentConfirmationOpen, setPaymentConfirmationOpen] = useState(false);
   const today = new Date("2026-09-01T12:00:00Z");
   const warrantyStatus = warrantyEnd && warrantyEnd >= today ? "ATIVA" : "EXPIRADA";
-  const registerPayment = () => {
-    const numericAmount = Number(amount);
-    onUpdate((current) =>
-      withActivity(
-        current,
-        "payment",
-        `Pagamento ${status.toLowerCase()} registrado por ${method}`,
-        { payment: { amount: numericAmount, method, status, date: localDate() } },
-      ),
-    );
-    setPaymentError("");
-    notify("Pagamento registrado");
-  };
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <Card className="border-0 bg-white">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
-              <CircleDollarSign className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="font-bold">Registrar pagamento</h2>
-              <p className="text-sm text-muted-foreground">
-                Sem integração bancária ou com máquina.
-              </p>
-            </div>
-          </div>
-          <div className="mt-6 rounded-xl bg-slate-50 p-4">
-            <span className="text-xs text-muted-foreground">Valor aprovado</span>
-            <strong className="block text-2xl">{money(approved)}</strong>
-          </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className="text-sm font-semibold">Valor registrado</label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Forma</label>
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value as "PIX" | "Cartão")}
-                className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
-              >
-                <option>PIX</option>
-                <option>Cartão</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as "Pendente" | "Pago")}
-                className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
-              >
-                <option>Pendente</option>
-                <option>Pago</option>
-              </select>
-            </div>
-          </div>
-          {paymentError && (
-            <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-              {paymentError}
-            </p>
-          )}
-          <Button
-            onClick={() => {
-              const numericAmount = Number(amount);
-              if (
-                (status === "Pago" && amount.trim() === "") ||
-                !Number.isFinite(numericAmount) ||
-                numericAmount < 0
-              ) {
-                setPaymentError(
-                  status === "Pago" && amount.trim() === ""
-                    ? "Informe o valor antes de confirmar o pagamento."
-                    : "O valor do pagamento não pode ser negativo ou inválido.",
-                );
-                return;
-              }
-              if (!(["PIX", "Cartão"] as string[]).includes(method)) {
-                setPaymentError("Selecione PIX ou Cartão como forma de pagamento.");
-                return;
-              }
-              setPaymentError("");
-              setPaymentConfirmationOpen(true);
-            }}
-            className="mt-5 w-full rounded-xl bg-orange-500 hover:bg-orange-600"
-          >
-            Registrar pagamento
-          </Button>
-          {order.payment && (
-            <div className="mt-4 flex items-center justify-between rounded-xl border p-3">
-              <span className="text-sm">
-                {order.payment.method} · {formatDate(order.payment.date)}
-              </span>
-              <StatusBadge status={order.payment.status} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <OrderPayments order={order} save={save} />
       <Card className="border-0 bg-slate-900 text-white">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
@@ -4829,30 +4719,7 @@ function PaymentPanel({
 
         </CardContent>
       </Card>
-      <Dialog open={paymentConfirmationOpen} onOpenChange={setPaymentConfirmationOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar registro do pagamento?</DialogTitle>
-            <DialogDescription>
-              Será registrado {money(Number(amount))} por {method}, com status {status}.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentConfirmationOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              className="bg-orange-500 hover:bg-orange-600"
-              onClick={() => {
-                registerPayment();
-                setPaymentConfirmationOpen(false);
-              }}
-            >
-              Confirmar pagamento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

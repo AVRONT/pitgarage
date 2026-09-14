@@ -25,6 +25,7 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ExtraRevenues } from "./extra-revenues";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -702,6 +703,7 @@ export function FinancialScreen() {
                 sem data de conclusão válida foram excluídas. O custo de OS somente com serviços é
                 zero porque não há peças, não por estimativa.
               </p>
+              <ExtraRevenues start={range.start ?? ""} end={range.end ?? ""} kind={kind} os={summary} />
               {summary.orders === 0 && (
                 <p className="rounded-md border border-dashed p-5">
                   Nenhuma OS concluída para estes filtros.

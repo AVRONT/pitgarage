@@ -95,7 +95,12 @@ const isPayment = (value: unknown) =>
   typeof value["amount"] === "number" &&
   Number.isFinite(value["amount"]) &&
   (value["method"] === "PIX" || value["method"] === "Cartão") &&
-  (value["status"] === "Pendente" || value["status"] === "Pago") &&
+  ["Pendente", "Pago", "Parcial", "Em aberto"].includes(String(value["status"])) &&
+  (value["receipts"] === undefined || (Array.isArray(value["receipts"]) && value["receipts"].every(p =>
+    isRecord(p) && hasStrings(p, ["id", "date", "method", "note", "recordedBy"]) &&
+    typeof p["amount"] === "number" && Number.isFinite(p["amount"]) && p["amount"] > 0 &&
+    ["PIX", "Cartão"].includes(String(p["method"])) && Number.isFinite(Date.parse(String(p["date"])))
+  ) && new Set(value["receipts"].map(p => (p as Record<string, unknown>)["id"])).size === value["receipts"].length)) &&
   typeof value["date"] === "string";
 
 const isActivity = (value: unknown) =>

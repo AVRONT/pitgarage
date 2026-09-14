@@ -1,5 +1,12 @@
 # Changelog
 
+## [Recebimentos, receitas extras e veículo do orçamento — local] - 2026-09-14
+
+- Pagamentos múltiplos na OS, saldo calculado, débitos por cliente e contas a receber incluindo entregues; recebimentos preservados em reversões, com crédito excedente explícito.
+- Receitas extras categorizadas, custo opcional e resultado bruto/consolidado; permissões financeiras validadas no servidor.
+- Modelo/placa comercial no ORC, sem criar veículo até a conversão transacional e explícita.
+- Quatro migrations preparadas localmente, incluindo extensão do snapshot de backup sem mudar 72h/scheduler. Nenhuma aplicação remota, commit ou push.
+
 ## [Recuperação de senha — correção frontend] - 2026-09-05
 
 - Nova senha exige PASSWORD_RECOVERY e sessão conferida no Auth; sessões normais e recargas sem link não habilitam atualização. Marcador de recuperação somente em memória.
