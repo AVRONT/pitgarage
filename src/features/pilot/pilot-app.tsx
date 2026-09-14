@@ -848,6 +848,11 @@ export function PilotApp() {
     if (done) setNotice(`${id} cancelada. Os dados foram preservados no histórico.`);
     return done;
   };
+  const updateOrderComplaint = async (id: string, complaint: string) => {
+    const done = await runOrderAction(id, (order) => repository.updateComplaint(order, complaint));
+    if (done) setNotice("Problema relatado atualizado.");
+    return done;
+  };
 
 
   const reloadConflictedOrder = async () => {
