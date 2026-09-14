@@ -2795,6 +2795,7 @@ function OrderDetail({
   canManage,
   onDelete,
   onCancel,
+  onEditComplaint,
   actionBusy,
   actionError,
 }: {
