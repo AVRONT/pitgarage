@@ -656,9 +656,11 @@ export function PilotApp() {
   );
   const operationalOrders = orders.filter(
     (order) =>
+      !isOrderCancelled(order) &&
       activeCustomers.some((customer) => customer.id === order.customerId) &&
       activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
   );
+
   const persist = (operation: () => Promise<void>, savingOrder?: ServiceOrder) => {
     if (writeFailed.current) return;
     setPendingWrites((count) => count + 1);
@@ -757,11 +759,79 @@ export function PilotApp() {
     if (writeFailed.current) return;
     const order = ordersRef.current.find((item) => item.id === id);
     if (!order) return;
+    if (isOrderCancelled(order)) {
+      setNotice("OS cancelada é somente leitura.");
+      return;
+    }
     const updated = updater(order);
     ordersRef.current = ordersRef.current.map((item) => (item.id === id ? updated : item));
     setOrders(ordersRef.current);
     persist(() => repository.saveOrder(updated), updated);
   };
+  const runOrderAction = async (
+    id: string,
+    action: (order: ServiceOrder) => Promise<ServiceOrder | null>,
+  ) => {
+    if (writeFailed.current || orderActionBusy || evidenceWrite.current || financialWrite.current) {
+      setOrderActionError("Aguarde a gravação em andamento antes de continuar.");
+      return false;
+    }
+    setOrderActionBusy(true);
+    setOrderActionError("");
+    setPendingWrites((count) => count + 1);
+    const operation = writeQueue.current
+      .then(async () => {
+        const current = ordersRef.current.find((item) => item.id === id);
+        if (!current) throw new Error("OS não encontrada.");
+        try {
+          const result = await action(current);
+          ordersRef.current = result
+            ? ordersRef.current.map((item) => (item.id === id ? migrateOrder(result) : item))
+            : ordersRef.current.filter((item) => item.id !== id);
+          setOrders(ordersRef.current);
+          return true;
+        } catch (error) {
+          if (error instanceof OrderVersionConflict) {
+            writeFailed.current = true;
+            setOrderConflict({ order: current, message: error.message });
+          }
+          throw error;
+        }
+      })
+      .finally(() => {
+        setOrderActionBusy(false);
+        setPendingWrites((count) => count - 1);
+      });
+    writeQueue.current = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      return await operation;
+    } catch (error) {
+      setOrderActionError(
+        error instanceof Error ? error.message : "Não foi possível concluir a ação.",
+      );
+      return false;
+    }
+  };
+  const deleteOrderPermanently = async (id: string) => {
+    const done = await runOrderAction(id, async (order) => {
+      await repository.deleteOrder(order);
+      return null;
+    });
+    if (done) {
+      setNotice(`${id} excluída definitivamente.`);
+      navigate("orders");
+    }
+    return done;
+  };
+  const cancelOrderWithReason = async (id: string, reason: string) => {
+    const done = await runOrderAction(id, (order) => repository.cancelOrder(order, reason));
+    if (done) setNotice(`${id} cancelada. Os dados foram preservados no histórico.`);
+    return done;
+  };
+
 
   const reloadConflictedOrder = async () => {
     if (!orderConflict || reloadingOrder) return;
@@ -1096,7 +1166,8 @@ export function PilotApp() {
             )}
             {screen === "orders" && (
               <OrdersScreen
-                orders={orders}
+                orders={orders.filter((item) => !isOrderCancelled(item))}
+
                 vehicles={vehicles}
                 customers={customers}
                 onOpen={(id) => setQuickView({ type: "order", id })}
