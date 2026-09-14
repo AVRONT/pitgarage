@@ -636,6 +636,45 @@ export type Database = {
           },
         ]
       }
+      workshop_settings: {
+        Row: {
+          address: string
+          cnpj: string
+          hours: string
+          id: boolean
+          legal_name: string
+          name: string
+          phone: string
+          postal_code: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          address?: string
+          cnpj?: string
+          hours?: string
+          id?: boolean
+          legal_name?: string
+          name?: string
+          phone?: string
+          postal_code?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          address?: string
+          cnpj?: string
+          hours?: string
+          id?: boolean
+          legal_name?: string
+          name?: string
+          phone?: string
+          postal_code?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

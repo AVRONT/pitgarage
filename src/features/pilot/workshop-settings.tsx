@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatWorkshopField, workshopStorageKey, type Workshop } from "./workshop-data";
-import { createWorkshopRecord } from "./pilot-storage";
+import { formatWorkshopField, type Workshop } from "./workshop-data";
+import { saveWorkshop } from "./workshop-api";
 import { WorkshopDocumentPreview } from "./workshop-document-preview";
 
 export function WorkshopSettings({
   workshop,
+  canEdit,
   onSave,
 }: {
   workshop: Workshop;
+  canEdit: boolean;
   onSave: (value: Workshop) => void;
 }) {
   const [draft, setDraft] = useState(workshop);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
+  const [saving, setSaving] = useState(false);
   const dirty = (Object.keys(workshop) as (keyof Workshop)[]).some(
     (key) => draft[key] !== workshop[key],
   );
@@ -38,6 +41,7 @@ export function WorkshopSettings({
           className="min-w-0 space-y-5 rounded-lg border bg-white p-5 sm:p-6"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!canEdit || saving) return;
             const clean = Object.fromEntries(
               Object.entries(draft).map(([key, value]) => [
                 key,
@@ -49,18 +53,23 @@ export function WorkshopSettings({
               setMessage("Informe o nome da oficina.");
               return;
             }
-            try {
-              localStorage.setItem(workshopStorageKey, JSON.stringify(createWorkshopRecord(clean)));
-              onSave(clean);
-              setDraft(clean);
-              setError(false);
-              setMessage("Configurações salvas");
-            } catch {
-              setError(true);
-              setMessage(
-                "Não foi possível salvar. Seus campos foram mantidos; verifique se o navegador permite salvar dados e tente novamente.",
-              );
-            }
+            setSaving(true);
+            setMessage("");
+            setError(false);
+            void saveWorkshop(clean)
+              .then((saved) => {
+                onSave(saved);
+                setDraft(saved);
+                setError(false);
+                setMessage("Configurações salvas");
+              })
+              .catch(() => {
+                setError(true);
+                setMessage(
+                  "Não foi possível salvar. Seus campos foram mantidos; verifique a conexão e tente novamente.",
+                );
+              })
+              .finally(() => setSaving(false));
           }}
         >
           <div className="border-b pb-4">
@@ -82,6 +91,7 @@ export function WorkshopSettings({
                 aria-required={key === "name"}
                 aria-invalid={key === "name" && error && !draft.name.trim()}
                 maxLength={key === "hours" || key === "address" ? 300 : 120}
+                disabled={!canEdit || saving}
                 onChange={(event) => {
                   setDraft({ ...draft, [key]: event.target.value });
                   setMessage("");
@@ -98,15 +108,23 @@ export function WorkshopSettings({
           ))}
           <p className="text-xs leading-relaxed text-muted-foreground">
             CNPJ, CEP e telefone recebem apenas formatação visual quando reconhecidos. Não há
-            consulta cadastral ou emissão fiscal. Dados salvos somente neste navegador.
+            consulta cadastral ou emissão fiscal. Estes dados valem para toda a oficina, em qualquer
+            dispositivo.
           </p>
+          {!canEdit && (
+            <p className="text-xs text-muted-foreground">
+              Somente o proprietário ou o administrador pode alterar estes dados.
+            </p>
+          )}
           <div className="border-t pt-4">
             <p role="status" className="mb-3 min-h-5 text-sm text-muted-foreground">
-              {dirty
-                ? "Alterações não salvas"
-                : message === "Configurações salvas"
-                  ? message
-                  : "Nenhuma alteração pendente"}
+              {saving
+                ? "Salvando…"
+                : dirty
+                  ? "Alterações não salvas"
+                  : message === "Configurações salvas"
+                    ? message
+                    : "Nenhuma alteração pendente"}
             </p>
             {error && (
               <p role="alert" className="mb-3 text-sm text-red-700">
@@ -114,11 +132,13 @@ export function WorkshopSettings({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="submit">Salvar configurações</Button>
+              <Button type="submit" disabled={!canEdit || saving}>
+                Salvar configurações
+              </Button>
               <Button
                 type="button"
                 variant="outline"
-                disabled={!dirty}
+                disabled={!dirty || saving}
                 onClick={() => {
                   setDraft(workshop);
                   setMessage("");

@@ -101,6 +101,7 @@ import { vehicleHistory } from "./vehicle-history";
 import { VehicleHistory } from "./vehicle-history-timeline";
 import { WorkshopIdentity } from "./workshop-document-header";
 import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
+import { loadWorkshop } from "./workshop-api";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
@@ -506,7 +507,8 @@ function EmptyState({ title, text }: { title: string; text: string }) {
 }
 
 export function PilotApp() {
-  const { isLocalBypass } = useAuth();
+  const { isLocalBypass, accessLevel } = useAuth();
+  const canEditWorkshop = accessLevel === "owner" || accessLevel === "admin";
   const repository = useMemo(() => createOperationalRepository(isLocalBypass), [isLocalBypass]);
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -551,8 +553,22 @@ export function PilotApp() {
   const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
 
   useEffect(() => {
-    setWorkshop(readWorkshop());
-  }, []);
+    if (isLocalBypass) {
+      setWorkshop(readWorkshop());
+      return;
+    }
+    let active = true;
+    void loadWorkshop()
+      .then((value) => {
+        if (active) setWorkshop(value);
+      })
+      .catch(() => {
+        // Sem a configuração central, os documentos usam o padrão até a próxima leitura.
+      });
+    return () => {
+      active = false;
+    };
+  }, [isLocalBypass]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -1016,6 +1032,7 @@ export function PilotApp() {
                 <WorkshopSettings
                   key={JSON.stringify(workshop)}
                   workshop={workshop}
+                  canEdit={canEditWorkshop && !isLocalBypass}
                   onSave={setWorkshop}
                 />
                 <section
