@@ -101,6 +101,7 @@ import { vehicleHistory } from "./vehicle-history";
 import { VehicleHistory } from "./vehicle-history-timeline";
 import { WorkshopIdentity } from "./workshop-document-header";
 import { defaultWorkshop, readWorkshop, type Workshop } from "./workshop-data";
+import { loadWorkshop } from "./workshop-api";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
