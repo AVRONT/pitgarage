@@ -460,6 +460,9 @@ export type Database = {
         Row: {
           activities: Json
           budget: Json
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           complaint: string
           completed_at: string | null
           created_at: string
@@ -484,6 +487,9 @@ export type Database = {
         Insert: {
           activities?: Json
           budget?: Json
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           complaint: string
           completed_at?: string | null
           created_at?: string
@@ -508,6 +514,9 @@ export type Database = {
         Update: {
           activities?: Json
           budget?: Json
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           complaint?: string
           completed_at?: string | null
           created_at?: string
@@ -721,6 +730,10 @@ export type Database = {
       before_user_created: { Args: { event: Json }; Returns: Json }
       can_view_financial: { Args: never; Returns: boolean }
       cancel_calendar_event: { Args: { event_id: string }; Returns: undefined }
+      cancel_service_order: {
+        Args: { expected_version: string; order_id: string; reason: string }
+        Returns: Json
+      }
       create_service_order_atomic: {
         Args: {
           existing_customer_id: string
@@ -732,6 +745,9 @@ export type Database = {
         Returns: {
           activities: Json
           budget: Json
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           complaint: string
           completed_at: string | null
           created_at: string
@@ -759,6 +775,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      delete_service_order: {
+        Args: { expected_version: string; order_id: string }
+        Returns: undefined
       }
       ensure_my_chat: { Args: never; Returns: string }
       financial_order_report: { Args: never; Returns: Json }
