@@ -252,6 +252,7 @@ type Screen =
   | "customers"
   | "vehicles"
   | "orders"
+  | "quotes"
   | "customer"
   | "vehicle"
   | "order"
@@ -263,9 +264,11 @@ const navItems = [
   { id: "customers" as Screen, label: "Clientes", icon: Users },
   { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
+  { id: "quotes" as Screen, label: "Orçamentos", icon: FileText },
   { id: "settings" as Screen, label: "Configurações da oficina", icon: Settings2 },
   { id: "financial" as Screen, label: "Financeiro", icon: WalletCards },
 ];
+
 
 const sidebarPreferenceKey = "pitgarage:desktop-sidebar";
 const sidebarDefaultWidth = 256;
