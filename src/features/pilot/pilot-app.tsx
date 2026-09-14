@@ -4987,6 +4987,177 @@ function NewVehicleDialog({
   );
 }
 
+function EditVehicleDialog({
+  open,
+  onOpenChange,
+  vehicle,
+  vehicles,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+  vehicle: Vehicle;
+  vehicles: Vehicle[];
+  onSave: (vehicle: Vehicle) => Promise<void>;
+}) {
+  const [kind, setKind] = useState<Vehicle["kind"]>(vehicle.kind);
+  const [brand, setBrand] = useState(vehicle.brand);
+  const [model, setModel] = useState(vehicle.model);
+  const [plate, setPlate] = useState(vehicle.plate);
+  const [year, setYear] = useState(String(vehicle.year || ""));
+  const [mileage, setMileage] = useState(String(vehicle.mileage ?? 0));
+  const [color, setColor] = useState(vehicle.color === "Não informada" ? "" : vehicle.color);
+  const [error, setError] = useState<string>();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setKind(vehicle.kind);
+    setBrand(vehicle.brand);
+    setModel(vehicle.model);
+    setPlate(vehicle.plate);
+    setYear(String(vehicle.year || ""));
+    setMileage(String(vehicle.mileage ?? 0));
+    setColor(vehicle.color === "Não informada" ? "" : vehicle.color);
+    setError(undefined);
+    setSaving(false);
+  }, [open, vehicle]);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (saving) return;
+    const cleanPlate = normalizePlate(plate);
+    if (!brand.trim() || !model.trim() || cleanPlate.length !== 7)
+      return setError("Informe marca, modelo e uma placa com 7 caracteres.");
+    const duplicate = vehicles.find(
+      (item) =>
+        item.id !== vehicle.id && !item.deletedAt && normalizePlate(item.plate) === cleanPlate,
+    );
+    if (duplicate)
+      return setError(
+        `A placa ${cleanPlate} já pertence a ${duplicate.brand} ${duplicate.model}.`,
+      );
+    const numericYear = Number(year);
+    const numericMileage = Number(mileage);
+    if (
+      !Number.isInteger(numericYear) ||
+      numericYear < 1900 ||
+      numericYear > new Date().getFullYear() + 1
+    )
+      return setError("Informe um ano válido para o veículo.");
+    if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
+      return setError("Informe uma quilometragem válida entre 0 e 2.000.000 km.");
+    setError(undefined);
+    setSaving(true);
+    try {
+      await onSave({
+        ...vehicle,
+        kind,
+        brand: normalizeName(brand),
+        model: normalizeName(model),
+        year: numericYear,
+        plate: cleanPlate,
+        mileage: numericMileage,
+        color: normalizeName(color) || "Não informada",
+      });
+      onOpenChange(false);
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error ? saveError.message : "Não foi possível salvar o veículo.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(value) => !saving && onOpenChange(value)}>
+      <DialogContent>
+        <form onSubmit={submit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Editar veículo</DialogTitle>
+            <DialogDescription>
+              Corrija os dados cadastrais. O proprietário, as ordens de serviço e todo o histórico
+              permanecem vinculados a este mesmo veículo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold">Tipo</label>
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as Vehicle["kind"])}
+                className="mt-2 h-10 w-full rounded-lg border bg-white px-3"
+              >
+                <option>Carro</option>
+                <option>Moto</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Placa</label>
+              <Input
+                value={plate}
+                onChange={(e) => setPlate(e.target.value)}
+                className="mt-2 uppercase"
+                placeholder="ABC1D23"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Marca</label>
+              <Input value={brand} onChange={(e) => setBrand(e.target.value)} className="mt-2" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Modelo</label>
+              <Input value={model} onChange={(e) => setModel(e.target.value)} className="mt-2" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Ano</label>
+              <Input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold">Quilometragem</label>
+              <Input
+                type="number"
+                min="0"
+                value={mileage}
+                onChange={(e) => setMileage(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-sm font-semibold">Cor</label>
+              <Input value={color} onChange={(e) => setColor(e.target.value)} className="mt-2" />
+            </div>
+            {error && (
+              <p className="sm:col-span-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {error}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving} className="bg-orange-500 hover:bg-orange-600">
+              {saving ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NewOrderDialog({
   open,
   onOpenChange,
