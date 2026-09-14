@@ -1131,6 +1131,11 @@ export type Database = {
           phone: string
         }[]
       }
+      order_receivables: { Args: never; Returns: Json }
+      record_order_payment: {
+        Args: { expected_version: string; order_id: string; receipt: Json }
+        Returns: Json
+      }
       remove_budget_item: {
         Args: { expected_version: string; item_id: string; order_id: string }
         Returns: Json
