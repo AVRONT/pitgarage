@@ -1,0 +1,1 @@
+ALTER SEQUENCE public.service_order_number_seq RESTART WITH 1;
