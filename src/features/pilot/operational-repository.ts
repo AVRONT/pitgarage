@@ -107,9 +107,11 @@ function mapOrder(row: {
   activities: Json;
   workshop_snapshot: Json | null;
   updated_at: string;
+  warranty_days?: number | null;
   cancelled_at?: string | null;
   cancelled_by?: string | null;
   cancel_reason?: string | null;
+
 }): ServiceOrder {
   return {
     id: `OS-${row.order_number}`,
@@ -140,6 +142,8 @@ function mapOrder(row: {
         }
       : {}),
     updatedAt: row.updated_at,
+    ...(row.warranty_days == null ? {} : { warrantyDays: row.warranty_days }),
+
     ...(row.cancelled_at ? { cancelledAt: row.cancelled_at } : {}),
     ...(row.cancelled_by ? { cancelledBy: row.cancelled_by } : {}),
     ...(row.cancel_reason ? { cancelReason: row.cancel_reason } : {}),
@@ -272,7 +276,9 @@ class CloudOperationalRepository implements OperationalRepository {
         status_history: asJson(order.statusHistory ?? []),
         activities: asJson(order.activities ?? []),
         workshop_snapshot: order.workshopSnapshot ? asJson(order.workshopSnapshot) : null,
+        warranty_days: order.warrantyDays ?? null,
         updated_at: nextVersion,
+
       })
       .eq("id", order.databaseId)
       .eq("updated_at", expectedVersion)

@@ -123,6 +123,10 @@ import {
   orderCancelBlocker,
   orderDeleteBlockers,
   orderStatuses,
+  orderWarrantyDays,
+  warrantyDays,
+  warrantyDeadline,
+
   type ApprovalStatus,
   type Customer,
   type OrderActivity,
@@ -136,6 +140,7 @@ import { financialApi, type SavePart } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import type { BudgetMutation } from "./financial-model";
 import { RemoveBudgetItem } from "./remove-budget-item";
+import { QuotesScreen } from "./quotes-screen";
 import { ExportOperationalBackup } from "./pilot-backup-settings";
 import { createBackup } from "./pilot-storage";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
@@ -190,8 +195,11 @@ const migrateOrder = (order: ServiceOrder): ServiceOrder => {
       { id: `a-${order.id}-created`, type: "created", description: "OS criada", at: createdAt },
     ],
     updatedAt: order.updatedAt ?? createdAt,
+    // OS concluídas antes do snapshot mantêm a garantia original de 30 dias.
+    ...(order.completedAt && order.warrantyDays == null ? { warrantyDays: 30 } : {}),
   };
 };
+
 
 const withActivity = (
   order: ServiceOrder,
@@ -224,8 +232,9 @@ const withStatusTransition = (
     ...withActivity(order, "status", description, {
       status,
       ...(completion && !order.completedAt
-        ? { completedAt: new Date().toISOString().slice(0, 10) }
+        ? { completedAt: new Date().toISOString().slice(0, 10), warrantyDays }
         : {}),
+
       ...(completion && workshop && !order.workshopSnapshot
         ? { workshopSnapshot: { ...workshop } }
         : {}),
@@ -244,6 +253,7 @@ type Screen =
   | "customers"
   | "vehicles"
   | "orders"
+  | "quotes"
   | "customer"
   | "vehicle"
   | "order"
@@ -255,9 +265,11 @@ const navItems = [
   { id: "customers" as Screen, label: "Clientes", icon: Users },
   { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
   { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
+  { id: "quotes" as Screen, label: "Orçamentos", icon: FileText },
   { id: "settings" as Screen, label: "Configurações da oficina", icon: Settings2 },
   { id: "financial" as Screen, label: "Financeiro", icon: WalletCards },
 ];
+
 
 const sidebarPreferenceKey = "pitgarage:desktop-sidebar";
 const sidebarDefaultWidth = 256;
@@ -666,6 +678,18 @@ export function PilotApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Conversão de orçamento avulso: a OS já foi criada no banco, aqui só sincronizamos a tela.
+  const handleQuoteConverted = async (orderId: string) => {
+    const data = await repository.load();
+    setCustomers(data.customers);
+    setVehicles(data.vehicles);
+    const list = data.orders.map(migrateOrder);
+    ordersRef.current = list;
+    setOrders(list);
+    const created = list.find((order) => order.databaseId === orderId || order.id === orderId);
+    navigate(created ? "order" : "orders", created?.id);
+  };
+
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? orders[0];
   const activeCustomers = customers.filter((customer) => !customer.deletedAt);
   const activeVehicles = vehicles.filter(
@@ -679,8 +703,20 @@ export function PilotApp() {
       activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
   );
 
+  // Toda falha de gravação precisa de um caminho explícito de volta ao estado do banco:
+  // sem isso a trava de gravação ficava ligada silenciosamente até o F5.
+  const requireOrderSync = (order: ServiceOrder, message: string) => {
+    writeFailed.current = true;
+    setNotice("");
+    setOrderConflict({ order, message });
+  };
+  const syncMessage =
+    "Não foi possível confirmar a gravação desta OS. Recarregue para ver exatamente o que está salvo no banco antes de continuar.";
   const persist = (operation: () => Promise<void>, savingOrder?: ServiceOrder) => {
-    if (writeFailed.current) return;
+    if (writeFailed.current) {
+      if (savingOrder) requireOrderSync(savingOrder, syncMessage);
+      return;
+    }
     setPendingWrites((count) => count + 1);
     writeQueue.current = writeQueue.current
       .then(async () => {
@@ -688,12 +724,15 @@ export function PilotApp() {
         try {
           await operation();
         } catch (error) {
-          writeFailed.current = true;
-          setNotice("");
-          if (error instanceof OrderVersionConflict && savingOrder) {
-            setOrderConflict({ order: savingOrder, message: error.message });
+          if (savingOrder) {
+            requireOrderSync(
+              savingOrder,
+              error instanceof OrderVersionConflict ? error.message : syncMessage,
+            );
             return;
           }
+          writeFailed.current = true;
+          setNotice("");
           setDataError(
             "Não foi possível confirmar a gravação. A OS pode ter mudado ou seu acesso pode ter expirado. Recarregue para conferir os dados salvos antes de continuar.",
           );
@@ -711,6 +750,7 @@ export function PilotApp() {
     const operation = writeQueue.current
       .then(async () => {
         if (writeFailed.current) throw new Error("Recarregue a OS antes de continuar.");
+
         const current = ordersRef.current.find((item) => item.id === id);
         if (!current) throw new Error("OS não encontrada.");
         try {
@@ -721,12 +761,10 @@ export function PilotApp() {
           setOrders(ordersRef.current);
           setNotice("removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
         } catch (error) {
-          if (error instanceof OrderVersionConflict) {
-            writeFailed.current = true;
-            setOrderConflict({ order: current, message: error.message });
-          }
+          if (error instanceof OrderVersionConflict) requireOrderSync(current, error.message);
           throw error;
         }
+
       })
       .finally(() => {
         financialWrite.current = false;
@@ -752,13 +790,15 @@ export function PilotApp() {
         try {
           await repository.saveOrder(updated);
         } catch (error) {
-          writeFailed.current = true;
-          if (error instanceof OrderVersionConflict)
-            setOrderConflict({ order: current, message: error.message });
+          requireOrderSync(
+            current,
+            error instanceof OrderVersionConflict ? error.message : syncMessage,
+          );
           throw new Error(
             "Não foi possível confirmar a gravação da evidência. Recarregue a OS para conferir a versão salva.",
           );
         }
+
         ordersRef.current = ordersRef.current.map((item) => (item.id === id ? updated : item));
         setOrders(ordersRef.current);
       })
@@ -774,9 +814,14 @@ export function PilotApp() {
       setNotice("Aguarde a gravação antes de alterar a OS.");
       return;
     }
-    if (writeFailed.current) return;
     const order = ordersRef.current.find((item) => item.id === id);
     if (!order) return;
+    // Nunca alterar a tela sem gravação confirmada: com a trava ligada, exigir sincronização.
+    if (writeFailed.current) {
+      requireOrderSync(order, syncMessage);
+      return;
+    }
+
     if (isOrderCancelled(order)) {
       setNotice("OS cancelada é somente leitura.");
       return;
@@ -809,12 +854,10 @@ export function PilotApp() {
           setOrders(ordersRef.current);
           return true;
         } catch (error) {
-          if (error instanceof OrderVersionConflict) {
-            writeFailed.current = true;
-            setOrderConflict({ order: current, message: error.message });
-          }
+          if (error instanceof OrderVersionConflict) requireOrderSync(current, error.message);
           throw error;
         }
+
       })
       .finally(() => {
         setOrderActionBusy(false);
@@ -964,7 +1007,7 @@ export function PilotApp() {
             <DialogTitle>
               {confirmReload
                 ? "Substituir a versão local desta OS?"
-                : "OS alterada por outra pessoa"}
+                : "É preciso recarregar esta OS"}
             </DialogTitle>
             <DialogDescription>
               {confirmReload
@@ -1115,6 +1158,14 @@ export function PilotApp() {
           )}
           <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
             {screen === "financial" && <FinancialScreen />}
+            {screen === "quotes" && (
+              <QuotesScreen
+                customers={activeCustomers}
+                vehicles={activeVehicles}
+                workshop={workshop}
+                onConverted={handleQuoteConverted}
+              />
+            )}
             {screen === "settings" && (
               <>
                 <nav className="settings-nav" aria-label="Seções das configurações">
@@ -2860,8 +2911,8 @@ function OrderDetail({
       }
       return { ...current, budget };
     });
-  const warrantyEnd = order.completedAt ? new Date(`${order.completedAt}T12:00:00Z`) : null;
-  if (warrantyEnd) warrantyEnd.setUTCDate(warrantyEnd.getUTCDate() + 30);
+  const warrantyEnd = warrantyDeadline(order);
+
   const transitionStatus = (
     status: ServiceOrder["status"],
     description: string,
@@ -4755,7 +4806,8 @@ function PaymentPanel({
                 </div>
                 <div>
                   <dt className="text-slate-400">Período padrão</dt>
-                  <dd className="mt-1 font-semibold">30 dias</dd>
+                  <dd className="mt-1 font-semibold">{orderWarrantyDays(order)} dias</dd>
+
                 </div>
                 <div className="col-span-2">
                   <dt className="text-slate-400">Encerramento estimado</dt>
@@ -4771,9 +4823,10 @@ function PaymentPanel({
             </div>
           )}
           <p className="mt-5 text-xs leading-relaxed text-slate-400">
-            O início na conclusão ou entrega e possíveis variações dos 30 dias ainda precisam ser
-            validados.
+            O início na conclusão ou entrega e possíveis variações do período padrão ainda precisam
+            ser validados.
           </p>
+
         </CardContent>
       </Card>
       <Dialog open={paymentConfirmationOpen} onOpenChange={setPaymentConfirmationOpen}>
