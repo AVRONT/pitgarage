@@ -1146,6 +1146,14 @@ export function PilotApp() {
           )}
           <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
             {screen === "financial" && <FinancialScreen />}
+            {screen === "quotes" && (
+              <QuotesScreen
+                customers={activeCustomers}
+                vehicles={activeVehicles}
+                workshop={workshop}
+                onConverted={handleQuoteConverted}
+              />
+            )}
             {screen === "settings" && (
               <>
                 <nav className="settings-nav" aria-label="Seções das configurações">
