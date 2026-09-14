@@ -33,6 +33,7 @@ import {
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
   Phone,
   Play,
   Plus,
