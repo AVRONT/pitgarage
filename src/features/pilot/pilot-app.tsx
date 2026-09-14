@@ -1225,7 +1225,15 @@ export function PilotApp() {
                     item.id ===
                     vehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.customerId,
                 )!}
+                vehicles={vehicles}
                 orders={orders.filter((item) => item.vehicleId === selectedVehicleId)}
+                onSave={async (updated) => {
+                  const saved = await repository.updateVehicle(updated);
+                  setVehicles((current) =>
+                    current.map((item) => (item.id === saved.id ? saved : item)),
+                  );
+                  setNotice("Cadastro do veículo atualizado");
+                }}
                 onBack={() => navigate("vehicles")}
                 onCustomer={(id) => navigate("customer", id)}
                 onOrder={(id) => navigate("order", id)}
