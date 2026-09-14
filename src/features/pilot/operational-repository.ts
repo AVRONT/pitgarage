@@ -25,6 +25,7 @@ export interface OperationalRepository {
   saveOrder(order: ServiceOrder): Promise<void>;
   deleteOrder(order: ServiceOrder): Promise<void>;
   cancelOrder(order: ServiceOrder, reason: string): Promise<ServiceOrder>;
+  updateVehicle(vehicle: Vehicle): Promise<Vehicle>;
   deleteCustomer(customerId: string, deletedAt: string): Promise<void>;
   deleteVehicle(vehicleId: string, deletedAt: string): Promise<void>;
   reset(): Promise<OperationalData>;
@@ -327,6 +328,33 @@ class CloudOperationalRepository implements OperationalRepository {
     return mapOrder(row);
   }
 
+  async updateVehicle(vehicle: Vehicle) {
+    const { data, error } = await supabase
+      .from("vehicles")
+      .update({
+        kind: vehicle.kind,
+        brand: vehicle.brand,
+        model: vehicle.model,
+        year: vehicle.year,
+        plate: vehicle.plate,
+        mileage: vehicle.mileage,
+        color: vehicle.color,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", vehicle.id)
+      .is("deleted_at", null)
+      .select("*")
+      .single();
+    if (error) {
+      if (error.code === "23505")
+        throw new Error("Esta placa já pertence a outro veículo ativo.");
+      if (error.code === "PGRST116")
+        throw new Error("Veículo não encontrado ou sem permissão para editar.");
+      throw new Error(error.message);
+    }
+    return mapVehicle(data);
+  }
+
   async deleteCustomer(customerId: string, deletedAt: string) {
     const { error } = await supabase
       .from("customers")
@@ -487,6 +515,15 @@ class LocalOperationalRepository implements OperationalRepository {
     };
     await this.saveOrder(updated);
     return updated;
+  }
+
+  async updateVehicle(vehicle: Vehicle) {
+    const data = this.read();
+    this.write({
+      ...data,
+      vehicles: data.vehicles.map((item) => (item.id === vehicle.id ? vehicle : item)),
+    });
+    return vehicle;
   }
 
   async deleteCustomer(customerId: string, deletedAt: string) {
