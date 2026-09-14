@@ -536,6 +536,26 @@ class LocalOperationalRepository implements OperationalRepository {
     return updated;
   }
 
+  async updateComplaint(order: ServiceOrder, complaint: string) {
+    const cleaned = complaint.trim();
+    if (!cleaned) throw new Error("Informe o problema relatado.");
+    const updated: ServiceOrder = {
+      ...order,
+      complaint: cleaned,
+      activities: [
+        ...(order.activities ?? []),
+        {
+          id: "a-" + crypto.randomUUID(),
+          type: "diagnosis",
+          description: `Problema relatado editado de "${order.complaint}" para "${cleaned}"`,
+          at: new Date().toISOString(),
+        },
+      ],
+    };
+    await this.saveOrder(updated);
+    return updated;
+  }
+
   async updateVehicle(vehicle: Vehicle) {
     const data = this.read();
     this.write({
