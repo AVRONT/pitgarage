@@ -23,6 +23,8 @@ export interface OperationalRepository {
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
   saveOrder(order: ServiceOrder): Promise<void>;
+  deleteOrder(order: ServiceOrder): Promise<void>;
+  cancelOrder(order: ServiceOrder, reason: string): Promise<ServiceOrder>;
   deleteCustomer(customerId: string, deletedAt: string): Promise<void>;
   deleteVehicle(vehicleId: string, deletedAt: string): Promise<void>;
   reset(): Promise<OperationalData>;
@@ -103,6 +105,9 @@ function mapOrder(row: {
   activities: Json;
   workshop_snapshot: Json | null;
   updated_at: string;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
 }): ServiceOrder {
   return {
     id: `OS-${row.order_number}`,
@@ -133,6 +138,9 @@ function mapOrder(row: {
         }
       : {}),
     updatedAt: row.updated_at,
+    ...(row.cancelled_at ? { cancelledAt: row.cancelled_at } : {}),
+    ...(row.cancelled_by ? { cancelledBy: row.cancelled_by } : {}),
+    ...(row.cancel_reason ? { cancelReason: row.cancel_reason } : {}),
   };
 }
 
