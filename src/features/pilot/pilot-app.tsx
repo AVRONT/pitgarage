@@ -506,7 +506,8 @@ function EmptyState({ title, text }: { title: string; text: string }) {
 }
 
 export function PilotApp() {
-  const { isLocalBypass } = useAuth();
+  const { isLocalBypass, accessLevel } = useAuth();
+  const canEditWorkshop = accessLevel === "owner" || accessLevel === "admin";
   const repository = useMemo(() => createOperationalRepository(isLocalBypass), [isLocalBypass]);
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
