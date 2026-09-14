@@ -2807,7 +2807,18 @@ function OrderDetail({
           {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
+      {cancelled && (
+        <div className="mb-5 rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-950">
+          <p className="font-bold">OS cancelada · somente leitura</p>
+          <p className="mt-1 text-sm">
+            {order.cancelReason ? `Motivo: ${order.cancelReason}. ` : ""}
+            Os dados foram preservados para auditoria e não podem mais ser alterados.
+          </p>
+        </div>
+      )}
+      <div inert={cancelled ? true : undefined}>
       <OrderTeamAssignment
+
         team={order.team}
         onSave={(team) => {
           onUpdate((current) => ({ ...current, team }));
@@ -2983,6 +2994,8 @@ function OrderDetail({
           />
         </TabsContent>
       </Tabs>
+      </div>
+
       <Dialog
         open={Boolean(pendingConfirmation)}
         onOpenChange={(open) => !open && setPendingConfirmation(undefined)}
