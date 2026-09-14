@@ -108,15 +108,23 @@ export function WorkshopSettings({
           ))}
           <p className="text-xs leading-relaxed text-muted-foreground">
             CNPJ, CEP e telefone recebem apenas formatação visual quando reconhecidos. Não há
-            consulta cadastral ou emissão fiscal. Dados salvos somente neste navegador.
+            consulta cadastral ou emissão fiscal. Estes dados valem para toda a oficina, em qualquer
+            dispositivo.
           </p>
+          {!canEdit && (
+            <p className="text-xs text-muted-foreground">
+              Somente o proprietário ou o administrador pode alterar estes dados.
+            </p>
+          )}
           <div className="border-t pt-4">
             <p role="status" className="mb-3 min-h-5 text-sm text-muted-foreground">
-              {dirty
-                ? "Alterações não salvas"
-                : message === "Configurações salvas"
-                  ? message
-                  : "Nenhuma alteração pendente"}
+              {saving
+                ? "Salvando…"
+                : dirty
+                  ? "Alterações não salvas"
+                  : message === "Configurações salvas"
+                    ? message
+                    : "Nenhuma alteração pendente"}
             </p>
             {error && (
               <p role="alert" className="mb-3 text-sm text-red-700">
@@ -124,11 +132,13 @@ export function WorkshopSettings({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="submit">Salvar configurações</Button>
+              <Button type="submit" disabled={!canEdit || saving}>
+                Salvar configurações
+              </Button>
               <Button
                 type="button"
                 variant="outline"
-                disabled={!dirty}
+                disabled={!dirty || saving}
                 onClick={() => {
                   setDraft(workshop);
                   setMessage("");
