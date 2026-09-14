@@ -3442,7 +3442,12 @@ function OrderOverview({
   const paid = order.payment?.status === "Pago" ? order.payment.amount : 0;
   const paymentPending = Math.max(approved - paid, 0);
   const sections = [
-    { icon: MessageCircle, label: "Problema relatado", text: order.complaint },
+    {
+      icon: MessageCircle,
+      label: "Problema relatado",
+      text: order.complaint,
+      editable: true,
+    },
     {
       icon: Gauge,
       label: "Diagnóstico",
