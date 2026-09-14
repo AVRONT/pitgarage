@@ -33,6 +33,7 @@ import {
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
   Phone,
   Play,
   Plus,
@@ -848,6 +849,11 @@ export function PilotApp() {
     if (done) setNotice(`${id} cancelada. Os dados foram preservados no histórico.`);
     return done;
   };
+  const updateOrderComplaint = async (id: string, complaint: string) => {
+    const done = await runOrderAction(id, (order) => repository.updateComplaint(order, complaint));
+    if (done) setNotice("Problema relatado atualizado.");
+    return done;
+  };
 
 
   const reloadConflictedOrder = async () => {
@@ -1275,6 +1281,9 @@ export function PilotApp() {
                   actionError={orderActionError}
                   onDelete={() => deleteOrderPermanently(selectedOrder.id)}
                   onCancel={(reason) => cancelOrderWithReason(selectedOrder.id, reason)}
+                  onEditComplaint={(complaint) =>
+                    updateOrderComplaint(selectedOrder.id, complaint)
+                  }
 
                 />
               </div>
@@ -2790,6 +2799,7 @@ function OrderDetail({
   canManage,
   onDelete,
   onCancel,
+  onEditComplaint,
   actionBusy,
   actionError,
 }: {
@@ -2807,6 +2817,7 @@ function OrderDetail({
   canManage: boolean;
   onDelete: () => Promise<boolean>;
   onCancel: (reason: string) => Promise<boolean>;
+  onEditComplaint: (complaint: string) => Promise<boolean>;
   actionBusy: boolean;
   actionError: string;
 }) {
@@ -3128,6 +3139,8 @@ function OrderDetail({
             total={total}
             onQuickAction={setActiveTab}
             workflow={workflow}
+            onEditComplaint={onEditComplaint}
+            complaintBusy={actionBusy}
           />
         </TabsContent>
         <TabsContent value="diagnosis" className="mt-6">
@@ -3405,6 +3418,8 @@ function OrderOverview({
   total,
   onQuickAction,
   workflow,
+  onEditComplaint,
+  complaintBusy,
 }: {
   order: ServiceOrder;
   vehicle: Vehicle;
@@ -3414,14 +3429,29 @@ function OrderOverview({
   total: number;
   onQuickAction: (tab: string) => void;
   workflow: ReturnType<typeof evaluateOrderWorkflow>;
+  onEditComplaint: (complaint: string) => Promise<boolean>;
+  complaintBusy: boolean;
 }) {
+  const { accessLevel } = useAuth();
+  const [editingComplaint, setEditingComplaint] = useState(false);
+  const [complaintDraft, setComplaintDraft] = useState(order.complaint);
+  const [complaintError, setComplaintError] = useState("");
+  const canEditComplaint =
+    (accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff") &&
+    !isOrderCancelled(order) &&
+    !["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status);
   const refused = order.budget
     .filter((item) => item.approval === "Recusado")
     .reduce((sum, item) => sum + item.price, 0);
   const paid = order.payment?.status === "Pago" ? order.payment.amount : 0;
   const paymentPending = Math.max(approved - paid, 0);
   const sections = [
-    { icon: MessageCircle, label: "Problema relatado", text: order.complaint },
+    {
+      icon: MessageCircle,
+      label: "Problema relatado",
+      text: order.complaint,
+      editable: true,
+    },
     {
       icon: Gauge,
       label: "Diagnóstico",
@@ -3465,11 +3495,75 @@ function OrderOverview({
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700">
                   <section.icon className="h-5 w-5" />
                 </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {section.label}
-                  </p>
-                  <p className="mt-2 leading-relaxed">{section.text}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {section.label}
+                    </p>
+                    {section.editable && canEditComplaint && !editingComplaint ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="-mt-2 h-8 w-8 shrink-0 text-muted-foreground"
+                        aria-label="Editar problema relatado"
+                        onClick={() => {
+                          setComplaintDraft(order.complaint);
+                          setComplaintError("");
+                          setEditingComplaint(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                  {section.editable && editingComplaint ? (
+                    <div className="mt-2 space-y-3">
+                      <Textarea
+                        value={complaintDraft}
+                        onChange={(event) => setComplaintDraft(event.target.value)}
+                        rows={4}
+                        maxLength={2000}
+                        disabled={complaintBusy}
+                      />
+                      {complaintError ? (
+                        <p className="text-sm text-destructive">{complaintError}</p>
+                      ) : null}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={complaintBusy}
+                          onClick={async () => {
+                            const text = complaintDraft.trim();
+                            if (!text) {
+                              setComplaintError("Informe o problema relatado.");
+                              return;
+                            }
+                            const done = await onEditComplaint(text);
+                            if (done) setEditingComplaint(false);
+                            else
+                              setComplaintError(
+                                "Não foi possível salvar. Verifique a mensagem no topo da OS.",
+                              );
+                          }}
+                        >
+                          {complaintBusy ? "Salvando..." : "Salvar"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={complaintBusy}
+                          onClick={() => setEditingComplaint(false)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 leading-relaxed">{section.text}</p>
+                  )}
                 </div>
               </div>
             </CardContent>

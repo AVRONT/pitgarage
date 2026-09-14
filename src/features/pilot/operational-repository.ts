@@ -25,6 +25,7 @@ export interface OperationalRepository {
   saveOrder(order: ServiceOrder): Promise<void>;
   deleteOrder(order: ServiceOrder): Promise<void>;
   cancelOrder(order: ServiceOrder, reason: string): Promise<ServiceOrder>;
+  updateComplaint(order: ServiceOrder, complaint: string): Promise<ServiceOrder>;
   updateVehicle(vehicle: Vehicle): Promise<Vehicle>;
   deleteCustomer(customerId: string, deletedAt: string): Promise<void>;
   deleteVehicle(vehicleId: string, deletedAt: string): Promise<void>;
@@ -328,6 +329,24 @@ class CloudOperationalRepository implements OperationalRepository {
     return mapOrder(row);
   }
 
+  async updateComplaint(order: ServiceOrder, complaint: string) {
+    if (!order.databaseId) throw new Error("OS sem identificador persistente.");
+    const expected = this.orderVersions.get(order.databaseId);
+    if (!expected) throw new Error("Recarregue a OS antes de salvar.");
+    const { data, error } = await supabase.rpc("update_order_complaint", {
+      order_id: order.databaseId,
+      expected_version: expected,
+      new_complaint: complaint,
+    });
+    if (error) {
+      if (error.code === "40001") throw new OrderVersionConflict();
+      throw new Error(error.message);
+    }
+    const row = data as unknown as Parameters<typeof mapOrder>[0];
+    this.orderVersions.set(row.id, row.updated_at);
+    return mapOrder(row);
+  }
+
   async updateVehicle(vehicle: Vehicle) {
     const { data, error } = await supabase
       .from("vehicles")
@@ -509,6 +528,26 @@ class LocalOperationalRepository implements OperationalRepository {
           id: "a-" + crypto.randomUUID(),
           type: "status",
           description: "OS cancelada: " + reason.trim(),
+          at: new Date().toISOString(),
+        },
+      ],
+    };
+    await this.saveOrder(updated);
+    return updated;
+  }
+
+  async updateComplaint(order: ServiceOrder, complaint: string) {
+    const cleaned = complaint.trim();
+    if (!cleaned) throw new Error("Informe o problema relatado.");
+    const updated: ServiceOrder = {
+      ...order,
+      complaint: cleaned,
+      activities: [
+        ...(order.activities ?? []),
+        {
+          id: "a-" + crypto.randomUUID(),
+          type: "diagnosis",
+          description: `Problema relatado editado de "${order.complaint}" para "${cleaned}"`,
           at: new Date().toISOString(),
         },
       ],
