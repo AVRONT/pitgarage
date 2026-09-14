@@ -2509,6 +2509,11 @@ function VehicleDetail({
               <Badge variant="outline">Veículo excluído</Badge>
             ) : (
               <>
+                {canEditVehicle && (
+                  <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
+                    Editar veículo
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="gap-2 text-rose-700"
