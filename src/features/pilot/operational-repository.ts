@@ -25,6 +25,7 @@ export interface OperationalRepository {
   saveOrder(order: ServiceOrder): Promise<void>;
   deleteOrder(order: ServiceOrder): Promise<void>;
   cancelOrder(order: ServiceOrder, reason: string): Promise<ServiceOrder>;
+  updateComplaint(order: ServiceOrder, complaint: string): Promise<ServiceOrder>;
   updateVehicle(vehicle: Vehicle): Promise<Vehicle>;
   deleteCustomer(customerId: string, deletedAt: string): Promise<void>;
   deleteVehicle(vehicleId: string, deletedAt: string): Promise<void>;
