@@ -1260,6 +1260,14 @@ export function PilotApp() {
                     saveEvidence(selectedOrder.id, change, description)
                   }
                   notify={setNotice}
+                  canManage={
+                    (accessLevel === "owner" || accessLevel === "admin") && !isLocalBypass
+                  }
+                  actionBusy={orderActionBusy}
+                  actionError={orderActionError}
+                  onDelete={() => deleteOrderPermanently(selectedOrder.id)}
+                  onCancel={(reason) => cancelOrderWithReason(selectedOrder.id, reason)}
+
                 />
               </div>
             )}
