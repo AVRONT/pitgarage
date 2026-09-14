@@ -8,13 +8,21 @@ export async function financialRpc<T>(name: string, args?: Record<string, unknow
   }>);
   if (error) {
     if (error.code === "42501")
-      throw new Error("Você não tem permissão financeira. Solicite acesso ao proprietário.");
+      throw Object.assign(
+        new Error(
+          /workshop access/i.test(error.message ?? "")
+            ? "Você não tem permissão para alterar o orçamento desta OS."
+            : "Você não tem permissão financeira. Solicite acesso ao proprietário.",
+        ),
+        { code: error.code },
+      );
     if (error.code === "PGRST202")
       throw new Error("O financeiro ainda precisa ser ativado no ambiente da oficina.");
     throw Object.assign(new Error(error.message || "Não foi possível carregar o financeiro."), {
       code: error.code,
     });
   }
+
   return data;
 }
 export type FinancialMember = {

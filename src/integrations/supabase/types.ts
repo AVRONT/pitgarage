@@ -375,6 +375,111 @@ export type Database = {
           },
         ]
       }
+      quote_item_financials: {
+        Row: {
+          item_id: string
+          markup: number | null
+          quote_id: string
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          item_id: string
+          markup?: number | null
+          quote_id: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          item_id?: string
+          markup?: number | null
+          quote_id?: string
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_item_financials_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          converted_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          description: string
+          id: string
+          items: Json
+          notes: string
+          quote_number: number
+          service_order_id: string | null
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+          warranty_days: number
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          description?: string
+          id?: string
+          items?: Json
+          notes?: string
+          quote_number?: number
+          service_order_id?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          warranty_days?: number
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          description?: string
+          id?: string
+          items?: Json
+          notes?: string
+          quote_number?: number
+          service_order_id?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+          warranty_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registration_attempts: {
         Row: {
           blocked: boolean
@@ -482,6 +587,7 @@ export type Database = {
           team: Json
           updated_at: string
           vehicle_id: string
+          warranty_days: number | null
           workshop_snapshot: Json | null
         }
         Insert: {
@@ -509,6 +615,7 @@ export type Database = {
           team?: Json
           updated_at?: string
           vehicle_id: string
+          warranty_days?: number | null
           workshop_snapshot?: Json | null
         }
         Update: {
@@ -536,6 +643,7 @@ export type Database = {
           team?: Json
           updated_at?: string
           vehicle_id?: string
+          warranty_days?: number | null
           workshop_snapshot?: Json | null
         }
         Relationships: [
@@ -703,6 +811,20 @@ export type Database = {
         }
         Returns: Json
       }
+      add_quote_item: {
+        Args: {
+          expected_version: string
+          item_id: string
+          item_name: string
+          item_type: string
+          markup: number
+          quantity: number
+          quote_id: string
+          unit_cost: number
+          unit_price: number
+        }
+        Returns: Json
+      }
       administer_user_profile: {
         Args: {
           new_access_level: Database["public"]["Enums"]["access_level"]
@@ -732,6 +854,24 @@ export type Database = {
       cancel_calendar_event: { Args: { event_id: string }; Returns: undefined }
       cancel_service_order: {
         Args: { expected_version: string; order_id: string; reason: string }
+        Returns: Json
+      }
+      convert_quote_to_order: {
+        Args: {
+          entry_mileage: number
+          expected_version: string
+          quote_id: string
+          vehicle: string
+        }
+        Returns: Json
+      }
+      create_quote: {
+        Args: {
+          customer: string
+          quote_description: string
+          quote_notes: string
+          vehicle: string
+        }
         Returns: Json
       }
       create_service_order_atomic: {
@@ -767,6 +907,7 @@ export type Database = {
           team: Json
           updated_at: string
           vehicle_id: string
+          warranty_days: number | null
           workshop_snapshot: Json | null
         }
         SetofOptions: {
@@ -822,6 +963,10 @@ export type Database = {
       }
       get_part_financial: {
         Args: { item_id: string; order_id: string }
+        Returns: Json
+      }
+      get_quote_part_financial: {
+        Args: { item_id: string; quote_id: string }
         Returns: Json
       }
       has_developer_access: { Args: never; Returns: boolean }
@@ -909,6 +1054,31 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      list_quotes: {
+        Args: never
+        Returns: {
+          converted_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          description: string
+          id: string
+          items: Json
+          notes: string
+          quote_number: number
+          service_order_id: string | null
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+          warranty_days: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_team_users: {
         Args: never
         Returns: {
@@ -931,6 +1101,10 @@ export type Database = {
       }
       remove_budget_item: {
         Args: { expected_version: string; item_id: string; order_id: string }
+        Returns: Json
+      }
+      remove_quote_item: {
+        Args: { expected_version: string; item_id: string; quote_id: string }
         Returns: Json
       }
       reserve_invite_budget: { Args: { owner_id: string }; Returns: boolean }
@@ -976,6 +1150,10 @@ export type Database = {
         Args: { allowed: boolean; target_user: string }
         Returns: undefined
       }
+      set_quote_status: {
+        Args: { expected_version: string; new_status: string; quote_id: string }
+        Returns: Json
+      }
       start_direct_conversation: {
         Args: { target_user: string }
         Returns: string
@@ -986,6 +1164,16 @@ export type Database = {
           expected_version: string
           new_complaint: string
           order_id: string
+        }
+        Returns: Json
+      }
+      update_quote: {
+        Args: {
+          expected_version: string
+          quote_description: string
+          quote_id: string
+          quote_notes: string
+          vehicle: string
         }
         Returns: Json
       }

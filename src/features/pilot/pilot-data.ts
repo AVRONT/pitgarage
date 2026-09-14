@@ -111,12 +111,29 @@ export interface ServiceOrder {
   statusHistory?: StatusHistoryEntry[];
   activities?: OrderActivity[];
   updatedAt?: string;
+  /** Prazo de garantia congelado na conclusão da OS. */
+  warrantyDays?: number | undefined;
   cancelledAt?: string | undefined;
   cancelledBy?: string | undefined;
   cancelReason?: string | undefined;
 }
 
+/** Garantia padrão vigente para novas OS, orçamentos e documentos comerciais. */
+export const warrantyDays = 90;
+
+/** OS concluídas antes do snapshot mantêm explicitamente os 30 dias originais. */
+export const orderWarrantyDays = (order: ServiceOrder) =>
+  order.warrantyDays ?? (order.completedAt ? 30 : warrantyDays);
+
+export const warrantyDeadline = (order: ServiceOrder) => {
+  if (!order.completedAt) return null;
+  const end = new Date(`${order.completedAt}T12:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + orderWarrantyDays(order));
+  return end;
+};
+
 export const isOrderCancelled = (order: ServiceOrder) => Boolean(order.cancelledAt);
+
 
 /** Mesmas regras aplicadas em public.delete_service_order. */
 export function orderDeleteBlockers(order: ServiceOrder): string[] {

@@ -1,7 +1,16 @@
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { formatDate, money, type Customer, type Vehicle, type ServiceOrder } from "./pilot-data";
+import {
+  formatDate,
+  money,
+  orderWarrantyDays,
+  warrantyDeadline,
+  type Customer,
+  type Vehicle,
+  type ServiceOrder,
+} from "./pilot-data";
+
 import { WorkshopIdentity } from "./workshop-document-header";
 import { type Workshop } from "./workshop-data";
 
@@ -23,8 +32,8 @@ export function FinalOrderSummary({
   const total = order.budget
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
-  const warrantyEnd = order.completedAt ? new Date(`${order.completedAt}T12:00:00Z`) : null;
-  if (warrantyEnd) warrantyEnd.setUTCDate(warrantyEnd.getUTCDate() + 30);
+  const warrantyEnd = warrantyDeadline(order);
+
   const groups = [
     {
       title: "Serviços executados",
@@ -135,7 +144,7 @@ export function FinalOrderSummary({
               <h3 className="font-bold">Garantia demonstrativa</h3>
               <p className="mt-2 text-sm">
                 {warrantyEnd
-                  ? `30 dias após a conclusão, até ${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(warrantyEnd)}. ${warrantyEnd >= new Date("2026-09-01T12:00:00Z") ? "ATIVA" : "EXPIRADA"} na data de referência do piloto (01/09/2026).`
+                  ? `${orderWarrantyDays(order)} dias após a conclusão, até ${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(warrantyEnd)}. ${warrantyEnd >= new Date("2026-09-01T12:00:00Z") ? "ATIVA" : "EXPIRADA"} na data de referência do piloto (01/09/2026).`
                   : "Sem data de conclusão registrada para calcular a garantia."}
               </p>
             </section>
