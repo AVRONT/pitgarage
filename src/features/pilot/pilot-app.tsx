@@ -2661,6 +2661,11 @@ function OrderDetail({
   onVehicle,
   onUpdate,
   notify,
+  canManage,
+  onDelete,
+  onCancel,
+  actionBusy,
+  actionError,
 }: {
   order: ServiceOrder;
   initialTab?: string;
@@ -2673,6 +2678,11 @@ function OrderDetail({
   onVehicle: (id: string) => void;
   onUpdate: (updater: OrderUpdater) => void;
   notify: (text: string) => void;
+  canManage: boolean;
+  onDelete: () => Promise<boolean>;
+  onCancel: (reason: string) => Promise<boolean>;
+  actionBusy: boolean;
+  actionError: string;
 }) {
   const [activeTab, setActiveTab] = useState(initialTab ?? "overview");
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -2681,7 +2691,14 @@ function OrderDetail({
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingWorkflowConfirmation>();
   const [reversalPlan, setReversalPlan] = useState<WorkflowReversalPlan>();
   const [futureMessage, setFutureMessage] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const cancelled = isOrderCancelled(order);
+  const deleteBlockers = orderDeleteBlockers(order);
+  const cancelBlocker = orderCancelBlocker(order);
   const workflow = evaluateOrderWorkflow(order);
+
   const availableReversal = getWorkflowReversal(order);
   const approved = order.budget
     .filter((item) => item.approval === "Aprovado")
@@ -2762,24 +2779,49 @@ function OrderDetail({
               Status atual · provisório
             </span>
             <StatusBadge status={order.status} />
+            {cancelled && <Badge variant="outline">Cancelada</Badge>}
             {["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status) && (
               <Button variant="outline" size="sm" onClick={() => setSummaryOpen(true)}>
                 <FileText className="mr-2 h-4 w-4" />
                 Resumo final
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-2 text-muted-foreground"
-              onClick={() => {
-                setManualStatus(order.status);
-                setManualStatusOpen(true);
-              }}
-            >
-              <Settings2 className="h-4 w-4" /> Ajustar status manualmente
-            </Button>
+            {!cancelled && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-2 text-muted-foreground"
+                onClick={() => {
+                  setManualStatus(order.status);
+                  setManualStatusOpen(true);
+                }}
+              >
+                <Settings2 className="h-4 w-4" /> Ajustar status manualmente
+              </Button>
+            )}
+            {canManage && !cancelled && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground">
+                    <MoreVertical className="h-4 w-4" /> Mais opções
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => setCancelOpen(true)}>
+                    <XCircle className="mr-2 h-4 w-4" /> Cancelar OS
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Excluir OS
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
+
         }
       />
       <div className="order-metadata mb-5 flex flex-wrap gap-2">
