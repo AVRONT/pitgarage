@@ -517,6 +517,15 @@ class LocalOperationalRepository implements OperationalRepository {
     return updated;
   }
 
+  async updateVehicle(vehicle: Vehicle) {
+    const data = this.read();
+    this.write({
+      ...data,
+      vehicles: data.vehicles.map((item) => (item.id === vehicle.id ? vehicle : item)),
+    });
+    return vehicle;
+  }
+
   async deleteCustomer(customerId: string, deletedAt: string) {
     const data = this.read();
     this.write({
