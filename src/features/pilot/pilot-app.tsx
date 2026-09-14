@@ -2469,6 +2469,7 @@ function CustomerDetail({
 
 function VehicleDetail({
   vehicle,
+  vehicles,
   customer,
   orders,
   onBack,
@@ -2476,8 +2477,10 @@ function VehicleDetail({
   onOrder,
   onNewOrder,
   onDelete,
+  onSave,
 }: {
   vehicle: Vehicle;
+  vehicles: Vehicle[];
   customer: Customer;
   orders: ServiceOrder[];
   onBack: () => void;
@@ -2485,7 +2488,12 @@ function VehicleDetail({
   onOrder: (id: string) => void;
   onNewOrder: () => void;
   onDelete: () => void;
+  onSave: (vehicle: Vehicle) => Promise<void>;
 }) {
+  const { accessLevel } = useAuth();
+  const canEditVehicle =
+    accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff";
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const history = useMemo(() => vehicleHistory(vehicle, orders), [vehicle, orders]);
   return (
