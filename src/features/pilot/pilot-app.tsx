@@ -552,8 +552,22 @@ export function PilotApp() {
   const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
 
   useEffect(() => {
-    setWorkshop(readWorkshop());
-  }, []);
+    if (isLocalBypass) {
+      setWorkshop(readWorkshop());
+      return;
+    }
+    let active = true;
+    void loadWorkshop()
+      .then((value) => {
+        if (active) setWorkshop(value);
+      })
+      .catch(() => {
+        // Sem a configuração central, os documentos usam o padrão até a próxima leitura.
+      });
+    return () => {
+      active = false;
+    };
+  }, [isLocalBypass]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
