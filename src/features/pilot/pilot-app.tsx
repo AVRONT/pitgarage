@@ -2585,6 +2585,15 @@ function VehicleDetail({
           renderStatus={(status) => <StatusBadge status={status} />}
         />
       </div>
+      {canEditVehicle && (
+        <EditVehicleDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          vehicle={vehicle}
+          vehicles={vehicles}
+          onSave={onSave}
+        />
+      )}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
