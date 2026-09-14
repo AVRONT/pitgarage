@@ -678,6 +678,18 @@ export function PilotApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Conversão de orçamento avulso: a OS já foi criada no banco, aqui só sincronizamos a tela.
+  const handleQuoteConverted = async (orderId: string) => {
+    const data = await repository.load();
+    setCustomers(data.customers);
+    setVehicles(data.vehicles);
+    const list = data.orders.map(migrateOrder);
+    ordersRef.current = list;
+    setOrders(list);
+    const created = list.find((order) => order.databaseId === orderId || order.id === orderId);
+    navigate(created ? "order" : "orders", created?.id);
+  };
+
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? orders[0];
   const activeCustomers = customers.filter((customer) => !customer.deletedAt);
   const activeVehicles = vehicles.filter(
