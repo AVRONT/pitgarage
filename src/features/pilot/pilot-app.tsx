@@ -3474,11 +3474,75 @@ function OrderOverview({
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-100 text-orange-700">
                   <section.icon className="h-5 w-5" />
                 </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {section.label}
-                  </p>
-                  <p className="mt-2 leading-relaxed">{section.text}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {section.label}
+                    </p>
+                    {section.editable && canEditComplaint && !editingComplaint ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="-mt-2 h-8 w-8 shrink-0 text-muted-foreground"
+                        aria-label="Editar problema relatado"
+                        onClick={() => {
+                          setComplaintDraft(order.complaint);
+                          setComplaintError("");
+                          setEditingComplaint(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                  {section.editable && editingComplaint ? (
+                    <div className="mt-2 space-y-3">
+                      <Textarea
+                        value={complaintDraft}
+                        onChange={(event) => setComplaintDraft(event.target.value)}
+                        rows={4}
+                        maxLength={2000}
+                        disabled={complaintBusy}
+                      />
+                      {complaintError ? (
+                        <p className="text-sm text-destructive">{complaintError}</p>
+                      ) : null}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={complaintBusy}
+                          onClick={async () => {
+                            const text = complaintDraft.trim();
+                            if (!text) {
+                              setComplaintError("Informe o problema relatado.");
+                              return;
+                            }
+                            const done = await onEditComplaint(text);
+                            if (done) setEditingComplaint(false);
+                            else
+                              setComplaintError(
+                                "Não foi possível salvar. Verifique a mensagem no topo da OS.",
+                              );
+                          }}
+                        >
+                          {complaintBusy ? "Salvando..." : "Salvar"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={complaintBusy}
+                          onClick={() => setEditingComplaint(false)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 leading-relaxed">{section.text}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
