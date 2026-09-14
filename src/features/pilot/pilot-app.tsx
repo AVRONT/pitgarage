@@ -3414,6 +3414,8 @@ function OrderOverview({
   total,
   onQuickAction,
   workflow,
+  onEditComplaint,
+  complaintBusy,
 }: {
   order: ServiceOrder;
   vehicle: Vehicle;
@@ -3423,7 +3425,17 @@ function OrderOverview({
   total: number;
   onQuickAction: (tab: string) => void;
   workflow: ReturnType<typeof evaluateOrderWorkflow>;
+  onEditComplaint: (complaint: string) => Promise<boolean>;
+  complaintBusy: boolean;
 }) {
+  const { accessLevel } = useAuth();
+  const [editingComplaint, setEditingComplaint] = useState(false);
+  const [complaintDraft, setComplaintDraft] = useState(order.complaint);
+  const [complaintError, setComplaintError] = useState("");
+  const canEditComplaint =
+    (accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff") &&
+    !isOrderCancelled(order) &&
+    !["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status);
   const refused = order.budget
     .filter((item) => item.approval === "Recusado")
     .reduce((sum, item) => sum + item.price, 0);
