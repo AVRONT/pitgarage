@@ -91,6 +91,7 @@ export function WorkshopSettings({
                 aria-required={key === "name"}
                 aria-invalid={key === "name" && error && !draft.name.trim()}
                 maxLength={key === "hours" || key === "address" ? 300 : 120}
+                disabled={!canEdit || saving}
                 onChange={(event) => {
                   setDraft({ ...draft, [key]: event.target.value });
                   setMessage("");
