@@ -154,8 +154,7 @@ export function TeamSettings() {
       )}
       <div className="mt-5 space-y-3">
         {users.map((user) => {
-          const isOwner = user.access_level === "owner";
-          const locked = isOwner && !isOwnerActor;
+          const locked = user.access_level === "owner" && !isOwnerActor;
           return (
             <article
               key={user.user_id}

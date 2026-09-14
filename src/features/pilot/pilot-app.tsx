@@ -2273,7 +2273,7 @@ function CustomerDetail({
         }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        {accessLevel === "owner" && !isLocalBypass && (
+        {(accessLevel === "owner" || accessLevel === "admin") && !isLocalBypass && (
           <section className="rounded-lg border bg-white p-5 xl:col-span-2">
             <h2 className="font-semibold">
               {customer.authUserId ? "Conta vinculada" : "Sem conta"}
