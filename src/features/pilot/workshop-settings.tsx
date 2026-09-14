@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatWorkshopField, workshopStorageKey, type Workshop } from "./workshop-data";
-import { createWorkshopRecord } from "./pilot-storage";
+import { formatWorkshopField, type Workshop } from "./workshop-data";
+import { saveWorkshop } from "./workshop-api";
 import { WorkshopDocumentPreview } from "./workshop-document-preview";
 
 export function WorkshopSettings({
   workshop,
+  canEdit,
   onSave,
 }: {
   workshop: Workshop;
+  canEdit: boolean;
   onSave: (value: Workshop) => void;
 }) {
   const [draft, setDraft] = useState(workshop);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
+  const [saving, setSaving] = useState(false);
   const dirty = (Object.keys(workshop) as (keyof Workshop)[]).some(
     (key) => draft[key] !== workshop[key],
   );
