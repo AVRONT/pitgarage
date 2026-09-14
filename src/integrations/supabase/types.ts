@@ -246,6 +246,57 @@ export type Database = {
         }
         Relationships: []
       }
+      extra_revenues: {
+        Row: {
+          category_id: string
+          cost: number
+          created_at: string
+          created_by: string
+          date: string
+          description: string
+          id: string
+          revenue: number
+          subcategory_id: string | null
+        }
+        Insert: {
+          category_id: string
+          cost?: number
+          created_at?: string
+          created_by: string
+          date: string
+          description: string
+          id: string
+          revenue: number
+          subcategory_id?: string | null
+        }
+        Update: {
+          category_id?: string
+          cost?: number
+          created_at?: string
+          created_by?: string
+          date?: string
+          description?: string
+          id?: string
+          revenue?: number
+          subcategory_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extra_revenues_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_revenues_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_permissions: {
         Row: {
           granted_at: string
@@ -425,6 +476,8 @@ export type Database = {
           status: string
           updated_at: string
           vehicle_id: string | null
+          vehicle_model_text: string | null
+          vehicle_plate_text: string | null
           warranty_days: number
         }
         Insert: {
@@ -444,6 +497,8 @@ export type Database = {
           status?: string
           updated_at?: string
           vehicle_id?: string | null
+          vehicle_model_text?: string | null
+          vehicle_plate_text?: string | null
           warranty_days?: number
         }
         Update: {
@@ -463,6 +518,8 @@ export type Database = {
           status?: string
           updated_at?: string
           vehicle_id?: string | null
+          vehicle_model_text?: string | null
+          vehicle_plate_text?: string | null
           warranty_days?: number
         }
         Relationships: [
@@ -569,6 +626,38 @@ export type Database = {
           singleton?: boolean
         }
         Relationships: []
+      }
+      revenue_categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_orders: {
         Row: {
@@ -820,6 +909,7 @@ export type Database = {
         }
         Returns: Json
       }
+      add_extra_revenue: { Args: { entry: Json }; Returns: Json }
       add_quote_item: {
         Args: {
           expected_version: string
@@ -874,6 +964,16 @@ export type Database = {
         }
         Returns: Json
       }
+      convert_quote_with_vehicle: {
+        Args: {
+          entry_mileage: number
+          expected_version: string
+          new_vehicle: Json
+          quote_id: string
+          vehicle: string
+        }
+        Returns: Json
+      }
       create_quote: {
         Args: {
           contact_email?: string
@@ -883,6 +983,20 @@ export type Database = {
           quote_description: string
           quote_notes: string
           vehicle: string
+        }
+        Returns: Json
+      }
+      create_quote_snapshot: {
+        Args: {
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          customer: string
+          quote_description: string
+          quote_notes: string
+          vehicle: string
+          vehicle_model_text: string
+          vehicle_plate_text: string
         }
         Returns: Json
       }
@@ -1040,6 +1154,7 @@ export type Database = {
           sender_user_id: string
         }[]
       }
+      list_extra_revenues: { Args: never; Returns: Json }
       list_financial_members: { Args: never; Returns: Json }
       list_my_conversations: {
         Args: never
@@ -1093,6 +1208,8 @@ export type Database = {
           status: string
           updated_at: string
           vehicle_id: string | null
+          vehicle_model_text: string | null
+          vehicle_plate_text: string | null
           warranty_days: number
         }[]
         SetofOptions: {
@@ -1130,6 +1247,12 @@ export type Database = {
           name: string
           phone: string
         }[]
+      }
+      match_quote_vehicle: { Args: { quote_id: string }; Returns: Json }
+      order_receivables: { Args: never; Returns: Json }
+      record_order_payment: {
+        Args: { expected_version: string; order_id: string; receipt: Json }
+        Returns: Json
       }
       remove_budget_item: {
         Args: { expected_version: string; item_id: string; order_id: string }
@@ -1171,6 +1294,15 @@ export type Database = {
           quantity: number
           unit_cost: number
           unit_price: number
+        }
+        Returns: Json
+      }
+      save_revenue_category: {
+        Args: {
+          category_id: string
+          category_name: string
+          enabled: boolean
+          parent: string
         }
         Returns: Json
       }
