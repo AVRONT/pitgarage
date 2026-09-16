@@ -193,6 +193,10 @@ Demonstrar o Piloto v0.1.15 aos responsáveis pela oficina. Validar o momento pr
 
 # Histórico
 
+## Recebimento em Dinheiro — ajuste local de 16/09/2026
+
+Adicionada a opção Dinheiro junto de PIX/Cartão no mesmo fluxo de recebimentos, tipos e validação de backup. Migration local `20260916171847_allow_cash_order_receipts.sql` atualiza somente a lista aceita pela RPC existente; não aplicada remotamente. Cálculos, permissões, histórico e layout preservados.
+
 ## Evolução local — recebimentos, receitas extras e veículo do ORC (2026-09-14)
 
 - Recebimentos ficam no pagamento da OS, com valor, data/hora, forma, observação e autor. Saldo e estados Em aberto/Parcial/Pago são calculados; entrega não elimina dívida. Pagamentos legados preservados.

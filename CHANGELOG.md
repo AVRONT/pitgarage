@@ -1,5 +1,10 @@
 # Changelog
 
+## [Recebimentos em Dinheiro — local] - 2026-09-16
+
+- Dinheiro adicionado ao seletor, tipos e validação de backup, sem fluxo paralelo.
+- Migration local amplia somente os métodos aceitos por `record_order_payment`; mantém pagamentos anteriores, permissões, idempotência e versionamento. Nada aplicado remotamente.
+
 ## [Recebimentos, receitas extras e veículo do orçamento — local] - 2026-09-14
 
 - Pagamentos múltiplos na OS, saldo calculado, débitos por cliente e contas a receber incluindo entregues; recebimentos preservados em reversões, com crédito excedente explícito.

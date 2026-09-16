@@ -65,7 +65,7 @@ export interface Payment {
   receipts?: import("./payment-model").Receipt[];
   legacy?: Record<string, unknown>;
   amount: number;
-  method: "PIX" | "Cartão";
+  method: "PIX" | "Cartão" | "Dinheiro";
   status: "Pendente" | "Pago" | "Parcial" | "Em aberto";
   date: string;
 }

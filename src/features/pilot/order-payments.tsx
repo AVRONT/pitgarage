@@ -8,7 +8,7 @@ import type { SavePart } from "./financial-api";
 export function OrderPayments({ order, save }: { order: ServiceOrder; save: SavePart }) {
   const summary = paymentSummary(order);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<"PIX" | "Cartão">("PIX");
+  const [method, setMethod] = useState<"PIX" | "Cartão" | "Dinheiro">("PIX");
   const [date, setDate] = useState(() =>
     new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
   );
@@ -108,6 +108,7 @@ export function OrderPayments({ order, save }: { order: ServiceOrder; save: Save
             >
               <option>PIX</option>
               <option>Cartão</option>
+              <option>Dinheiro</option>
             </select>
           </label>
           <label className="text-sm">

@@ -57,6 +57,7 @@ test(
         "20260914210007_operational_receipts.sql",
         "20260914210009_extra_revenues.sql",
         "20260914210010_quote_vehicle_snapshot.sql",
+        "20260916171847_allow_cash_order_receipts.sql",
       ])
         await db.exec(await migration(name));
       let version = (
@@ -142,6 +143,34 @@ test(
           assert.equal((await call("order_receivables", [])).find((r) => r.id === id).balance, 600);
         },
       );
+      await t.test("PIX, card and cash persist through RPC; cash partial plus card settles the OS", async () => {
+        for (const [method, amount] of [["PIX", 1000], ["Cartão", 1000], ["Dinheiro", 1000], ["Dinheiro", 400]]) {
+          const id = crypto.randomUUID();
+          await db.query("insert into public.service_orders(id,customer_id,vehicle_id,entry_mileage,budget) values($1,$2,$3,0,$4)",
+            [id,c1,vehicle,[{ price: 1000, approval: "Aprovado" }]]);
+          const version = (await db.query("select updated_at::text from public.service_orders where id=$1", [id])).rows[0].updated_at;
+          const input = { ...first, id: crypto.randomUUID(), method, amount, note: "Recebimento teste local" };
+          const saved = await call("record_order_payment", [id, version, input]);
+          const loaded = (await db.query("select payment,activities from public.service_orders where id=$1", [id])).rows[0];
+          assert.equal(loaded.payment.receipts[0].method, method);
+          assert.equal(loaded.payment.receipts[0].recordedBy, actor);
+          assert.equal(loaded.payment.receipts[0].note, "Recebimento teste local");
+          assert.equal(Date.parse(loaded.payment.receipts[0].date), Date.parse(first.date));
+          assert.ok(loaded.activities.at(-1).description.includes(method));
+          const retry = await call("record_order_payment", [id, version, input]);
+          assert.equal(retry.payment.receipts.length, 1);
+          if (amount === 400) {
+            assert.equal(saved.payment.status, "Parcial");
+            assert.equal((await call("order_receivables", [])).find(r => r.id === id).balance, 600);
+            const settled = await call("record_order_payment", [id, saved.updated_at, { ...input, id: crypto.randomUUID(), method: "Cartão", amount: 600 }]);
+            assert.equal(settled.payment.status, "Pago");
+            assert.equal(settled.payment.amount, 1000);
+            assert.deepEqual(settled.payment.receipts.map(p => p.method), ["Dinheiro", "Cartão"]);
+            assert.equal((await call("order_receivables", [])).find(r => r.id === id).balance, 0);
+          } else assert.equal(saved.payment.status, "Pago");
+          await assert.rejects(call("record_order_payment", [id, saved.updated_at, { ...input, id: crypto.randomUUID(), method: "Cheque" }]), /Invalid receipt/);
+        }
+      });
       const category = crypto.randomUUID(),
         sub = crypto.randomUUID();
       await t.test(

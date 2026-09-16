@@ -4,7 +4,7 @@ export interface ReceiptInput {
   id: string;
   amount: number;
   date: string;
-  method: "PIX" | "Cartão";
+  method: "PIX" | "Cartão" | "Dinheiro";
   note: string;
 }
 export interface Receipt extends ReceiptInput {

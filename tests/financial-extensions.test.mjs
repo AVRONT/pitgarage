@@ -181,6 +181,33 @@ function find(node, type) {
     if (hit) return hit;
   }
 }
+test("cash and mixed receipts survive backup reload without changing balance calculations", async () => {
+  const workshop = { name: "Oficina" };
+  const api = await load("pilot-storage.ts", {
+    "./workshop-data": { defaultWorkshop: workshop, workshopStorageKey: "test" },
+  });
+  for (const method of ["PIX", "Cartão", "Dinheiro"]) {
+    const payment = { ...partial, method, receipts: [{ ...receipt, method }] };
+    const backup = api.createBackup({
+      customers: data.initialCustomers, vehicles: data.initialVehicles,
+      orders: [{ ...data.initialOrders[0], budget: base.budget, payment }],
+    }, workshop);
+    const restored = api.parseBackup(JSON.stringify(backup)).data.orders[0];
+    assert.equal(restored.payment.receipts[0].method, method);
+    assert.equal(payments.paymentSummary(restored).balance, 600);
+    assert.equal(payments.paymentSummary(restored).status, "Parcial");
+    restored.payment = { ...payment, method: "Cartão", amount: 1000, status: "Pago",
+      receipts: [...payment.receipts, { ...receipt, id: "r2", amount: 600, method: "Cartão" }] };
+    const reloaded = api.parseBackup(JSON.stringify({ ...backup, data: { ...backup.data, orders: [restored] } })).data.orders[0];
+    assert.equal(payments.paymentSummary(reloaded).balance, 0);
+    assert.equal(payments.paymentSummary(reloaded).paid, 1000);
+    assert.equal(payments.paymentSummary(reloaded).status, "Pago");
+    assert.equal(reloaded.payment.receipts[0].method, method);
+  }
+  const invalid = api.createBackup({ customers: data.initialCustomers, vehicles: data.initialVehicles,
+    orders: [{ ...data.initialOrders[0], payment: { ...partial, method: "Cheque" } }] }, workshop);
+  assert.throws(() => api.parseBackup(JSON.stringify(invalid)), /ordens/);
+});
 test("payment form prevents double submit and retains entered value after failure", async () => {
   const states = [],
     refs = [];
@@ -211,7 +238,9 @@ test("payment form prevents double submit and retains entered value after failur
   });
   let reject,
     calls = 0;
-  const save = () => {
+  const save = (input) => {
+    assert.equal(input.receipt.method, "Dinheiro");
+    assert.equal(input.receipt.amount, 400);
     calls++;
     return new Promise((_, fail) => {
       reject = fail;
@@ -222,7 +251,9 @@ test("payment form prevents double submit and retains entered value after failur
     r = 0;
     return OrderPayments({ order: base, save });
   };
-  render();
+  const methodSelect = find(render(), "select");
+  assert.deepEqual(methodSelect.props.children.map(option => option.props.children), ["PIX", "Cartão", "Dinheiro"]);
+  methodSelect.props.onChange({ target: { value: "Dinheiro" } });
   states[0] = "400";
   const form = find(render(), "form");
   const first = form.props.onSubmit({ preventDefault() {} });
@@ -232,6 +263,22 @@ test("payment form prevents double submit and retains entered value after failur
   await first;
   assert.equal(states[0], "400");
   assert.match(states[5], /Recarregue/);
+});
+test("receipt history renders cash, recorder and note from saved payment data", async () => {
+  const { OrderPayments } = await load("order-payments.tsx", {
+    "./pilot-data": data, "./payment-model": payments,
+    "@/components/ui/button": { Button: "button" }, "@/components/ui/input": { Input: "input" },
+  });
+  const html = require("react-dom/server").renderToStaticMarkup(
+    require("react").createElement(OrderPayments, {
+      order: { ...base, payment: { ...partial, method: "Dinheiro", receipts: [{ ...receipt, method: "Dinheiro" }] } },
+      save: async () => {},
+    }),
+  );
+  const history = html.slice(html.indexOf("<ul"));
+  assert.match(history, /Dinheiro/);
+  assert.match(history, /Registrado por: u/);
+  assert.match(history, /Sinal/);
 });
 test("commercial quote document uses persisted model/plate snapshot and conversion stays explicit", async () => {
   const source = await readFile(
