@@ -26,6 +26,12 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Autor legível no histórico e OS 14 — preparação local de 17/09/2026
+
+Eventos de desconto passam a exibir `actorName` quando disponível; o UUID `recordedBy` permanece no registro. Legados usam o diretório restrito `list_assignable_members`, já existente, com fallback “Usuário interno” para perfil ausente/inativo, nome inválido ou falha de consulta. O mesmo resolver atende a lista de recebimentos. A nova migration `20260917020000_discount_actor_name.sql` prepara apenas o snapshot do nome do perfil autenticado no backend para aplicar/editar/remover descontos, sem receber nome do frontend ou regravar eventos antigos. Depende da migration de desconto; nenhuma aplicação remota nesta rodada.
+
+OS 14 declarada pelo usuário como teste, mas UUID, cliente, veículo, status e dependências reais ainda não confirmados. Sem acesso administrativo ao projeto configurado, preparados somente [`inspect_os14.sql`](../supabase/manual/inspect_os14.sql) e [procedimento condicionado à inspeção](../supabase/manual/cleanup_os14.md). A proteção normal de exclusão de OS movimentada permanece intacta. Nenhuma exclusão, mudança de sequência, Storage, Agenda ou dados reais executada. Typecheck/build e testes locais não substituem validação da sessão real após implantação autorizada.
+
 ## Desconto comercial da OS — preparação local de 16/09/2026
 
 Desconto final em reais e motivo opcional, separados do orçamento aprovado. Pagamento/fechamento permite editar antes da conclusão; owner/admin e staff com permissão financeira, nunca customer. Total final = subtotal aprovado − desconto; saldo e status dos pagamentos são derivados desse total. RPC bloqueia descontos negativos, acima do subtotal ou que deixem total abaixo do recebido; preserva múltiplos recebimentos e não faz estorno. Edição/remoção deixa histórico com valores anterior/novo, motivo, usuário e horário. Financeiro deduz o desconto da receita/resultado da OS, preservando custos e o critério anterior de itens aprovados/executados. Documento final discrimina subtotal/desconto/total sem dados internos.

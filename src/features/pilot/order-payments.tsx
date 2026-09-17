@@ -5,8 +5,9 @@ import { formatDateTime, money, type ServiceOrder } from "./pilot-data";
 import { paymentSummary } from "./payment-model";
 import type { SavePart } from "./financial-api";
 import { OrderDiscount } from "./order-discount";
+import { activityAuthorName, type ActivityAuthors } from "./activity-author";
 
-export function OrderPayments({ order, save, canEditDiscount = false }: { order: ServiceOrder; save: SavePart; canEditDiscount?: boolean }) {
+export function OrderPayments({ order, save, canEditDiscount = false, activityAuthors = {} }: { order: ServiceOrder; save: SavePart; canEditDiscount?: boolean; activityAuthors?: ActivityAuthors }) {
   const summary = paymentSummary(order);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"PIX" | "Cartão" | "Dinheiro">("PIX");
@@ -138,7 +139,7 @@ export function OrderPayments({ order, save, canEditDiscount = false }: { order:
           <li className="border-t pt-2" key={p.id}>
             {money(p.amount)} · {p.method} · {formatDateTime(p.date)}
             <span className="block text-xs text-muted-foreground">
-              Registrado por: {p.recordedBy || "Não informado (legado)"} {p.note && " · " + p.note}
+              Registrado por: {activityAuthorName(p, activityAuthors)} {p.note && " · " + p.note}
             </span>
           </li>
         ))}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Autores do histórico e preparação da limpeza da OS 14 — local] - 2026-09-17
+
+- Histórico do desconto e lista de recebimentos exibem nome legível, reutilizando o diretório interno existente para registros antigos; UUID continua preservado e ausência de perfil usa “Usuário interno”.
+- Nova migration local acrescenta `actorName` aos eventos de desconto, obtido de `user_profiles.full_name` pelo backend. Preserva regras financeiras, permissões, registros antigos e a migration anterior; não aplicada remotamente.
+- Preparadas inspeção somente leitura e orientação de limpeza da OS 14. Identidade/dependências reais não confirmadas, sem acesso administrativo ao Cloud; nenhum DELETE executável, dado removido, trigger desativado ou sequência alterada.
+
 ## [Desconto comercial da OS — local] - 2026-09-16
 
 - Desconto monetário e motivo separados dos itens aprovados, com edição no pagamento antes da conclusão. Owner/admin e staff com acesso financeiro podem editar; customer não pode.

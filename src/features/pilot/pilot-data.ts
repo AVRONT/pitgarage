@@ -82,6 +82,7 @@ export interface OrderActivity {
   previousReason?: string;
   reason?: string;
   recordedBy?: string;
+  actorName?: string;
 }
 
 export interface StatusHistoryEntry {

@@ -142,6 +142,7 @@ import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import type { BudgetMutation } from "./financial-model";
 import { RemoveBudgetItem } from "./remove-budget-item";
 import { OrderPayments } from "./order-payments";
+import { activityAuthorName, useActivityAuthors, type ActivityAuthors } from "./activity-author";
 import { paymentSummary, customerDebts } from "./payment-model";
 import { QuotesScreen } from "./quotes-screen";
 import { ExportOperationalBackup } from "./pilot-backup-settings";
@@ -2873,6 +2874,7 @@ function OrderDetail({
   actionError: string;
 }) {
   const [activeTab, setActiveTab] = useState(initialTab ?? "overview");
+  const activityAuthors = useActivityAuthors();
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [manualStatusOpen, setManualStatusOpen] = useState(false);
   const [manualStatus, setManualStatus] = useState<ServiceOrder["status"]>(order.status);
@@ -3192,6 +3194,7 @@ function OrderDetail({
             workflow={workflow}
             onEditComplaint={onEditComplaint}
             complaintBusy={actionBusy}
+            activityAuthors={activityAuthors}
           />
         </TabsContent>
         <TabsContent value="diagnosis" className="mt-6">
@@ -3222,6 +3225,7 @@ function OrderDetail({
             order={order}
             save={onSavePart}
             warrantyEnd={warrantyEnd}
+            activityAuthors={activityAuthors}
           />
         </TabsContent>
       </Tabs>
@@ -3470,6 +3474,7 @@ function OrderOverview({
   workflow,
   onEditComplaint,
   complaintBusy,
+  activityAuthors,
 }: {
   order: ServiceOrder;
   vehicle: Vehicle;
@@ -3481,6 +3486,7 @@ function OrderOverview({
   workflow: ReturnType<typeof evaluateOrderWorkflow>;
   onEditComplaint: (complaint: string) => Promise<boolean>;
   complaintBusy: boolean;
+  activityAuthors: ActivityAuthors;
 }) {
   const { accessLevel } = useAuth();
   const [editingComplaint, setEditingComplaint] = useState(false);
@@ -3666,7 +3672,7 @@ function OrderOverview({
                   <p className="text-xs text-muted-foreground">{formatDateTime(activity.at)}</p>
                   <p className="mt-1 text-sm font-medium">{activity.description}</p>
                   {activity.action === "commercial_discount" && <p className="mt-1 text-xs text-muted-foreground break-words">
-                    {money(activity.previousAmount ?? 0)} → {money(activity.newAmount ?? 0)} · Registrado por: {activity.recordedBy}
+                    {money(activity.previousAmount ?? 0)} → {money(activity.newAmount ?? 0)} · Registrado por: {activityAuthorName(activity, activityAuthors)}
                   </p>}
                 </div>
               ))}
@@ -4664,11 +4670,12 @@ function ExecutionPanel({
 }
 
 function PaymentPanel({
-  order, save, warrantyEnd,
+  order, save, warrantyEnd, activityAuthors,
 }: {
   order: ServiceOrder;
   save: SavePart;
   warrantyEnd: Date | null;
+  activityAuthors: ActivityAuthors;
 }) {
   const { accessLevel, isLocalBypass, identity } = useAuth();
   const [financialAllowed, setFinancialAllowed] = useState(false);
@@ -4685,7 +4692,7 @@ function PaymentPanel({
   const warrantyStatus = warrantyEnd && warrantyEnd >= today ? "ATIVA" : "EXPIRADA";
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <OrderPayments order={order} save={save} canEditDiscount={canEditDiscount} />
+      <OrderPayments order={order} save={save} canEditDiscount={canEditDiscount} activityAuthors={activityAuthors} />
       <Card className="border-0 bg-slate-900 text-white">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">

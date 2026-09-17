@@ -22,6 +22,9 @@ async function load(name, mocks = {}) {
 }
 const financial = await load("financial-model.ts");
 const payments = await load("payment-model.ts", { "./financial-model": financial });
+const authors = await load("activity-author.ts", {
+  "@/features/auth/auth-context": {}, "@/integrations/supabase/client": { supabase: {} },
+});
 const extras = await load("extra-revenue-model.ts", { "./financial-model": financial });
 const data = await load("pilot-data.ts");
 test("structured backup only adds the four tables, retaining the original 72h and private snapshot", async () => {
@@ -234,6 +237,7 @@ test("payment form prevents double submit and retains entered value after failur
   const { OrderPayments } = await load("order-payments.tsx", {
     react,
     "./order-discount": { OrderDiscount: () => null },
+    "./activity-author": authors,
     "./pilot-data": data,
     "./payment-model": payments,
     "@/components/ui/button": { Button: "button" },
@@ -270,6 +274,7 @@ test("payment form prevents double submit and retains entered value after failur
 test("receipt history renders cash, recorder and note from saved payment data", async () => {
   const { OrderPayments } = await load("order-payments.tsx", {
     "./order-discount": { OrderDiscount: () => null },
+    "./activity-author": authors,
     "./pilot-data": data, "./payment-model": payments,
     "@/components/ui/button": { Button: "button" }, "@/components/ui/input": { Input: "input" },
   });
@@ -277,11 +282,12 @@ test("receipt history renders cash, recorder and note from saved payment data", 
     require("react").createElement(OrderPayments, {
       order: { ...base, payment: { ...partial, method: "Dinheiro", receipts: [{ ...receipt, method: "Dinheiro" }] } },
       save: async () => {},
+      activityAuthors: { u: "Suporte PitGarage" },
     }),
   );
   const history = html.slice(html.indexOf("<ul"));
   assert.match(history, /Dinheiro/);
-  assert.match(history, /Registrado por: u/);
+  assert.match(history, /Registrado por: Suporte PitGarage/);
   assert.match(history, /Sinal/);
 });
 test("commercial quote document uses persisted model/plate snapshot and conversion stays explicit", async () => {

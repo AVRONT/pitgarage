@@ -31,6 +31,8 @@ test("commercial discount RPC, permissions, receipts and financial projections i
       create function pitgarage_private.current_access_level() returns text language sql as $$ select current_setting('test.access',true) $$;
       create function pitgarage_private.is_team_member() returns boolean language sql as $$ select coalesce(pitgarage_private.current_access_level() in ('owner','admin','staff'),false) $$;
       create table public.financial_permissions(user_id uuid);
+      create table public.user_profiles(user_id uuid primary key,full_name text);
+      insert into public.user_profiles values('${actor}','Salomão');
       create table public.customers(id uuid primary key,name text);
       create table public.vehicles(id uuid primary key,kind text,brand text,model text,plate text);
       create table public.service_orders(id uuid primary key,order_number bigint generated always as identity,
@@ -53,6 +55,8 @@ test("commercial discount RPC, permissions, receipts and financial projections i
     // Before the new migration exists, the assertions below exercise the old database.
     try { await db.exec(await read("20260917010000_order_commercial_discount.sql")); }
     catch (e) { if (e.code !== "ENOENT") throw e; }
+    try { await db.exec(await read("20260917020000_discount_actor_name.sql")); }
+    catch (e) { if (e.code !== "ENOENT") throw e; }
 
     await t.test("1560 minus 60 persists, retries once, audits old/new/reason/actor and leaves budget/cost/markup untouched", async () => {
       const order = await create(), request = crypto.randomUUID();
@@ -66,15 +70,21 @@ test("commercial discount RPC, permissions, receipts and financial projections i
       assert.equal(activity.previousAmount, 0);
       assert.equal(activity.newAmount, 60);
       assert.equal(activity.recordedBy, actor);
+      assert.equal(activity.actorName, "Salomão");
       assert.equal(activity.reason, "Desconto PIX");
       assert.ok(Date.parse(activity.at));
       assert.equal((await discount(order, 60, "Desconto PIX", request)).activities.length, 1);
       await assert.rejects(discount(order, 50, "Desconto PIX", request), /utilizado/);
       await assert.rejects(discount(order, 50), /version conflict/);
+      await db.query("update public.user_profiles set full_name='Suporte PitGarage' where user_id=$1", [actor]);
       const edited = await discount(saved, 50, "À vista");
       assert.equal(edited.activities.at(-1).previousAmount, 60);
+      assert.equal(edited.activities.at(-1).actorName, "Suporte PitGarage");
+      assert.equal(edited.activities[0].actorName, "Salomão");
       const removed = await discount(edited, 0, "Removido");
       assert.equal(removed.activities.at(-1).newAmount, 0);
+      assert.equal(removed.activities.at(-1).actorName, "Suporte PitGarage");
+      assert.equal((await load(order.id)).activities.at(-1).recordedBy, actor);
       assert.equal(removed.activities.length, 3);
     });
     await t.test("partial and multiple payments settle net total and finance deducts discount", async () => {
