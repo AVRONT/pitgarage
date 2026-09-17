@@ -10,6 +10,7 @@ import {
   Gauge,
   PackageCheck,
   Plus,
+  Sparkles,
   Wrench,
 } from "lucide-react";
 
@@ -308,12 +309,14 @@ export function OperationalDashboard({
   customers,
   onNavigate,
   onNewOrder,
+  onNewQuickOrder,
 }: {
   orders: ServiceOrder[];
   vehicles: Vehicle[];
   customers: Customer[];
   onNavigate: (target: DashboardTarget) => void;
   onNewOrder: () => void;
+  onNewQuickOrder: () => void;
 }) {
   const { isLocalBypass } = useAuth();
   const queue = useMemo(() => orderQueue(orders), [orders]);
@@ -360,9 +363,21 @@ export function OperationalDashboard({
             Situação atual da oficina e caminhos diretos para o próximo passo.
           </p>
         </div>
-        <Button onClick={onNewOrder} className="create-order-action h-10 gap-2 px-5">
-          <Plus className="h-4 w-4" /> Nova ordem de serviço
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button
+            onClick={onNewQuickOrder}
+            variant="outline"
+            className="h-10 w-full gap-2 px-5 sm:w-auto"
+          >
+            <Sparkles className="h-4 w-4" /> OS Rápida
+          </Button>
+          <Button
+            onClick={onNewOrder}
+            className="create-order-action h-10 w-full gap-2 px-5 sm:w-auto"
+          >
+            <Plus className="h-4 w-4" /> Nova ordem de serviço
+          </Button>
+        </div>
       </header>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">

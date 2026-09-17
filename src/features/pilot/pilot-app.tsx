@@ -1217,6 +1217,7 @@ export function PilotApp() {
                   )
                 }
                 onNewOrder={() => setNewOrderOpen(true)}
+                onNewQuickOrder={() => setQuickOrderOpen(true)}
               />
             )}
             {screen === "customers" && (
