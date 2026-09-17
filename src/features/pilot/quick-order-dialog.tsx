@@ -8,6 +8,7 @@ import { quickOrderSubtotal, quickPaymentError, type PaymentMethod, type QuickOr
 
 const money = (value: string) => Number(value.replace(",", "."));
 const numericSafe = (value: string) => Number.isFinite(money(value)) ? money(value) : 0;
+const currency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type QuickPartForm = { id: string; name: string; quantity: string; unitPrice: string; unitCost: string };
 
 export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, financialAllowed, onFinalize, onContinueAsStandard }: {
@@ -47,6 +48,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   const partsSubtotal = parts.reduce((sum, part) => sum + numericSafe(part.quantity) * numericSafe(part.unitPrice), 0);
   const subtotal = numericSafe(amount) + partsSubtotal;
   const total = Math.max(0, subtotal - numericSafe(discount));
+  const balance = Math.max(0, total - numericSafe(received));
   useEffect(() => {
     if (!receivedEdited.current && method) setReceived(total.toFixed(2));
   }, [method, total]);
@@ -130,9 +132,9 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
             <div><p className="text-sm font-medium">Peças / itens adicionais</p><p className="text-xs text-muted-foreground">Opcional — abra somente quando precisar.</p></div>
             <Button type="button" size="sm" variant="outline" onClick={() => { setPartsOpen(true); setParts((current) => [...current, { id: `quick-part-${crypto.randomUUID()}`, name: "", quantity: "1", unitPrice: "", unitCost: "" }]); }}>Adicionar peça</Button>
           </div>
-          {partsOpen && parts.length > 0 && <div className="mt-3 space-y-3">{parts.map((part, index) => <div key={part.id} className={`grid gap-2 border-t pt-3 ${financialAllowed ? "sm:grid-cols-[minmax(0,1fr)_5rem_8rem_8rem_auto]" : "sm:grid-cols-[minmax(0,1fr)_5rem_8rem_auto]"}`}>
-            <div><Label htmlFor={`quick-part-name-${part.id}`}>Peça</Label><Input id={`quick-part-name-${part.id}`} value={part.name} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, name: e.target.value } : item))} /></div>
-            <div><Label htmlFor={`quick-part-quantity-${part.id}`}>Qtd.</Label><Input id={`quick-part-quantity-${part.id}`} inputMode="numeric" value={part.quantity} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, quantity: e.target.value } : item))} /></div>
+          {partsOpen && parts.length > 0 && <div className="mt-3 space-y-3">{parts.map((part, index) => <div key={part.id} className={`grid gap-2 border-t pt-3 ${financialAllowed ? "sm:grid-cols-[minmax(0,1fr)_6.5rem_8rem_8rem_auto]" : "sm:grid-cols-[minmax(0,1fr)_6.5rem_8rem_auto]"}`}>
+            <div><Label htmlFor={`quick-part-name-${part.id}`}>Descrição</Label><Input id={`quick-part-name-${part.id}`} value={part.name} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, name: e.target.value } : item))} /></div>
+            <div><Label htmlFor={`quick-part-quantity-${part.id}`}>Quantidade</Label><Input id={`quick-part-quantity-${part.id}`} inputMode="numeric" value={part.quantity} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, quantity: e.target.value } : item))} /></div>
             <div><Label htmlFor={`quick-part-price-${part.id}`}>Venda unit.</Label><Input id={`quick-part-price-${part.id}`} inputMode="decimal" value={part.unitPrice} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitPrice: e.target.value } : item))} /></div>
             {financialAllowed && <div><Label htmlFor={`quick-part-cost-${part.id}`}>Custo unit.</Label><Input id={`quick-part-cost-${part.id}`} inputMode="decimal" value={part.unitCost} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitCost: e.target.value } : item))} /></div>}
             <Button type="button" size="sm" variant="ghost" className="self-end" aria-label={`Remover peça ${index + 1}`} onClick={() => setParts((current) => current.filter((item) => item.id !== part.id))}>Remover</Button>
@@ -140,9 +142,20 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
         </section>
         {money(discount) > 0 && <div><Label htmlFor="quick-discount-reason">Motivo do desconto</Label><Input id="quick-discount-reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} /></div>}
         <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-method">Forma de pagamento</Label><select id="quick-method" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(e) => { const next = e.target.value as PaymentMethod | ""; setMethod(next); if (next !== "Cartão") setCardFee("0"); }}><option value="">Sem recebimento agora</option><option>Dinheiro</option><option>PIX</option><option>Cartão</option></select></div><div><Label htmlFor="quick-received">Valor recebido</Label><Input id="quick-received" inputMode="decimal" value={received} onChange={(e) => { receivedEdited.current = true; setReceived(e.target.value); }} /></div></div>
-        {financialAllowed && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo interno do serviço (opcional)</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa do cartão</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}</div>}
-        {financialAllowed && method === "Cartão" && <p className="text-sm text-muted-foreground">Líquido recebido: {(numericSafe(received) - numericSafe(cardFee)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>}
-        <div className="text-sm text-muted-foreground">{parts.length > 0 && <p>Subtotal: {subtotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>}<p>Total final: {total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p></div>
+        {financialAllowed && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo do serviço (interno, opcional)</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa do cartão</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}</div>}
+        {financialAllowed && method === "Cartão" && <p className="text-sm text-muted-foreground">Líquido recebido: {currency(numericSafe(received) - numericSafe(cardFee))}</p>}
+        <section className="space-y-3 rounded-lg border bg-muted/30 p-4" aria-labelledby="quick-summary-title">
+          <h3 id="quick-summary-title" className="font-semibold">Resumo do atendimento</h3>
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Serviço</dt><dd className="tabular-nums">{currency(numericSafe(amount))}</dd></div>
+            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Peças</dt><dd className="tabular-nums">{currency(partsSubtotal)}</dd></div>
+            <div className="flex items-center justify-between gap-4 border-t pt-2"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{currency(subtotal)}</dd></div>
+            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Desconto</dt><dd className="tabular-nums">-{currency(numericSafe(discount))}</dd></div>
+            <div className="flex items-center justify-between gap-4 rounded-md bg-background px-3 py-2 text-base font-semibold"><dt>Total final</dt><dd className="tabular-nums">{currency(total)}</dd></div>
+            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Valor recebido</dt><dd className="tabular-nums">{currency(numericSafe(received))}</dd></div>
+            <div className="flex items-center justify-between gap-4 font-medium"><dt>Saldo</dt><dd className="tabular-nums">{currency(balance)}</dd></div>
+          </dl>
+        </section>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter className="gap-2 sm:justify-between"><Button type="button" variant="ghost" disabled={saving} onClick={continueAsStandard}>Continuar como OS completa</Button><Button type="button" disabled={saving} onClick={() => void finalize()}>{saving ? "Finalizando…" : "Finalizar atendimento"}</Button></DialogFooter>
