@@ -297,6 +297,59 @@ export type Database = {
           },
         ]
       }
+      financial_correction_audit: {
+        Row: {
+          actor_name: string
+          created_at: string
+          id: string
+          new_value: Json
+          order_id: string
+          previous_value: Json
+          reason: string
+          recorded_by: string
+          request_id: string
+          request_payload: Json
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          actor_name: string
+          created_at?: string
+          id?: string
+          new_value: Json
+          order_id: string
+          previous_value: Json
+          reason: string
+          recorded_by: string
+          request_id: string
+          request_payload: Json
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          actor_name?: string
+          created_at?: string
+          id?: string
+          new_value?: Json
+          order_id?: string
+          previous_value?: Json
+          reason?: string
+          recorded_by?: string
+          request_id?: string
+          request_payload?: Json
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_correction_audit_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_permissions: {
         Row: {
           granted_at: string
@@ -669,6 +722,7 @@ export type Database = {
           complaint: string
           completed_at: string | null
           created_at: string
+          creation_request_id: string | null
           customer_id: string
           deleted_at: string | null
           diagnosis: string
@@ -683,7 +737,6 @@ export type Database = {
           opened_at: string
           order_number: number
           payment: Json | null
-          creation_request_id: string | null
           quick_vehicle_brand: string | null
           quick_vehicle_model: string | null
           quick_vehicle_year: number | null
@@ -704,6 +757,7 @@ export type Database = {
           complaint: string
           completed_at?: string | null
           created_at?: string
+          creation_request_id?: string | null
           customer_id: string
           deleted_at?: string | null
           diagnosis?: string
@@ -718,7 +772,6 @@ export type Database = {
           opened_at?: string
           order_number?: number
           payment?: Json | null
-          creation_request_id?: string | null
           quick_vehicle_brand?: string | null
           quick_vehicle_model?: string | null
           quick_vehicle_year?: number | null
@@ -739,6 +792,7 @@ export type Database = {
           complaint?: string
           completed_at?: string | null
           created_at?: string
+          creation_request_id?: string | null
           customer_id?: string
           deleted_at?: string | null
           diagnosis?: string
@@ -753,7 +807,6 @@ export type Database = {
           opened_at?: string
           order_number?: number
           payment?: Json | null
-          creation_request_id?: string | null
           quick_vehicle_brand?: string | null
           quick_vehicle_model?: string | null
           quick_vehicle_year?: number | null
@@ -995,6 +1048,57 @@ export type Database = {
         }
         Returns: Json
       }
+      correct_order_financial: {
+        Args: {
+          correction_type: string
+          expected_version: string
+          order_id: string
+          payload: Json
+          reason: string
+          request_id: string
+        }
+        Returns: Json
+      }
+      create_quick_service_order: {
+        Args: {
+          card_fee?: number
+          discount_amount: number
+          discount_reason: string
+          existing_customer_id: string
+          existing_vehicle_id: string
+          internal_cost?: number
+          new_customer: Json
+          payment_method: string
+          received_amount: number
+          request_id: string
+          service_amount: number
+          service_name: string
+          vehicle_brand: string
+          vehicle_model: string
+          vehicle_year: number
+          workshop_snapshot: Json
+        }
+        Returns: Json
+      }
+      create_quick_service_order_before_financial_result: {
+        Args: {
+          discount_amount?: number
+          discount_reason?: string
+          existing_customer_id: string
+          existing_vehicle_id: string
+          new_customer: Json
+          payment_method?: string
+          received_amount?: number
+          request_id: string
+          service_amount: number
+          service_name: string
+          vehicle_brand: string
+          vehicle_model: string
+          vehicle_year: number
+          workshop_snapshot?: Json
+        }
+        Returns: Json
+      }
       create_quote: {
         Args: {
           contact_email?: string
@@ -1038,6 +1142,7 @@ export type Database = {
           complaint: string
           completed_at: string | null
           created_at: string
+          creation_request_id: string | null
           customer_id: string
           deleted_at: string | null
           diagnosis: string
@@ -1046,16 +1151,70 @@ export type Database = {
           entry_mileage: number
           evidence: Json
           findings: string
+          flow_type: string
           id: string
           notes: string
           opened_at: string
           order_number: number
           payment: Json | null
+          quick_vehicle_brand: string | null
+          quick_vehicle_model: string | null
+          quick_vehicle_year: number | null
           status: string
           status_history: Json
           team: Json
           updated_at: string
-          vehicle_id: string
+          vehicle_id: string | null
+          warranty_days: number | null
+          workshop_snapshot: Json | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "service_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_service_order_atomic_before_financial_result: {
+        Args: {
+          existing_customer_id: string
+          existing_vehicle_id: string
+          new_customer: Json
+          new_vehicle: Json
+          order_data: Json
+        }
+        Returns: {
+          activities: Json
+          budget: Json
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          complaint: string
+          completed_at: string | null
+          created_at: string
+          creation_request_id: string | null
+          customer_id: string
+          deleted_at: string | null
+          diagnosis: string
+          discount_amount: number
+          discount_reason: string
+          entry_mileage: number
+          evidence: Json
+          findings: string
+          flow_type: string
+          id: string
+          notes: string
+          opened_at: string
+          order_number: number
+          payment: Json | null
+          quick_vehicle_brand: string | null
+          quick_vehicle_model: string | null
+          quick_vehicle_year: number | null
+          status: string
+          status_history: Json
+          team: Json
+          updated_at: string
+          vehicle_id: string | null
           warranty_days: number | null
           workshop_snapshot: Json | null
         }
@@ -1074,6 +1233,7 @@ export type Database = {
       financial_order_report: { Args: never; Returns: Json }
       financial_report: { Args: never; Returns: Json }
       get_developer_dashboard: { Args: never; Returns: Json }
+      get_financial_corrections: { Args: { order_id: string }; Returns: Json }
       get_my_customer: {
         Args: never
         Returns: {
