@@ -1,6 +1,7 @@
 -- MANUAL ONLY: PitGarage project vzvwprzmlhvfehwykstx, administrative SQL connection.
 -- Run the complete file once. Any error requires ROLLBACK; do not run fragments.
 -- No Storage objects are deleted by SQL. Save the final result for Storage API cleanup.
+-- Before removing any file via API, recheck that no surviving record references its path.
 -- This is a one-off test-data cleanup, not a migration or a change to normal deletion rules.
 begin;
 set local lock_timeout = '5s';
