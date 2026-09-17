@@ -753,7 +753,7 @@ export function PilotApp() {
             item.id === id ? migrateOrder(updated) : item,
           );
           setOrders(ordersRef.current);
-          setNotice("receipt" in input ? "Recebimento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
+          setNotice("discount" in input ? "Desconto comercial salvo." : "receipt" in input ? "Recebimento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
         } catch (error) {
           if (error instanceof OrderVersionConflict) requireOrderSync(current, error.message);
           throw error;
@@ -3064,7 +3064,7 @@ function OrderDetail({
           ["Aprovado", money(approved)],
           ["Pago", money(paymentSummary(order).paid)],
           [
-            "Saldo aprovado",
+            "Saldo em aberto",
             money(
               paymentSummary(order).balance,
             ),
@@ -3493,8 +3493,9 @@ function OrderOverview({
   const refused = order.budget
     .filter((item) => item.approval === "Recusado")
     .reduce((sum, item) => sum + item.price, 0);
-  const paid = paymentSummary(order).paid;
-  const paymentPending = Math.max(approved - paid, 0);
+  const payment = paymentSummary(order);
+  const paid = payment.paid;
+  const paymentPending = payment.balance;
   const sections = [
     {
       icon: MessageCircle,
@@ -3664,6 +3665,9 @@ function OrderOverview({
                   <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-white bg-orange-500" />
                   <p className="text-xs text-muted-foreground">{formatDateTime(activity.at)}</p>
                   <p className="mt-1 text-sm font-medium">{activity.description}</p>
+                  {activity.action === "commercial_discount" && <p className="mt-1 text-xs text-muted-foreground break-words">
+                    {money(activity.previousAmount ?? 0)} → {money(activity.newAmount ?? 0)} · Registrado por: {activity.recordedBy}
+                  </p>}
                 </div>
               ))}
             </div>
@@ -3710,6 +3714,10 @@ function OrderOverview({
               <span>Aprovado</span>
               <strong>{money(approved)}</strong>
             </div>
+            {payment.discount > 0 && <>
+              <div className="mt-2 flex justify-between"><span>Desconto comercial</span><strong>− {money(payment.discount)}</strong></div>
+              <div className="mt-2 flex justify-between"><span>Total final</span><strong>{money(payment.total)}</strong></div>
+            </>}
             <div className="mt-2 flex justify-between text-rose-700">
               <span>Recusado</span>
               <strong>{money(refused)}</strong>
@@ -4662,11 +4670,22 @@ function PaymentPanel({
   save: SavePart;
   warrantyEnd: Date | null;
 }) {
+  const { accessLevel, isLocalBypass, identity } = useAuth();
+  const [financialAllowed, setFinancialAllowed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setFinancialAllowed(false);
+    if (!isLocalBypass && accessLevel === "staff") {
+      void financialApi.access().then(allowed => { if (active) setFinancialAllowed(allowed); }).catch(() => {});
+    }
+    return () => { active = false; };
+  }, [accessLevel, isLocalBypass, identity?.userId]);
+  const canEditDiscount = !isLocalBypass && (accessLevel === "owner" || accessLevel === "admin" || (accessLevel === "staff" && financialAllowed));
   const today = new Date("2026-09-01T12:00:00Z");
   const warrantyStatus = warrantyEnd && warrantyEnd >= today ? "ATIVA" : "EXPIRADA";
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <OrderPayments order={order} save={save} />
+      <OrderPayments order={order} save={save} canEditDiscount={canEditDiscount} />
       <Card className="border-0 bg-slate-900 text-white">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">

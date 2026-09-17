@@ -1,5 +1,22 @@
 # Financeiro de peças e snapshots — preparação local
 
+## Desconto comercial final da OS — local
+
+- `service_orders.discount_amount` guarda reais/centavos, com default zero; `discount_reason` guarda observação opcional. Não há percentual, cupom ou rateio nos itens. Preços aprovados, custos, markup e histórico de aprovação permanecem iguais.
+- `set_order_discount` usa bloqueio da linha e versão esperada. A identificação da operação no histórico permite repetir uma requisição sem duplicar o desconto ou o evento; reutilizar o ID com outro conteúdo é recusado. Histórico inclui valor anterior/novo, motivo anterior/novo, autor e data/hora, protegido contra alteração operacional direta.
+- Owner/admin podem editar; staff exige `can_view_financial`. Customer não pode. OS cancelada, excluída, concluída ou entregue é somente leitura para desconto. O modal fica em Pagamentos; informar zero remove explicitamente o desconto.
+- Total final = subtotal aprovado − desconto. Desconto negativo, com fração de centavo, acima do subtotal ou que reduza o total abaixo do recebido é recusado. Pagamentos antigos e múltiplos recebimentos são preservados; não há estorno automático. Crédito excedente preexistente continua sinalizado e bloqueia novos recebimentos/ajustes incompatíveis.
+- Financeiro conserva seu filtro de itens aprovados **e executados** e o período de conclusão. Mostra faturamento bruto, descontos e faturamento final; resultado, ticket, gráficos e consolidado usam receita após desconto. Serviços/peças e rentabilidade de peças mantêm valores anteriores ao desconto, explicitamente identificados; custos desconhecidos continuam desconhecidos.
+- Resumo comercial final mostra serviços e peças, desconto quando positivo e total líquido, sem custo/markup/margem. O orçamento aprovado continua com os valores originais.
+- Mapeamento cloud, recarga e backup operacional preservam os campos; ausência no legado equivale a zero. O snapshot estruturado já copia a linha completa de `service_orders`, dispensando mudança no job de backup.
+- Voltar etapa continua preservando recebimentos. Se a reversão eliminar aprovações e tornar o subtotal inferior ao desconto, a gravação é bloqueada; remover/ajustar o desconto explicitamente antes. Nenhum desconto ou histórico é apagado silenciosamente.
+
+**Migration local:** `20260917010000_order_commercial_discount.sql`, posterior às bases financeiras/recebimentos existentes. Adiciona somente dois campos, proteção de escrita/auditoria e a RPC; atualiza recebimentos, contas a receber e relatório para considerar o desconto. Não aplicar todo o histórico automaticamente: há migrations equivalentes no repositório. Conferir o histórico remoto e publicar o frontend junto da migration, com recarga dos clientes abertos.
+
+**Validação:** testes de cálculo, recarga do repository, backup, modal e documento; SQL executado em PostgreSQL local em memória, incluindo permissões, limites, histórico, reenvio e versões obsoletas. Typecheck e build aprovados. Quatro testes antigos da tela financeira falham por mocks incompletos de `lucide-react`; a mesma falha foi reproduzida com os arquivos originais do HEAD. Sem alterações nesses testes ou nos gráficos fora do pedido.
+
+**Pendente:** conferência visual desktop/mobile, F5 em sessão real, permissões/RLS e concorrência entre sessões no ambiente correto após aplicação autorizada. O conector Supabase está disponível, mas recusou a consulta de metadados do projeto configurado por falta de permissão; a capacidade de aplicar remotamente sem Lovable não está confirmada. Nenhuma migration ou dado remoto foi alterado.
+
 ## Evolução — financeiro geral das OS
 
 Esta seção amplia o relatório inicial descrito abaixo, sem apagar seus critérios históricos.

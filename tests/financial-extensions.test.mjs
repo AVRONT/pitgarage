@@ -70,6 +70,8 @@ const partial = {
 };
 test("debt is derived: unpaid / partial / paid, including delivered OS and customer totals", () => {
   assert.deepEqual(payments.paymentSummary(base), {
+    subtotal: 1000,
+    discount: 0,
     total: 1000,
     paid: 0,
     balance: 1000,
@@ -231,6 +233,7 @@ test("payment form prevents double submit and retains entered value after failur
   };
   const { OrderPayments } = await load("order-payments.tsx", {
     react,
+    "./order-discount": { OrderDiscount: () => null },
     "./pilot-data": data,
     "./payment-model": payments,
     "@/components/ui/button": { Button: "button" },
@@ -266,6 +269,7 @@ test("payment form prevents double submit and retains entered value after failur
 });
 test("receipt history renders cash, recorder and note from saved payment data", async () => {
   const { OrderPayments } = await load("order-payments.tsx", {
+    "./order-discount": { OrderDiscount: () => null },
     "./pilot-data": data, "./payment-model": payments,
     "@/components/ui/button": { Button: "button" }, "@/components/ui/input": { Input: "input" },
   });

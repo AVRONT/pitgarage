@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { formatDateTime, money, type ServiceOrder } from "./pilot-data";
 import { paymentSummary } from "./payment-model";
 import type { SavePart } from "./financial-api";
+import { OrderDiscount } from "./order-discount";
 
-export function OrderPayments({ order, save }: { order: ServiceOrder; save: SavePart }) {
+export function OrderPayments({ order, save, canEditDiscount = false }: { order: ServiceOrder; save: SavePart; canEditDiscount?: boolean }) {
   const summary = paymentSummary(order);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"PIX" | "Cartão" | "Dinheiro">("PIX");
@@ -17,13 +18,16 @@ export function OrderPayments({ order, save }: { order: ServiceOrder; save: Save
   const [error, setError] = useState("");
   const lock = useRef(false);
   const id = useRef(crypto.randomUUID());
+  const [discountBusy, setDiscountBusy] = useState(false);
   return (
     <section className="rounded-lg border bg-white p-5">
       <h2 className="font-semibold">Pagamentos · {summary.status}</h2>
       <dl className="my-4 grid gap-3 sm:grid-cols-3">
         {[
-          ["Total", summary.total],
-          ["Pago", summary.paid],
+          ["Subtotal aprovado", summary.subtotal],
+          ["Desconto comercial", -summary.discount],
+          ["Total final", summary.total],
+          ["Recebido", summary.paid],
           ["Saldo em aberto", summary.balance],
         ].map(([label, value]) => (
           <div key={label}>
@@ -32,6 +36,10 @@ export function OrderPayments({ order, save }: { order: ServiceOrder; save: Save
           </div>
         ))}
       </dl>
+      {order.discountReason && <p className="mb-3 break-words text-sm text-muted-foreground">{order.discountReason}</p>}
+      {canEditDiscount && <div className="mb-4">
+        <OrderDiscount order={order} save={save} disabled={busy} onBusyChange={setDiscountBusy} />
+      </div>}
       {summary.credit > 0 && (
         <p className="text-sm">
           Recebido acima do total atual: {money(summary.credit)}. Conferir manualmente antes de
@@ -42,7 +50,7 @@ export function OrderPayments({ order, save }: { order: ServiceOrder; save: Save
         className="space-y-3"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (lock.current) return;
+          if (lock.current || discountBusy) return;
           const value = Number(amount);
           if (!Number.isFinite(value) || value <= 0 || value > summary.balance) {
             setError("Informe um valor positivo, até o saldo em aberto.");
@@ -75,7 +83,7 @@ export function OrderPayments({ order, save }: { order: ServiceOrder; save: Save
         }}
       >
         <fieldset
-          disabled={busy || Boolean(order.cancelledAt)}
+          disabled={busy || discountBusy || Boolean(order.cancelledAt)}
           className="grid gap-3 sm:grid-cols-2"
         >
           <label className="text-sm">

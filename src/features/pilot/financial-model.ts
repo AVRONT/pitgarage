@@ -28,7 +28,7 @@ export type PartFinancialInput = {
   quantity: number;
   unitPrice: number;
 };
-export type BudgetMutation = PartFinancialInput | { removeItem: string } | { receipt: import("./payment-model").ReceiptInput };
+export type BudgetMutation = PartFinancialInput | { removeItem: string } | { receipt: import("./payment-model").ReceiptInput } | { discount: import("./payment-model").DiscountInput };
 export type FinancialRow = {
   orderId: string;
   kind: string;
@@ -145,6 +145,7 @@ export type OrderFinancialRow = {
   customer: string | null;
   kind: string | null;
   completedAt: string | null;
+  discountAmount?: number;
   items: {
     type: "Peça" | "Serviço";
     name?: string | null;
@@ -183,10 +184,12 @@ export function orderAmounts(order: OrderFinancialRow) {
       : null;
   const partsRevenue = revenueOf(parts),
     servicesRevenue = revenueOf(services);
-  const revenue =
+  const grossRevenue =
     order.items.length && partsRevenue !== null && servicesRevenue !== null
       ? roundMoney(partsRevenue + servicesRevenue)
       : null;
+  const discountAmount = order.discountAmount ?? 0;
+  const revenue = grossRevenue === null ? null : roundMoney(grossRevenue - discountAmount);
   const withCost = parts.filter(
     (item) => knownAmount(item.unitCost) && Number.isInteger(item.quantity) && item.quantity! >= 1,
   );
@@ -200,6 +203,8 @@ export function orderAmounts(order: OrderFinancialRow) {
         : null;
   return {
     ...order,
+    grossRevenue,
+    discountAmount,
     revenue,
     partsRevenue,
     servicesRevenue,
@@ -223,7 +228,7 @@ export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start
   type Amounts = ReturnType<typeof orderAmounts>;
   const totals = (list: Amounts[]) => {
     const priced = list.filter((row) => row.revenue !== null);
-    const sum = (key: "revenue" | "partsRevenue" | "servicesRevenue") =>
+    const sum = (key: "revenue" | "grossRevenue" | "partsRevenue" | "servicesRevenue") =>
       priced.length ? roundMoney(priced.reduce((total, row) => total + row[key]!, 0)) : null;
     const revenue = sum("revenue");
     const costs = priced.filter((row) => row.cost !== null);
@@ -232,6 +237,8 @@ export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start
       : null;
     return {
       revenue,
+      grossRevenue: sum("grossRevenue"),
+      discountAmount: roundMoney(list.reduce((total, row) => total + row.discountAmount, 0)),
       partsRevenue: sum("partsRevenue"),
       servicesRevenue: sum("servicesRevenue"),
       cost,

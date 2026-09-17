@@ -1,5 +1,12 @@
 # Changelog
 
+## [Desconto comercial da OS — local] - 2026-09-16
+
+- Desconto monetário e motivo separados dos itens aprovados, com edição no pagamento antes da conclusão. Owner/admin e staff com acesso financeiro podem editar; customer não pode.
+- RPC transacional valida versão, limites e recebimentos; reenvio idempotente e histórico com valores anterior/novo, motivo, usuário e horário. Sem estorno automático ou alteração de custo/markup.
+- Pagamentos, saldo, Financeiro e resumo final consideram o desconto; valores brutos dos itens permanecem preservados. OS antigas assumem desconto zero.
+- Migration `20260917010000_order_commercial_discount.sql` preparada e testada somente localmente. Aplicação remota e conferência manual pendentes.
+
 ## [Recebimentos em Dinheiro — local] - 2026-09-16
 
 - Dinheiro adicionado ao seletor, tipos e validação de backup, sem fluxo paralelo.

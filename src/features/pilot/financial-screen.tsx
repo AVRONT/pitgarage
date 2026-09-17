@@ -622,7 +622,7 @@ export function FinancialScreen() {
                         [
                           "Faturamento total",
                           money(summary.revenue),
-                          "Total das OS concluídas dentro dos filtros.",
+                          "Total das OS concluídas após descontos, dentro dos filtros.",
                           ReceiptText,
                         ],
                         [
@@ -655,19 +655,23 @@ export function FinancialScreen() {
                     ))}
                   </dl>
                 </div>
+                <dl className="flex flex-wrap gap-x-8 gap-y-2 border-t border-slate-200 px-5 py-3 text-sm">
+                  <div><dt className="text-muted-foreground">Faturamento bruto</dt><dd className="font-semibold tabular-nums">{money(summary.grossRevenue)}</dd></div>
+                  <div><dt className="text-muted-foreground">Descontos concedidos</dt><dd className="font-semibold tabular-nums">{money(summary.discountAmount)}</dd></div>
+                </dl>
                 <dl className="grid border-t border-slate-200 bg-slate-50/60 sm:grid-cols-3 sm:divide-x sm:divide-slate-200">
                   {(
                     [
                       [
                         "Serviços / mão de obra",
                         money(summary.servicesRevenue),
-                        "Receita dos serviços executados.",
+                        "Receita dos serviços executados, antes do desconto da OS.",
                         Wrench,
                       ],
                       [
                         "Peças",
                         money(summary.partsRevenue),
-                        "Receita das peças executadas.",
+                        "Receita das peças executadas, antes do desconto da OS.",
                         Package,
                       ],
                       [
@@ -1178,7 +1182,7 @@ export function FinancialScreen() {
                             "OS / veículo / cliente",
                             "Categoria",
                             "Data de conclusão",
-                            "Total da OS",
+                            "Bruto / desconto / total final",
                             "Peças",
                             "Serviços",
                             "Custo conhecido",
@@ -1210,7 +1214,11 @@ export function FinancialScreen() {
                             <td className="p-2 whitespace-nowrap">
                               {order.completedAt?.split("-").reverse().join("/")}
                             </td>
-                            <td className="p-2 whitespace-nowrap">{money(order.revenue)}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              <span className="block text-xs text-muted-foreground">Bruto: {money(order.grossRevenue)}</span>
+                              <span className="block text-xs text-muted-foreground">Desconto: {money(order.discountAmount)}</span>
+                              <strong>{money(order.revenue)}</strong>
+                            </td>
                             <td className="p-2 whitespace-nowrap">{money(order.partsRevenue)}</td>
                             <td className="p-2 whitespace-nowrap">
                               {money(order.servicesRevenue)}
@@ -1245,7 +1253,7 @@ export function FinancialScreen() {
                 </summary>
                 <p className="mt-3 text-sm text-muted-foreground">
                   Somente peças com custo conhecido dos mesmos filtros. Não representa o resultado
-                  completo da oficina.
+                  completo da oficina. Valores anteriores ao desconto comercial, que é aplicado somente ao total da OS.
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {[

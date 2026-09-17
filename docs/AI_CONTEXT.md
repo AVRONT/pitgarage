@@ -26,6 +26,12 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## Desconto comercial da OS — preparação local de 16/09/2026
+
+Desconto final em reais e motivo opcional, separados do orçamento aprovado. Pagamento/fechamento permite editar antes da conclusão; owner/admin e staff com permissão financeira, nunca customer. Total final = subtotal aprovado − desconto; saldo e status dos pagamentos são derivados desse total. RPC bloqueia descontos negativos, acima do subtotal ou que deixem total abaixo do recebido; preserva múltiplos recebimentos e não faz estorno. Edição/remoção deixa histórico com valores anterior/novo, motivo, usuário e horário. Financeiro deduz o desconto da receita/resultado da OS, preservando custos e o critério anterior de itens aprovados/executados. Documento final discrimina subtotal/desconto/total sem dados internos.
+
+Migration `20260917010000_order_commercial_discount.sql` somente local; exige as bases existentes de permissões financeiras, relatórios e recebimentos. OS antigas recebem zero. Reversões/alterações de aprovação que deixariam o subtotal menor que o desconto são bloqueadas: ajustar/remover explicitamente o desconto antes, sem apagar recebimentos ou histórico. Typecheck e build locais aprovados; ver detalhes e pendências em [Financeiro](17-financeiro-backup.md#desconto-comercial-final-da-os--local).
+
 ## Otimização e estabilidade — rodada local de 11/09/2026
 
 Agrupamentos financeiros evitam cópias cumulativas e varreduras por data; a tela reutiliza o cálculo enquanto dados/filtros não mudam. Resultados comparados com a implementação anterior em 8.000 OS sintéticas, sem divergência. Chat ignora respostas/erros de carregamentos obsoletos e trata rejeições em atualizações de conversas. Sem mudanças em fórmulas, RPC/RLS, backup, Storage, workflow ou layout. Testes locais não substituem validação de Realtime/rede lenta e mobile em produção; TypeScript permanece bloqueado pela dependência MCP preexistente ausente. Nada aplicado remotamente.

@@ -103,6 +103,8 @@ function mapOrder(row: {
   budget: Json;
   evidence: Json;
   payment: Json | null;
+  discount_amount?: number | null;
+  discount_reason?: string | null;
   status_history: Json;
   activities: Json;
   workshop_snapshot: Json | null;
@@ -129,6 +131,8 @@ function mapOrder(row: {
     team: asArray<string>(row.team),
     budget: asArray<ServiceOrder["budget"][number]>(row.budget),
     evidence: asArray<ServiceOrder["evidence"][number]>(row.evidence),
+    discountAmount: row.discount_amount ?? 0,
+    discountReason: row.discount_reason ?? "",
     ...(row.payment
       ? { payment: row.payment as unknown as NonNullable<ServiceOrder["payment"]> }
       : {}),
@@ -168,8 +172,11 @@ class CloudOperationalRepository implements OperationalRepository {
     if (!expected) throw new Error("Recarregue a OS antes de salvar.");
     try {
       const row = await financialRpc<Parameters<typeof mapOrder>[0]>(
-        "receipt" in input ? "record_order_payment" : "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
-        "receipt" in input ? {
+        "discount" in input ? "set_order_discount" : "receipt" in input ? "record_order_payment" : "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
+        "discount" in input ? {
+          order_id: order.databaseId, expected_version: expected, request_id: input.discount.id,
+          amount: input.discount.amount, reason: input.discount.reason,
+        } : "receipt" in input ? {
           order_id: order.databaseId, expected_version: expected, receipt: input.receipt,
         } : "removeItem" in input ? {
           order_id: order.databaseId,
@@ -409,6 +416,7 @@ class CloudOperationalRepository implements OperationalRepository {
 
 class LocalOperationalRepository implements OperationalRepository {
   async savePartFinancial(order: ServiceOrder, input: BudgetMutation): Promise<ServiceOrder> {
+    if ("discount" in input) throw new Error("Descontos exigem uma sessão real da oficina.");
     if ("receipt" in input) throw new Error("Pagamentos exigem uma sessão real da oficina.");
     if ("removeItem" in input) {
       const item = order.budget.find((entry) => entry.id === input.removeItem);

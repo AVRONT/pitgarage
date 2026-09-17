@@ -142,6 +142,7 @@ export const quotesApi = {
     ),
   /** Mesma camada de domínio usada no orçamento da OS: adicionar ou remover item. */
   mutateItem: async (quote: Quote, mutation: BudgetMutation) => {
+    if ("discount" in mutation) throw new Error("Aplique o desconto comercial na OS, não no orçamento.");
     if ("receipt" in mutation) throw new Error("Registre pagamentos na OS, não no orçamento.");
     if ("removeItem" in mutation)
       return mapQuote(

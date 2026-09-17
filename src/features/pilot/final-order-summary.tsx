@@ -13,6 +13,7 @@ import {
 
 import { WorkshopIdentity } from "./workshop-document-header";
 import { type Workshop } from "./workshop-data";
+import { paymentSummary } from "./payment-model";
 
 export function FinalOrderSummary({
   order,
@@ -29,9 +30,7 @@ export function FinalOrderSummary({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const total = order.budget
-    .filter((item) => item.approval === "Aprovado")
-    .reduce((sum, item) => sum + item.price, 0);
+  const summary = paymentSummary(order);
   const warrantyEnd = warrantyDeadline(order);
 
   const groups = [
@@ -126,13 +125,13 @@ export function FinalOrderSummary({
               </section>
             ))}
             <section className="rounded-md border border-orange-200 bg-orange-50 p-5">
-              <h3 className="text-sm font-semibold">Valor final · itens aprovados</h3>
-              <p className="mt-1 text-2xl font-bold tabular-nums">{money(total)}</p>
+              <p className="flex justify-between gap-4 text-sm"><span>Serviços e peças</span><span>{money(summary.subtotal)}</span></p>
+              {summary.discount > 0 && <p className="mt-2 flex justify-between gap-4 text-sm"><span>Desconto</span><span>− {money(summary.discount)}</span></p>}
+              <h3 className="mt-3 text-sm font-semibold">Total final</h3>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{money(summary.total)}</p>
               <p className="mt-3 text-sm">
                 Pagamento:{" "}
-                {order.payment
-                  ? `${order.payment.method} · ${order.payment.status} · ${money(order.payment.amount)}`
-                  : "Não registrado"}
+                {summary.status} · Recebido: {money(summary.paid)} · Saldo: {money(summary.balance)}
               </p>
               {order.payment?.date && (
                 <p className="mt-1 text-sm">

@@ -75,6 +75,13 @@ export interface OrderActivity {
   type: "created" | "status" | "diagnosis" | "budget" | "execution" | "payment";
   description: string;
   at: string;
+  action?: "commercial_discount";
+  requestId?: string;
+  previousAmount?: number;
+  newAmount?: number;
+  previousReason?: string;
+  reason?: string;
+  recordedBy?: string;
 }
 
 export interface StatusHistoryEntry {
@@ -110,6 +117,8 @@ export interface ServiceOrder {
   budget: BudgetItem[];
   evidence: Evidence[];
   payment?: Payment | undefined;
+  discountAmount?: number;
+  discountReason?: string;
   statusHistory?: StatusHistoryEntry[];
   activities?: OrderActivity[];
   updatedAt?: string;

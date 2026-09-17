@@ -137,6 +137,12 @@ const isOrder = (value: unknown): value is ServiceOrder =>
   isOptionalString(value["completedAt"]) &&
   isOptionalString(value["updatedAt"]) &&
   (value["payment"] === undefined || isPayment(value["payment"])) &&
+  (value["discountAmount"] === undefined || (typeof value["discountAmount"] === "number" &&
+    Number.isFinite(value["discountAmount"]) && value["discountAmount"] >= 0 &&
+    Math.abs(value["discountAmount"] * 100 - Math.round(value["discountAmount"] * 100)) < 0.000001 &&
+    value["discountAmount"] <= Math.round(value["budget"].reduce((sum: number, item: { approval: string; price: number }) =>
+      sum + (item.approval === "Aprovado" ? item.price : 0), 0) * 100) / 100)) &&
+  isOptionalString(value["discountReason"]) &&
   (value["workshopSnapshot"] === undefined || isWorkshop(value["workshopSnapshot"])) &&
   (value["activities"] === undefined ||
     (Array.isArray(value["activities"]) && value["activities"].every(isActivity))) &&
