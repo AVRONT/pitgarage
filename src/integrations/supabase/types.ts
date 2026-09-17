@@ -672,6 +672,8 @@ export type Database = {
           customer_id: string
           deleted_at: string | null
           diagnosis: string
+          discount_amount: number
+          discount_reason: string
           entry_mileage: number
           evidence: Json
           findings: string
@@ -700,6 +702,8 @@ export type Database = {
           customer_id: string
           deleted_at?: string | null
           diagnosis?: string
+          discount_amount?: number
+          discount_reason?: string
           entry_mileage: number
           evidence?: Json
           findings?: string
@@ -728,6 +732,8 @@ export type Database = {
           customer_id?: string
           deleted_at?: string | null
           diagnosis?: string
+          discount_amount?: number
+          discount_reason?: string
           entry_mileage?: number
           evidence?: Json
           findings?: string
@@ -1020,6 +1026,8 @@ export type Database = {
           customer_id: string
           deleted_at: string | null
           diagnosis: string
+          discount_amount: number
+          discount_reason: string
           entry_mileage: number
           evidence: Json
           findings: string
@@ -1313,6 +1321,16 @@ export type Database = {
       set_financial_permission: {
         Args: { allowed: boolean; target_user: string }
         Returns: undefined
+      }
+      set_order_discount: {
+        Args: {
+          amount: number
+          expected_version: string
+          order_id: string
+          reason?: string
+          request_id: string
+        }
+        Returns: Json
       }
       set_quote_status: {
         Args: { expected_version: string; new_status: string; quote_id: string }
