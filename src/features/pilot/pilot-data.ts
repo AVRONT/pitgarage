@@ -102,6 +102,8 @@ export interface ServiceOrder {
   quickVehicleModel?: string | undefined;
   quickVehicleYear?: number | undefined;
   creationRequestId?: string | undefined;
+  internalCost?: number | undefined;
+  cardFee?: number | undefined;
   status: OrderStatus;
   openedAt: string;
   completedAt?: string | undefined;

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
 import { money, warrantyDays, type Customer, type Vehicle } from "./pilot-data";
-import type { BudgetMutation } from "./financial-model";
+import type { FinancialMutation } from "./financial-model";
 import { financialApi } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
 import { RemoveBudgetItem } from "./remove-budget-item";
@@ -121,7 +121,8 @@ export function QuotesScreen({
   if (!internal)
     return <p className="text-sm text-muted-foreground">Área restrita à equipe da oficina.</p>;
 
-  const saveItem = async (mutation: BudgetMutation) => {
+  const saveItem = async (mutation: FinancialMutation) => {
+    if ("correction" in mutation) throw new Error("Correção financeira não se aplica ao orçamento comercial.");
     if (!open) return;
     await apply(() => quotesApi.mutateItem(open, mutation), "Orçamento atualizado.");
   };

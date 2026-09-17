@@ -6,9 +6,17 @@ export interface ReceiptInput {
   date: string;
   method: "PIX" | "Cartão" | "Dinheiro";
   note: string;
+  feeAmount?: number;
 }
 export interface Receipt extends ReceiptInput {
   recordedBy: string;
+  netAmount?: number;
+}
+export function receiptAmounts(receipt: Pick<ReceiptInput, "amount" | "method" | "feeAmount"> & { netAmount?: number }) {
+  const gross = roundMoney(receipt.amount);
+  const fee = roundMoney(receipt.feeAmount ?? 0);
+  const net = roundMoney(receipt.netAmount ?? gross - fee);
+  return { gross, fee, net };
 }
 export function receiptDay(value: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -55,12 +63,25 @@ export function paymentSummary(order: Pick<ServiceOrder, "budget" | "payment" | 
         ? order.payment.amount
         : 0,
   );
+  const receiptTotals = order.payment?.receipts?.reduce(
+    (totals, receipt) => {
+      const amounts = receiptAmounts(receipt);
+      totals.fees += amounts.fee;
+      totals.netReceived += amounts.net;
+      return totals;
+    },
+    { fees: 0, netReceived: 0 },
+  );
+  const fees = roundMoney(receiptTotals?.fees ?? 0);
+  const netReceived = roundMoney(receiptTotals?.netReceived ?? paid);
   const balance = roundMoney(Math.max(0, total - paid));
   return {
     subtotal,
     discount,
     total,
     paid,
+    fees,
+    netReceived,
     balance,
     credit: roundMoney(Math.max(0, paid - total)),
     status: balance === 0 ? "Pago" : paid > 0 ? "Parcial" : "Em aberto",

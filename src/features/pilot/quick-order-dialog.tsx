@@ -7,12 +7,14 @@ import { warrantyDays, type Customer, type Vehicle } from "./pilot-data";
 import { quickPaymentError, type PaymentMethod, type QuickOrderDraft } from "./quick-order-model";
 
 const money = (value: string) => Number(value.replace(",", "."));
+const numericSafe = (value: string) => Number.isFinite(money(value)) ? money(value) : 0;
 
-export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFinalize, onContinueAsStandard }: {
+export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, financialAllowed, onFinalize, onContinueAsStandard }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customers: Customer[];
   vehicles: Vehicle[];
+  financialAllowed: boolean;
   onFinalize: (draft: QuickOrderDraft) => Promise<void>;
   onContinueAsStandard: (draft: QuickOrderDraft) => void;
 }) {
@@ -33,6 +35,8 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFi
   const [discountReason, setDiscountReason] = useState("");
   const [method, setMethod] = useState<PaymentMethod | "">("");
   const [received, setReceived] = useState("0");
+  const [internalCost, setInternalCost] = useState("");
+  const [cardFee, setCardFee] = useState("0");
   const receivedEdited = useRef(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +50,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFi
     requestId.current = crypto.randomUUID();
     setNewCustomer(false); setCustomerId(""); setCustomerName(""); setCustomerPhone(""); setCustomerCpf("");
     setVehicleId(""); setBrand(""); setModel(""); setYear(""); setService(""); setAmount("");
-    setDiscount("0"); setDiscountReason(""); setMethod(""); setReceived("0"); setError("");
+    setDiscount("0"); setDiscountReason(""); setMethod(""); setReceived("0"); setInternalCost(""); setCardFee("0"); setError("");
     receivedEdited.current = false;
   };
   const close = () => { if (!creating.current) { reset(); onOpenChange(false); } };
@@ -58,6 +62,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFi
   const draft = (): QuickOrderDraft | null => {
     const cleanPhone = customerPhone.replace(/\D/g, "");
     const numericYear = Number(year), numericAmount = money(amount), numericDiscount = money(discount), numericReceived = money(received);
+    const numericCost = internalCost === "" ? undefined : money(internalCost), numericFee = money(cardFee);
     if (newCustomer) {
       if (!customerName.trim() || cleanPhone.length < 10 || cleanPhone.length > 11) return setError("Informe nome e telefone válido do cliente."), null;
     } else if (!customerId) return setError("Selecione um cliente."), null;
@@ -66,7 +71,8 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFi
     if (!service.trim()) return setError("Informe o Serviço realizado."), null;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return setError("Informe o Valor do serviço."), null;
     if (!Number.isFinite(numericDiscount) || numericDiscount < 0 || numericDiscount > numericAmount) return setError("Informe um desconto válido."), null;
-    const paymentIssue = quickPaymentError(numericReceived, method || undefined, numericAmount - numericDiscount);
+    if (numericCost !== undefined && (!Number.isFinite(numericCost) || numericCost < 0)) return setError("Informe um custo interno válido."), null;
+    const paymentIssue = quickPaymentError(numericReceived, method || undefined, numericAmount - numericDiscount, numericFee);
     if (paymentIssue) return setError(paymentIssue), null;
     setError("");
     return {
@@ -76,6 +82,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFi
       service: service.trim(), amount: numericAmount, discountAmount: numericDiscount,
       discountReason: discountReason.trim(), receivedAmount: numericReceived,
       warrantyDays,
+      ...(numericCost === undefined ? {} : { internalCost: numericCost }), cardFee: numericFee,
       ...(numericReceived > 0 && method ? { paymentMethod: method } : {}),
     };
   };
@@ -103,7 +110,9 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, onFi
         <div><Label htmlFor="quick-service">Serviço realizado</Label><Input id="quick-service" value={service} onChange={(e) => setService(e.target.value)} placeholder="Troca de óleo e filtro" /></div>
         <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-amount">Valor do serviço</Label><Input id="quick-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="180,00" /></div><div><Label htmlFor="quick-discount">Desconto (opcional)</Label><Input id="quick-discount" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} /></div></div>
         {money(discount) > 0 && <div><Label htmlFor="quick-discount-reason">Motivo do desconto</Label><Input id="quick-discount-reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} /></div>}
-        <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-method">Forma de pagamento</Label><select id="quick-method" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod | "")}><option value="">Sem recebimento agora</option><option>Dinheiro</option><option>PIX</option><option>Cartão</option></select></div><div><Label htmlFor="quick-received">Valor recebido</Label><Input id="quick-received" inputMode="decimal" value={received} onChange={(e) => { receivedEdited.current = true; setReceived(e.target.value); }} /></div></div>
+        <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-method">Forma de pagamento</Label><select id="quick-method" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(e) => { const next = e.target.value as PaymentMethod | ""; setMethod(next); if (next !== "Cartão") setCardFee("0"); }}><option value="">Sem recebimento agora</option><option>Dinheiro</option><option>PIX</option><option>Cartão</option></select></div><div><Label htmlFor="quick-received">Valor recebido</Label><Input id="quick-received" inputMode="decimal" value={received} onChange={(e) => { receivedEdited.current = true; setReceived(e.target.value); }} /></div></div>
+        {financialAllowed && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo interno (opcional)</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa do cartão</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}</div>}
+        {financialAllowed && method === "Cartão" && <p className="text-sm text-muted-foreground">Líquido recebido: {(numericSafe(received) - numericSafe(cardFee)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>}
         <p className="text-sm text-muted-foreground">Total final: {total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>

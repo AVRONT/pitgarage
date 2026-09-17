@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const migration = new URL("../supabase/migrations/20260917030000_quick_service_orders.sql", import.meta.url);
+const financialMigration = new URL("../supabase/migrations/20260917040000_financial_real_result.sql", import.meta.url);
 
 test("quick order migration is explicit, idempotent, protected and financially compatible", async () => {
   const sql = await readFile(migration, "utf8");
@@ -32,9 +33,9 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
     `select public.${name}(${values.map((_, index) => "$" + (index + 1)).join(",")}) result`, values)).rows[0].result;
   const standardRpc = async (values) => (await db.query(
     `select to_jsonb(public.create_service_order_atomic(${values.map((_, index) => "$" + (index + 1)).join(",")})) result`, values)).rows[0].result;
-  const quick = (requestId, received = 0, method = null, discount = 0) => rpc("create_quick_service_order", [
+  const quick = (requestId, received = 0, method = null, discount = 0, cost = null, fee = 0) => rpc("create_quick_service_order", [
     requestId, customer, null, null, "Honda", "CG 160", 2023, "Troca de óleo", 180,
-    discount, discount ? "PIX" : "", received, method, null,
+    discount, discount ? "PIX" : "", received, method, null, cost, fee,
   ]);
   try {
     await db.exec(`
@@ -49,6 +50,7 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
         select coalesce((select sum((entry->>'amount')::numeric) from jsonb_array_elements(coalesce(value->'receipts','[]')) entry),
           case when value->>'status'='Pago' then coalesce((value->>'amount')::numeric,0) else 0 end,0) $$;
       create table public.user_profiles(user_id uuid primary key,full_name text);
+      create table public.financial_permissions(user_id uuid primary key);
       create table public.customers(id uuid primary key default gen_random_uuid(),auth_user_id uuid,name text not null,
         phone text not null unique,email text not null,cpf text unique,since text not null default '2026',deleted_at timestamptz);
       create table public.vehicles(id uuid primary key default gen_random_uuid(),customer_id uuid not null references customers(id),
@@ -63,7 +65,7 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
         discount_reason text not null default '',status_history jsonb not null default '[]',activities jsonb not null default '[]',
         workshop_snapshot jsonb,warranty_days integer,deleted_at timestamptz,cancelled_at timestamptz,updated_at timestamptz not null default clock_timestamp(),
         foreign key(vehicle_id,customer_id) references vehicles(id,customer_id));
-      create table public.order_part_financials(order_id uuid,item_id text,unit_cost numeric);
+      create table public.order_part_financials(order_id uuid,item_id text,unit_cost numeric,markup numeric,updated_at timestamptz default now(),primary key(order_id,item_id));
       create table public.workshop_settings(name text,legal_name text,cnpj text,phone text,address text,postal_code text,hours text);
       create table pitgarage_private.structured_backups(id uuid primary key default gen_random_uuid(),created_at timestamptz default now(),payload jsonb);
       insert into user_profiles values('${actor}','Salomão');
@@ -72,6 +74,7 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
       set test.actor='${actor}'; set test.access='owner';
     `);
     await db.exec(await readFile(migration, "utf8"));
+    await db.exec(await readFile(financialMigration, "utf8"));
 
     await t.test("snapshot quick, zero payment, warranty, finance and idempotency", async () => {
       const request = crypto.randomUUID();
@@ -97,6 +100,100 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
         assert.equal((await quick(crypto.randomUUID(), 170, method, 10)).payment.method, method);
     });
 
+    await t.test("quick cost and card fee are private, net is derived and gross settles debt", async () => {
+      const card = await quick(crypto.randomUUID(), 180, "Cartão", 0, 100, 20);
+      assert.equal(card.payment.receipts[0].amount, 180);
+      assert.equal(card.payment.receipts[0].feeAmount, 20);
+      assert.equal(card.payment.receipts[0].netAmount, 160);
+      const cost = await db.query("select unit_cost from order_part_financials where order_id=$1", [card.id]);
+      assert.equal(Number(cost.rows[0].unit_cost), 100);
+      const receivable = (await rpc("order_receivables", [])).find((row) => row.id === card.id);
+      assert.equal(receivable.paid, 180); assert.equal(receivable.balance, 0);
+      const report = (await rpc("financial_order_report", [])).find((row) => row.orderId === card.id);
+      assert.equal(report.fees, 20); assert.equal(report.netReceived, 160);
+      assert.equal(report.items[0].unitCost, 100);
+      await assert.rejects(quick(crypto.randomUUID(), 180, "PIX", 0, 10, 1), /taxa zero/i);
+      await assert.rejects(quick(crypto.randomUUID(), 180, "Dinheiro", 0, 10, 1), /taxa zero/i);
+      await assert.rejects(quick(crypto.randomUUID(), 180, "Cartão", 0, 10, 181), /taxa/i);
+    });
+
+    await t.test("delivered order accepts audited financial correction without reopening", async () => {
+      const card = await quick(crypto.randomUUID(), 180, "Cartão", 0, 100, 20);
+      const receiptId = card.payment.receipts[0].id;
+      const correctionId = crypto.randomUUID();
+      await assert.rejects(
+        rpc("correct_order_financial", [card.id, card.updated_at, crypto.randomUUID(), "receipt",
+          { receiptId, amount: 180, method: "Cartão", feeAmount: 10 }, ""]),
+        /Motivo obrigatório/,
+      );
+      const corrected = await rpc("correct_order_financial", [card.id, card.updated_at, correctionId,
+        "receipt", { receiptId, amount: 180, method: "Cartão", feeAmount: 10 }, "Taxa corrigida"]);
+      assert.equal(corrected.status, "Entregue");
+      assert.equal(corrected.payment.receipts[0].netAmount, 170);
+      const audit = await rpc("get_financial_corrections", [card.id]);
+      assert.equal(audit.length, 1); assert.equal(audit[0].reason, "Taxa corrigida");
+      assert.equal(audit[0].actor_name, "Salomão");
+      const repeated = await rpc("correct_order_financial", [card.id, card.updated_at, correctionId,
+        "receipt", { receiptId, amount: 180, method: "Cartão", feeAmount: 10 }, "Taxa corrigida"]);
+      assert.equal(repeated.id, card.id);
+      assert.equal((await rpc("get_financial_corrections", [card.id])).length, 1);
+      const costCorrected = await rpc("correct_order_financial", [card.id, corrected.updated_at, crypto.randomUUID(),
+        "cost", { itemId: `quick-${card.creation_request_id}`, unitCost: 90 }, "Custo corrigido"]);
+      assert.equal(costCorrected.status, "Entregue");
+      assert.equal(Number((await db.query("select unit_cost from order_part_financials where order_id=$1", [card.id])).rows[0].unit_cost), 90);
+      assert.equal((await rpc("get_financial_corrections", [card.id])).length, 2);
+      await db.exec("set test.access='customer'");
+      await assert.rejects(rpc("correct_order_financial", [card.id, costCorrected.updated_at, crypto.randomUUID(),
+        "cost", { itemId: `quick-${card.creation_request_id}`, unitCost: 90 }, "Custo corrigido"]), /Financial access/);
+      await db.exec("set test.access='owner'");
+    });
+
+    await t.test("delivered discount correction is audited and keeps the order closed", async () => {
+      const order = await quick(crypto.randomUUID());
+      const corrected = await rpc("correct_order_financial", [order.id, order.updated_at, crypto.randomUUID(),
+        "discount", { amount: 10, discountReason: "Cortesia" }, "Desconto informado após o atendimento"]);
+      assert.equal(corrected.status, "Entregue");
+      assert.equal(corrected.discount_amount, 10);
+      assert.equal(corrected.discount_reason, "Cortesia");
+      const audit = await rpc("get_financial_corrections", [order.id]);
+      assert.equal(audit[0].target_type, "discount");
+      assert.equal(audit[0].previous_value.amount, 0);
+      assert.equal(audit[0].new_value.amount, 10);
+    });
+
+    await t.test("staff needs explicit financial permission for fees", async () => {
+      await db.exec("set test.access='staff'");
+      await assert.rejects(quick(crypto.randomUUID(), 180, "Cartão", 0, null, 5), /Financial access/);
+      await db.query("insert into financial_permissions(user_id) values($1)", [actor]);
+      const allowed = await quick(crypto.randomUUID(), 180, "Cartão", 0, null, 5);
+      assert.equal(allowed.payment.receipts[0].feeAmount, 5);
+      await db.query("delete from financial_permissions where user_id=$1", [actor]);
+      await db.exec("set test.access='owner'");
+    });
+
+    await t.test("normal OS receipts enforce fee rules and preserve partial gross payments", async () => {
+      const order = await standardRpc([customer, null, vehicle, null, { entryMileage: 1000, complaint: "Revisão" }]);
+      await db.query("update service_orders set budget=$2 where id=$1", [order.id,
+        [{ id: "s", type: "Serviço", name: "Revisão", price: 500, approval: "Aprovado", executed: true }]]);
+      const current = (await db.query("select * from service_orders where id=$1", [order.id])).rows[0];
+      const first = await rpc("record_order_payment", [order.id, current.updated_at, {
+        id: crypto.randomUUID(), amount: 200, method: "Cartão", feeAmount: 8,
+        date: new Date().toISOString(), note: "Parcial",
+      }]);
+      assert.equal(first.payment.status, "Parcial");
+      assert.equal(first.payment.receipts[0].netAmount, 192);
+      await assert.rejects(rpc("record_order_payment", [order.id, first.updated_at, {
+        id: crypto.randomUUID(), amount: 300, method: "PIX", feeAmount: 1,
+        date: new Date().toISOString(), note: "",
+      }]), /fee/);
+      const paid = await rpc("record_order_payment", [order.id, first.updated_at, {
+        id: crypto.randomUUID(), amount: 300, method: "PIX", feeAmount: 0,
+        date: new Date().toISOString(), note: "",
+      }]);
+      assert.equal(paid.payment.status, "Pago");
+      assert.equal(paid.payment.receipts.reduce((sum, receipt) => sum + receipt.amount, 0), 500);
+    });
+
     await t.test("customer is blocked", async () => {
       await db.exec("set test.access='customer'");
       await assert.rejects(quick(crypto.randomUUID()), /Acesso operacional/);
@@ -110,15 +207,16 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
         entryMileage: 1000, complaint: "Troca de óleo", creationRequestId: request,
         quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023,
         seedService: "Troca de óleo", seedAmount: 180, discountAmount: 10, discountReason: "PIX",
-        receivedAmount: 100, paymentMethod: "PIX",
+        receivedAmount: 100, paymentMethod: "PIX", internalCost: 80, cardFee: 0,
       }]);
       assert.equal(standard.flow_type, "standard"); assert.equal(standard.status, "Recebido");
       assert.equal(standard.vehicle_id, vehicle); assert.equal(standard.budget[0].name, "Troca de óleo");
       assert.equal(standard.discount_amount, 10); assert.equal(standard.payment.amount, 100);
+      assert.equal(Number((await db.query("select unit_cost from order_part_financials where order_id=$1", [standard.id])).rows[0].unit_cost), 80);
       assert.equal((await standardRpc([customer,null,vehicle,null,{
         entryMileage: 1000, complaint: "Troca de óleo", creationRequestId: request,
         quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023,
-        seedService: "Troca de óleo", seedAmount: 180, discountAmount: 10, discountReason: "PIX", receivedAmount: 100, paymentMethod: "PIX",
+        seedService: "Troca de óleo", seedAmount: 180, discountAmount: 10, discountReason: "PIX", receivedAmount: 100, paymentMethod: "PIX", internalCost: 80, cardFee: 0,
       }])).id, standard.id);
       assert.equal((await db.query("select count(*)::int count from service_orders where creation_request_id=$1", [request])).rows[0].count, 1);
       assert.ok(standard.order_number > 1);

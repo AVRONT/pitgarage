@@ -139,7 +139,7 @@ import { createOperationalRepository, OrderVersionConflict } from "./operational
 import { FinancialScreen, PartFinancialEditor } from "./financial-screen";
 import { financialApi, type SavePart } from "./financial-api";
 import { AddBudgetItemDialog } from "./add-budget-item-dialog";
-import type { BudgetMutation } from "./financial-model";
+import type { FinancialMutation } from "./financial-model";
 import { RemoveBudgetItem } from "./remove-budget-item";
 import { OrderPayments } from "./order-payments";
 import { activityAuthorName, useActivityAuthors, type ActivityAuthors } from "./activity-author";
@@ -576,10 +576,23 @@ export function PilotApp() {
   const [newVehicleOpen, setNewVehicleOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [quickOrderOpen, setQuickOrderOpen] = useState(false);
+  const [quickFinancialAllowed, setQuickFinancialAllowed] = useState(false);
   const [initialQuickDraft, setInitialQuickDraft] = useState<QuickOrderDraft>();
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
+
+  useEffect(() => {
+    let active = true;
+    if (isLocalBypass) {
+      setQuickFinancialAllowed(false);
+      return;
+    }
+    void financialApi.access()
+      .then((allowed) => { if (active) setQuickFinancialAllowed(allowed); })
+      .catch(() => { if (active) setQuickFinancialAllowed(false); });
+    return () => { active = false; };
+  }, [isLocalBypass, accessLevel]);
 
   useEffect(() => {
     if (isLocalBypass) {
@@ -741,7 +754,7 @@ export function PilotApp() {
   };
   const evidenceWrite = useRef(false);
   const financialWrite = useRef(false);
-  const savePart = (id: string, input: BudgetMutation) => {
+  const savePart = (id: string, input: FinancialMutation) => {
     if (writeFailed.current || financialWrite.current || evidenceWrite.current)
       return Promise.reject(new Error("Aguarde a gravação ou recarregue a OS antes de continuar."));
     financialWrite.current = true;
@@ -758,7 +771,7 @@ export function PilotApp() {
             item.id === id ? migrateOrder(updated) : item,
           );
           setOrders(ordersRef.current);
-          setNotice("discount" in input ? "Desconto comercial salvo." : "receipt" in input ? "Recebimento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados da peça salvos.");
+          setNotice("correction" in input ? "Correção financeira registrada." : "discount" in input ? "Desconto comercial salvo." : "receipt" in input ? "Recebimento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados financeiros salvos.");
         } catch (error) {
           if (error instanceof OrderVersionConflict) requireOrderSync(current, error.message);
           throw error;
@@ -1403,6 +1416,7 @@ export function PilotApp() {
         onOpenChange={setQuickOrderOpen}
         customers={activeCustomers}
         vehicles={activeVehicles}
+        financialAllowed={quickFinancialAllowed}
         onFinalize={async (draft) => {
           const data = await repository.createQuickOrder(draft, workshop);
           setCustomers(data.customers); setVehicles(data.vehicles); setOrders(data.orders.map(migrateOrder));
@@ -4371,7 +4385,7 @@ function BudgetPanel({
                   <StatusBadge status={item.approval} />
                 </div>
                 <RemoveBudgetItem order={order} item={item} save={onSavePart} />
-                {item.type === "Peça" && financialAllowed && (
+                {financialAllowed && (
                   <PartFinancialEditor order={order} item={item} save={onSavePart} />
                 )}
                 <div className="mt-4 flex flex-wrap gap-2 lg:justify-end">
@@ -5533,11 +5547,15 @@ function NewOrderDialog({
             quickVehicleModel: initialQuickDraft.vehicleModel,
             quickVehicleYear: initialQuickDraft.vehicleYear,
             creationRequestId: initialQuickDraft.requestId,
+            internalCost: initialQuickDraft.internalCost,
+            cardFee: initialQuickDraft.cardFee,
             ...(initialQuickDraft.receivedAmount > 0 && initialQuickDraft.paymentMethod ? { payment: {
               amount: initialQuickDraft.receivedAmount, method: initialQuickDraft.paymentMethod,
               status: initialQuickDraft.receivedAmount >= initialQuickDraft.amount - initialQuickDraft.discountAmount ? "Pago" as const : "Parcial" as const,
               date: new Date().toISOString(), receipts: [{ id: initialQuickDraft.requestId,
                 amount: initialQuickDraft.receivedAmount, method: initialQuickDraft.paymentMethod,
+                feeAmount: initialQuickDraft.cardFee,
+                netAmount: initialQuickDraft.receivedAmount - initialQuickDraft.cardFee,
                 date: new Date().toISOString(), note: "", recordedBy: "" }],
             } } : {}),
           } : {}),

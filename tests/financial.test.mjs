@@ -276,6 +276,11 @@ function nodes(tree) {
   return [tree, ...nodes(tree.props?.children)];
 }
 async function uiHarness(api, owner = false) {
+  globalThis.window ??= {
+    matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+  };
+  globalThis.requestAnimationFrame ??= (callback) => callback();
+  globalThis.cancelAnimationFrame ??= () => {};
   let cursor = 0;
   const slots = [],
     effects = [];
@@ -317,10 +322,13 @@ async function uiHarness(api, owner = false) {
       [
         "Bar",
         "BarChart",
+        "Area",
         "CartesianGrid",
+        "ComposedChart",
         "Legend",
         "Line",
         "LineChart",
+        "ReferenceLine",
         "ResponsiveContainer",
         "Tooltip",
         "XAxis",
@@ -330,9 +338,11 @@ async function uiHarness(api, owner = false) {
     "@/components/ui/button": { Button: "button" },
     "@/components/ui/card": { Card: "section", CardContent: "div" },
     "@/components/ui/input": { Input: "input" },
+    "lucide-react": new Proxy({}, { get: (_, name) => String(name) }),
     "@/features/auth/auth-context": {
       useAuth: () => ({ accessLevel: owner ? "owner" : "staff", isLocalBypass: false }),
     },
+    "./extra-revenues": { ExtraRevenues: "div" },
     "./financial-api": { financialApi: api },
     "./financial-model": model,
   });
@@ -396,7 +406,7 @@ test("long chart periods use spaced dates and hover points instead of a dot on e
   let tree = nodes(harness.render(harness.ui.FinancialScreen));
   tree.filter((node) => node.type === "select")[1].props.onChange({ target: { value: "all" } });
   tree = nodes(harness.render(harness.ui.FinancialScreen));
-  assert.equal(tree.find((node) => node.type === "LineChart").props.data.length, 365);
+  assert.equal(tree.find((node) => node.type === "ComposedChart").props.data.length, 365);
   for (const line of tree.filter((node) => node.type === "Line")) {
     assert.equal(line.props.dot, false);
     assert.equal(line.props.connectNulls, false);
@@ -612,7 +622,7 @@ test("editor shows implied markup without saving it or replacing the negotiated 
   assert.equal(fields[2].props.value, "2");
   assert.equal(fields[3].props.value, "125");
   await render()
-    .find((node) => node.props?.children === "Salvar dados da peça")
+    .find((node) => node.props?.children === "Salvar dados financeiros")
     .props.onClick();
   assert.equal(saved.markup, null);
   assert.equal(saved.unitPrice, 125);
@@ -668,7 +678,7 @@ test("editor preserves manual final price when cost/markup changes; applies sugg
   fields = render().filter((node) => node.type === "input");
   assert.equal(fields[3].props.value, "125");
   await render()
-    .find((node) => node.props?.children === "Salvar dados da peça")
+    .find((node) => node.props?.children === "Salvar dados financeiros")
     .props.onClick();
   assert.equal(saved.unitPrice, 125);
   assert.equal(saved.unitCost, 200);
@@ -695,11 +705,11 @@ test("financial screen creates all three charts with data and hides charts on em
       const selects = tree.filter((node) => node.type === "select");
       selects[1].props.onChange({ target: { value: "all" } });
       tree = nodes(harness.render(harness.ui.FinancialScreen));
-      assert.equal(tree.filter((node) => node.type === "LineChart").length, 1);
+      assert.equal(tree.filter((node) => node.type === "ComposedChart").length, 1);
       const bars = tree.filter((node) => node.type === "BarChart");
-      const timeline = tree.find((node) => node.type === "LineChart").props.data;
+      const timeline = tree.find((node) => node.type === "ComposedChart").props.data;
       const unchanged = nodes(harness.render(harness.ui.FinancialScreen));
-      assert.equal(unchanged.find((node) => node.type === "LineChart").props.data, timeline);
+      assert.equal(unchanged.find((node) => node.type === "ComposedChart").props.data, timeline);
       assert.equal(bars.length, 2);
       assert.equal(bars[0].props.data[0].Faturamento, 850);
       assert.equal(bars[0].props.data[0].Resultado, 650);

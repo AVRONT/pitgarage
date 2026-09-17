@@ -4,7 +4,7 @@ import type { Json } from "@/integrations/supabase/types";
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
 import type { QuickOrderDraft } from "./quick-order-model";
 import { financialRpc } from "./financial-api";
-import { roundMoney, validatePart, canRemoveBudgetItem, type BudgetMutation } from "./financial-model";
+import { roundMoney, validatePart, canRemoveBudgetItem, type FinancialMutation } from "./financial-model";
 
 export interface OperationalData {
   customers: Customer[];
@@ -19,7 +19,7 @@ export interface NewOrderBundle {
 }
 
 export interface OperationalRepository {
-  savePartFinancial(order: ServiceOrder, input: BudgetMutation): Promise<ServiceOrder>;
+  savePartFinancial(order: ServiceOrder, input: FinancialMutation): Promise<ServiceOrder>;
   reloadOrder(order: ServiceOrder): Promise<ServiceOrder>;
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
@@ -178,14 +178,17 @@ export class OrderVersionConflict extends Error {
 class CloudOperationalRepository implements OperationalRepository {
   private orderVersions = new Map<string, string>();
 
-  async savePartFinancial(order: ServiceOrder, input: BudgetMutation) {
+  async savePartFinancial(order: ServiceOrder, input: FinancialMutation) {
     if (!order.databaseId) throw new Error("OS sem identificador persistente.");
     const expected = this.orderVersions.get(order.databaseId);
     if (!expected) throw new Error("Recarregue a OS antes de salvar.");
     try {
       const row = await financialRpc<Parameters<typeof mapOrder>[0]>(
-        "discount" in input ? "set_order_discount" : "receipt" in input ? "record_order_payment" : "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
-        "discount" in input ? {
+        "correction" in input ? "correct_order_financial" : "discount" in input ? "set_order_discount" : "receipt" in input ? "record_order_payment" : "removeItem" in input ? "remove_budget_item" : input.newItem ? "add_budget_item" : "save_part_financial",
+        "correction" in input ? {
+          order_id: order.databaseId, expected_version: expected, request_id: input.correction.id,
+          correction_type: input.correction.type, payload: input.correction.payload, reason: input.correction.reason,
+        } : "discount" in input ? {
           order_id: order.databaseId, expected_version: expected, request_id: input.discount.id,
           amount: input.discount.amount, reason: input.discount.reason,
         } : "receipt" in input ? {
@@ -264,6 +267,8 @@ class CloudOperationalRepository implements OperationalRepository {
           discountReason: bundle.order.discountReason ?? "",
           receivedAmount: bundle.order.payment?.amount ?? 0,
           paymentMethod: bundle.order.payment?.method,
+          internalCost: bundle.order.internalCost,
+          cardFee: bundle.order.cardFee ?? 0,
         } : {}),
       }),
     });
@@ -302,6 +307,8 @@ class CloudOperationalRepository implements OperationalRepository {
       received_amount: draft.receivedAmount,
       payment_method: draft.receivedAmount > 0 ? draft.paymentMethod : null,
       workshop_snapshot: workshopSnapshot ? asJson(workshopSnapshot) : null,
+      internal_cost: draft.internalCost ?? null,
+      card_fee: draft.cardFee,
     } as never) as unknown as Promise<{ data: Parameters<typeof mapOrder>[0] | null; error: { message: string } | null }>);
     if (error || !created) throw new Error(error?.message ?? "Não foi possível finalizar o atendimento rápido.");
     const data = await this.load();
@@ -462,7 +469,8 @@ class CloudOperationalRepository implements OperationalRepository {
 }
 
 class LocalOperationalRepository implements OperationalRepository {
-  async savePartFinancial(order: ServiceOrder, input: BudgetMutation): Promise<ServiceOrder> {
+  async savePartFinancial(order: ServiceOrder, input: FinancialMutation): Promise<ServiceOrder> {
+    if ("correction" in input) throw new Error("Correções financeiras exigem uma sessão real da oficina.");
     if ("discount" in input) throw new Error("Descontos exigem uma sessão real da oficina.");
     if ("receipt" in input) throw new Error("Pagamentos exigem uma sessão real da oficina.");
     if ("removeItem" in input) {

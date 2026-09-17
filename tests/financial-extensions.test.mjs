@@ -77,6 +77,8 @@ test("debt is derived: unpaid / partial / paid, including delivered OS and custo
     discount: 0,
     total: 1000,
     paid: 0,
+    fees: 0,
+    netReceived: 0,
     balance: 1000,
     credit: 0,
     status: "Em aberto",
@@ -97,6 +99,48 @@ test("debt is derived: unpaid / partial / paid, including delivered OS and custo
   assert.equal(customer.balance, 1600);
   assert.equal(customer.debts.length, 2);
   assert.equal(customer.debts[1].order.status, "Entregue");
+});
+test("receipt fees preserve gross debt settlement and derive net cash", () => {
+  assert.deepEqual(payments.receiptAmounts({ amount: 500, method: "Cartão", feeAmount: 20 }), {
+    gross: 500, fee: 20, net: 480,
+  });
+  assert.deepEqual(payments.receiptAmounts({ amount: 400, method: "PIX" }), {
+    gross: 400, fee: 0, net: 400,
+  });
+  const mixed = payments.paymentSummary({
+    ...base,
+    payment: {
+      ...partial,
+      receipts: [
+        { ...receipt, amount: 400 },
+        { ...receipt, id: "card", amount: 600, method: "Cartão", feeAmount: 24, netAmount: 576 },
+      ],
+    },
+  });
+  assert.equal(mixed.paid, 1000);
+  assert.equal(mixed.balance, 0);
+  assert.equal(mixed.fees, 24);
+  assert.equal(mixed.netReceived, 976);
+});
+
+test("order result subtracts service costs and financial fees", () => {
+  const amounts = financial.orderAmounts({
+    orderId: "o", orderNumber: "OS-1", vehicle: null, customer: null, kind: "Carro",
+    completedAt: "2026-09-17", discountAmount: 0, paid: 500, fees: 20, netReceived: 480,
+    items: [{ type: "Serviço", name: "Troca", quantity: 1, revenue: 500, unitCost: 100 }],
+  });
+  assert.equal(amounts.cost, 100);
+  assert.equal(amounts.fees, 20);
+  assert.equal(amounts.netReceived, 480);
+  assert.equal(amounts.result, 380);
+});
+
+test("financial correction UI is separate from operational reopening and requires a reason", async () => {
+  const source = await readFile(new URL("../src/features/pilot/financial-correction.tsx", import.meta.url), "utf8");
+  assert.match(source, /Corrigir financeiro/);
+  assert.match(source, /Motivo obrigatório/);
+  assert.match(source, /receipt|discount|cost/);
+  assert.doesNotMatch(source, /status\s*:/);
 });
 test("legacy paid/pending are not lost or mistaken for cash; reversal preserves receipts and exposes credit", () => {
   assert.equal(
@@ -237,6 +281,7 @@ test("payment form prevents double submit and retains entered value after failur
   const { OrderPayments } = await load("order-payments.tsx", {
     react,
     "./order-discount": { OrderDiscount: () => null },
+    "./financial-correction": { FinancialCorrection: () => null },
     "./activity-author": authors,
     "./pilot-data": data,
     "./payment-model": payments,
@@ -248,6 +293,7 @@ test("payment form prevents double submit and retains entered value after failur
   const save = (input) => {
     assert.equal(input.receipt.method, "Dinheiro");
     assert.equal(input.receipt.amount, 400);
+    assert.equal(input.receipt.feeAmount, 0);
     calls++;
     return new Promise((_, fail) => {
       reject = fail;
@@ -269,11 +315,12 @@ test("payment form prevents double submit and retains entered value after failur
   reject(new Error("conflict"));
   await first;
   assert.equal(states[0], "400");
-  assert.match(states[5], /Recarregue/);
+  assert.match(states[6], /Recarregue/);
 });
 test("receipt history renders cash, recorder and note from saved payment data", async () => {
   const { OrderPayments } = await load("order-payments.tsx", {
     "./order-discount": { OrderDiscount: () => null },
+    "./financial-correction": { FinancialCorrection: () => null },
     "./activity-author": authors,
     "./pilot-data": data, "./payment-model": payments,
     "@/components/ui/button": { Button: "button" }, "@/components/ui/input": { Input: "input" },

@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { OrderFinancialRow, BudgetMutation } from "./financial-model";
+import type { OrderFinancialRow, FinancialMutation } from "./financial-model";
 type RpcError = { message: string; code?: string };
 export async function financialRpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await (supabase.rpc(name as never, args as never) as unknown as Promise<{
@@ -43,4 +43,4 @@ export const financialApi = {
   grant: (userId: string, allowed: boolean) =>
     financialRpc<void>("set_financial_permission", { target_user: userId, allowed }),
 };
-export type SavePart = (input: BudgetMutation) => Promise<void>;
+export type SavePart = (input: FinancialMutation) => Promise<void>;

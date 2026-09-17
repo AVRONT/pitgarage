@@ -22,6 +22,10 @@ test("quick payment permits zero without method and requires an allowed method a
   assert.match(quick.quickPaymentError(10, "Cheque", 180), /forma de pagamento/i);
   assert.equal(quick.quickPaymentError(80, "PIX", 180), null);
   assert.match(quick.quickPaymentError(181, "PIX", 180), /total final/i);
+  assert.equal(quick.quickPaymentError(180, "Cartão", 180, 20), null);
+  assert.match(quick.quickPaymentError(180, "PIX", 180, 1), /taxa zero/i);
+  assert.match(quick.quickPaymentError(180, "Dinheiro", 180, 1), /taxa zero/i);
+  assert.match(quick.quickPaymentError(180, "Cartão", 180, 181), /taxa/i);
 });
 
 test("quick service becomes one approved and executed service budget item", async () => {
@@ -43,4 +47,3 @@ test("legacy orders default to standard flow", async () => {
   assert.equal(quick.orderFlowType({}), "standard");
   assert.equal(quick.orderFlowType({ flowType: "quick" }), "quick");
 });
-

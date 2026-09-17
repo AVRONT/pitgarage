@@ -6,6 +6,7 @@ import { paymentSummary } from "./payment-model";
 import type { SavePart } from "./financial-api";
 import { OrderDiscount } from "./order-discount";
 import { activityAuthorName, type ActivityAuthors } from "./activity-author";
+import { FinancialCorrection } from "./financial-correction";
 
 export function OrderPayments({ order, save, canEditDiscount = false, activityAuthors = {} }: { order: ServiceOrder; save: SavePart; canEditDiscount?: boolean; activityAuthors?: ActivityAuthors }) {
   const summary = paymentSummary(order);
@@ -15,6 +16,7 @@ export function OrderPayments({ order, save, canEditDiscount = false, activityAu
     new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
   );
   const [note, setNote] = useState("");
+  const [fee, setFee] = useState("0");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const lock = useRef(false);
@@ -41,6 +43,9 @@ export function OrderPayments({ order, save, canEditDiscount = false, activityAu
       {canEditDiscount && <div className="mb-4">
         <OrderDiscount order={order} save={save} disabled={busy} onBusyChange={setDiscountBusy} />
       </div>}
+      {canEditDiscount && (order.completedAt || ["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status)) && (
+        <div className="mb-4"><FinancialCorrection order={order} save={save} /></div>
+      )}
       {summary.credit > 0 && (
         <p className="text-sm">
           Recebido acima do total atual: {money(summary.credit)}. Conferir manualmente antes de
@@ -61,6 +66,11 @@ export function OrderPayments({ order, save, canEditDiscount = false, activityAu
           setBusy(true);
           setError("");
           try {
+            const feeAmount = method === "Cartão" && canEditDiscount ? Number(fee) : 0;
+            if (!Number.isFinite(feeAmount) || feeAmount < 0 || feeAmount > value) {
+              setError("Informe uma taxa válida, entre zero e o valor recebido.");
+              return;
+            }
             await save({
               receipt: {
                 id: id.current,
@@ -68,11 +78,13 @@ export function OrderPayments({ order, save, canEditDiscount = false, activityAu
                 date: new Date(date).toISOString(),
                 method,
                 note,
+                feeAmount,
               },
             });
             id.current = crypto.randomUUID();
             setAmount("");
             setNote("");
+            setFee("0");
           } catch {
             setError(
               "Não foi possível confirmar o pagamento. Recarregue a OS antes de tentar novamente; os campos foram mantidos.",
@@ -124,6 +136,15 @@ export function OrderPayments({ order, save, canEditDiscount = false, activityAu
             Observação (opcional)
             <Input maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
+          {canEditDiscount && method === "Cartão" && (
+            <label className="text-sm">
+              Taxa do cartão
+              <Input type="number" min="0" max={amount || undefined} step="0.01" value={fee} onChange={(e) => setFee(e.target.value)} />
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Líquido: {money(Math.max(0, Number(amount || 0) - Number(fee || 0)))}
+              </span>
+            </label>
+          )}
           <Button disabled={summary.balance <= 0}>
             {busy ? "Registrando…" : "Registrar recebimento"}
           </Button>
@@ -138,6 +159,11 @@ export function OrderPayments({ order, save, canEditDiscount = false, activityAu
         {order.payment?.receipts?.map((p) => (
           <li className="border-t pt-2" key={p.id}>
             {money(p.amount)} · {p.method} · {formatDateTime(p.date)}
+            {canEditDiscount && (
+              <span className="block text-xs text-muted-foreground">
+                Taxa: {money(p.feeAmount ?? 0)} · Líquido: {money(p.netAmount ?? p.amount - (p.feeAmount ?? 0))}
+              </span>
+            )}
             <span className="block text-xs text-muted-foreground">
               Registrado por: {activityAuthorName(p, activityAuthors)} {p.note && " · " + p.note}
             </span>

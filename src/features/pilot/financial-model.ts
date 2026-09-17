@@ -29,6 +29,8 @@ export type PartFinancialInput = {
   unitPrice: number;
 };
 export type BudgetMutation = PartFinancialInput | { removeItem: string } | { receipt: import("./payment-model").ReceiptInput } | { discount: import("./payment-model").DiscountInput };
+export type FinancialCorrectionInput = { id: string; type: "receipt" | "discount" | "cost"; payload: Record<string, unknown>; reason: string };
+export type FinancialMutation = BudgetMutation | { correction: FinancialCorrectionInput };
 export type FinancialRow = {
   orderId: string;
   kind: string;
@@ -146,6 +148,9 @@ export type OrderFinancialRow = {
   kind: string | null;
   completedAt: string | null;
   discountAmount?: number;
+  paid?: number;
+  fees?: number;
+  netReceived?: number;
   items: {
     type: "Peça" | "Serviço";
     name?: string | null;
@@ -190,11 +195,14 @@ export function orderAmounts(order: OrderFinancialRow) {
       : null;
   const discountAmount = order.discountAmount ?? 0;
   const revenue = grossRevenue === null ? null : roundMoney(grossRevenue - discountAmount);
-  const withCost = parts.filter(
+  const withCost = order.items.filter(
     (item) => knownAmount(item.unitCost) && Number.isInteger(item.quantity) && item.quantity! >= 1,
   );
+  const missingPartCosts = parts.filter(
+    (item) => !knownAmount(item.unitCost) || !Number.isInteger(item.quantity) || item.quantity! < 1,
+  ).length;
   const cost =
-    parts.length === 0
+    withCost.length === 0 && missingPartCosts === 0
       ? 0
       : withCost.length
         ? roundMoney(
@@ -209,8 +217,11 @@ export function orderAmounts(order: OrderFinancialRow) {
     partsRevenue,
     servicesRevenue,
     cost,
-    result: revenue === null || cost === null ? null : roundMoney(revenue - cost),
-    missingCosts: parts.length - withCost.length,
+    paid: order.paid ?? 0,
+    fees: order.fees ?? 0,
+    netReceived: order.netReceived ?? order.paid ?? 0,
+    result: revenue === null || cost === null ? null : roundMoney(revenue - cost - (order.fees ?? 0)),
+    missingCosts: missingPartCosts,
   };
 }
 export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start = "", end = "") {
@@ -235,6 +246,9 @@ export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start
     const cost = costs.length
       ? roundMoney(costs.reduce((total, row) => total + row.cost!, 0))
       : null;
+    const paid = roundMoney(list.reduce((total, row) => total + row.paid, 0));
+    const fees = roundMoney(list.reduce((total, row) => total + row.fees, 0));
+    const netReceived = roundMoney(list.reduce((total, row) => total + row.netReceived, 0));
     return {
       revenue,
       grossRevenue: sum("grossRevenue"),
@@ -242,6 +256,9 @@ export function aggregateOrders(rows: OrderFinancialRow[], kind = "Todos", start
       partsRevenue: sum("partsRevenue"),
       servicesRevenue: sum("servicesRevenue"),
       cost,
+      paid,
+      fees,
+      netReceived,
       result:
         revenue === null || cost === null || costs.length !== priced.length
           ? null

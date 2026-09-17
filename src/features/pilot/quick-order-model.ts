@@ -16,6 +16,8 @@ export interface QuickOrderDraft {
   discountReason: string;
   receivedAmount: number;
   paymentMethod?: PaymentMethod;
+  internalCost?: number;
+  cardFee: number;
   warrantyDays: number;
 }
 
@@ -23,12 +25,17 @@ export const quickPaymentError = (
   receivedAmount: number,
   method: string | undefined,
   total: number,
+  fee = 0,
 ) => {
   if (!Number.isFinite(receivedAmount) || receivedAmount < 0)
     return "Informe um valor recebido válido.";
   if (receivedAmount > total) return "O valor recebido não pode exceder o total final.";
   if (receivedAmount > 0 && !["Dinheiro", "PIX", "Cartão"].includes(method ?? ""))
     return "Selecione a forma de pagamento.";
+  if (!Number.isFinite(fee) || fee < 0 || fee > receivedAmount)
+    return "Informe uma taxa válida, entre zero e o valor recebido.";
+  if ((method === "PIX" || method === "Dinheiro") && fee !== 0)
+    return "PIX e Dinheiro aceitam somente taxa zero.";
   return null;
 };
 

@@ -274,7 +274,7 @@ export function PartFinancialEditor({
   return (
     <div className="mt-3">
       <Button variant="outline" size="sm" onClick={() => setOpen(!open)} disabled={busy}>
-        {open ? "Fechar dados da peça" : "Editar dados da peça"}
+        {open ? "Fechar dados financeiros" : "Editar custo interno"}
       </Button>
       {open && (
         <div className="mt-3 rounded-md border bg-muted/30 p-4">
@@ -392,7 +392,7 @@ export function PartFinancialEditor({
                   }
                 }}
               >
-                {busy ? "Salvando…" : "Salvar dados da peça"}
+                {busy ? "Salvando…" : "Salvar dados financeiros"}
               </Button>
             </>
           )}
@@ -514,8 +514,7 @@ export function FinancialScreen() {
               Visão executiva das ordens de serviço concluídas no período selecionado.
             </p>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              Resultado bruto é faturamento menos custos conhecidos de peças; não representa lucro
-              líquido contábil ou fluxo de caixa.
+              Venda, recebimentos, custos diretos e taxas são apresentados separadamente.
             </p>
           </div>
         </div>
@@ -613,7 +612,7 @@ export function FinancialScreen() {
                       {money(summary.result)}
                     </p>
                     <p className="relative mt-3 max-w-sm text-xs leading-relaxed text-white/70">
-                      Faturamento menos custos conhecidos das peças.
+                      Venda final menos custos diretos conhecidos e taxas financeiras.
                     </p>
                   </div>
                   <dl className="grid min-w-0 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -658,6 +657,9 @@ export function FinancialScreen() {
                 <dl className="flex flex-wrap gap-x-8 gap-y-2 border-t border-slate-200 px-5 py-3 text-sm">
                   <div><dt className="text-muted-foreground">Faturamento bruto</dt><dd className="font-semibold tabular-nums">{money(summary.grossRevenue)}</dd></div>
                   <div><dt className="text-muted-foreground">Descontos concedidos</dt><dd className="font-semibold tabular-nums">{money(summary.discountAmount)}</dd></div>
+                  <div><dt className="text-muted-foreground">Pago pelo cliente</dt><dd className="font-semibold tabular-nums">{money(summary.paid)}</dd></div>
+                  <div><dt className="text-muted-foreground">Taxas financeiras</dt><dd className="font-semibold tabular-nums">{money(summary.fees)}</dd></div>
+                  <div><dt className="text-muted-foreground">Entrada líquida</dt><dd className="font-semibold tabular-nums">{money(summary.netReceived)}</dd></div>
                 </dl>
                 <dl className="grid border-t border-slate-200 bg-slate-50/60 sm:grid-cols-3 sm:divide-x sm:divide-slate-200">
                   {(
@@ -675,9 +677,9 @@ export function FinancialScreen() {
                         Package,
                       ],
                       [
-                        "Custo conhecido das peças",
+                        "Custos diretos conhecidos",
                         money(summary.cost),
-                        "Somente peças com custo cadastrado.",
+                        "Peças e serviços com custo interno cadastrado.",
                         ReceiptText,
                       ],
                     ] as Array<[string, string, string, LucideIcon]>
