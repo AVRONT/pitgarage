@@ -669,6 +669,7 @@ export type Database = {
           complaint: string
           completed_at: string | null
           created_at: string
+          creation_request_id: string | null
           customer_id: string
           deleted_at: string | null
           diagnosis: string
@@ -677,16 +678,20 @@ export type Database = {
           entry_mileage: number
           evidence: Json
           findings: string
+          flow_type: string
           id: string
           notes: string
           opened_at: string
           order_number: number
           payment: Json | null
+          quick_vehicle_brand: string | null
+          quick_vehicle_model: string | null
+          quick_vehicle_year: number | null
           status: string
           status_history: Json
           team: Json
           updated_at: string
-          vehicle_id: string
+          vehicle_id: string | null
           warranty_days: number | null
           workshop_snapshot: Json | null
         }
@@ -699,6 +704,7 @@ export type Database = {
           complaint: string
           completed_at?: string | null
           created_at?: string
+          creation_request_id?: string | null
           customer_id: string
           deleted_at?: string | null
           diagnosis?: string
@@ -707,16 +713,20 @@ export type Database = {
           entry_mileage: number
           evidence?: Json
           findings?: string
+          flow_type?: string
           id?: string
           notes?: string
           opened_at?: string
           order_number?: number
           payment?: Json | null
+          quick_vehicle_brand?: string | null
+          quick_vehicle_model?: string | null
+          quick_vehicle_year?: number | null
           status: string
           status_history?: Json
           team?: Json
           updated_at?: string
-          vehicle_id: string
+          vehicle_id?: string | null
           warranty_days?: number | null
           workshop_snapshot?: Json | null
         }
@@ -729,6 +739,7 @@ export type Database = {
           complaint?: string
           completed_at?: string | null
           created_at?: string
+          creation_request_id?: string | null
           customer_id?: string
           deleted_at?: string | null
           diagnosis?: string
@@ -737,16 +748,20 @@ export type Database = {
           entry_mileage?: number
           evidence?: Json
           findings?: string
+          flow_type?: string
           id?: string
           notes?: string
           opened_at?: string
           order_number?: number
           payment?: Json | null
+          quick_vehicle_brand?: string | null
+          quick_vehicle_model?: string | null
+          quick_vehicle_year?: number | null
           status?: string
           status_history?: Json
           team?: Json
           updated_at?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
           warranty_days?: number | null
           workshop_snapshot?: Json | null
         }
@@ -980,6 +995,25 @@ export type Database = {
         }
         Returns: Json
       }
+      create_quick_service_order: {
+        Args: {
+          discount_amount?: number
+          discount_reason?: string
+          existing_customer_id: string
+          existing_vehicle_id: string
+          new_customer: Json
+          payment_method?: string
+          received_amount?: number
+          request_id: string
+          service_amount: number
+          service_name: string
+          vehicle_brand: string
+          vehicle_model: string
+          vehicle_year: number
+          workshop_snapshot?: Json
+        }
+        Returns: Json
+      }
       create_quote: {
         Args: {
           contact_email?: string
@@ -1023,6 +1057,7 @@ export type Database = {
           complaint: string
           completed_at: string | null
           created_at: string
+          creation_request_id: string | null
           customer_id: string
           deleted_at: string | null
           diagnosis: string
@@ -1031,16 +1066,20 @@ export type Database = {
           entry_mileage: number
           evidence: Json
           findings: string
+          flow_type: string
           id: string
           notes: string
           opened_at: string
           order_number: number
           payment: Json | null
+          quick_vehicle_brand: string | null
+          quick_vehicle_model: string | null
+          quick_vehicle_year: number | null
           status: string
           status_history: Json
           team: Json
           updated_at: string
-          vehicle_id: string
+          vehicle_id: string | null
           warranty_days: number | null
           workshop_snapshot: Json | null
         }
