@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
+import type { QuickOrderDraft } from "./quick-order-model";
 import { financialRpc } from "./financial-api";
 import { roundMoney, validatePart, canRemoveBudgetItem, type BudgetMutation } from "./financial-model";
 
@@ -22,6 +23,7 @@ export interface OperationalRepository {
   reloadOrder(order: ServiceOrder): Promise<ServiceOrder>;
   load(): Promise<OperationalData>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
+  createQuickOrder(draft: QuickOrderDraft, workshopSnapshot?: ServiceOrder["workshopSnapshot"]): Promise<OperationalData>;
   saveOrder(order: ServiceOrder): Promise<void>;
   deleteOrder(order: ServiceOrder): Promise<void>;
   cancelOrder(order: ServiceOrder, reason: string): Promise<ServiceOrder>;
@@ -90,7 +92,12 @@ function mapOrder(row: {
   id: string;
   order_number: number;
   customer_id: string;
-  vehicle_id: string;
+  vehicle_id: string | null;
+  flow_type?: string;
+  quick_vehicle_brand?: string | null;
+  quick_vehicle_model?: string | null;
+  quick_vehicle_year?: number | null;
+  creation_request_id?: string | null;
   status: string;
   opened_at: string;
   completed_at: string | null;
@@ -119,7 +126,12 @@ function mapOrder(row: {
     id: `OS-${row.order_number}`,
     databaseId: row.id,
     customerId: row.customer_id,
-    vehicleId: row.vehicle_id,
+    ...(row.vehicle_id ? { vehicleId: row.vehicle_id } : {}),
+    flowType: row.flow_type === "quick" ? "quick" : "standard",
+    ...(row.quick_vehicle_brand ? { quickVehicleBrand: row.quick_vehicle_brand } : {}),
+    ...(row.quick_vehicle_model ? { quickVehicleModel: row.quick_vehicle_model } : {}),
+    ...(row.quick_vehicle_year == null ? {} : { quickVehicleYear: row.quick_vehicle_year }),
+    ...(row.creation_request_id ? { creationRequestId: row.creation_request_id } : {}),
     status: row.status as ServiceOrder["status"],
     openedAt: row.opened_at,
     ...(row.completed_at ? { completedAt: row.completed_at } : {}),
@@ -241,6 +253,18 @@ class CloudOperationalRepository implements OperationalRepository {
       order_data: asJson({
         entryMileage: bundle.order.entryMileage,
         complaint: bundle.order.complaint,
+        ...(bundle.order.creationRequestId ? {
+          creationRequestId: bundle.order.creationRequestId,
+          quickVehicleBrand: bundle.order.quickVehicleBrand,
+          quickVehicleModel: bundle.order.quickVehicleModel,
+          quickVehicleYear: bundle.order.quickVehicleYear,
+          seedService: bundle.order.budget[0]?.name,
+          seedAmount: bundle.order.budget[0]?.price,
+          discountAmount: bundle.order.discountAmount ?? 0,
+          discountReason: bundle.order.discountReason ?? "",
+          receivedAmount: bundle.order.payment?.amount ?? 0,
+          paymentMethod: bundle.order.payment?.method,
+        } : {}),
       }),
     });
     if (error) throw error;
@@ -260,6 +284,29 @@ class CloudOperationalRepository implements OperationalRepository {
         `OS-${created.order_number} foi criada, mas a lista não pôde ser atualizada. Recarregue antes de criar outra OS.`,
       );
     }
+  }
+
+  async createQuickOrder(draft: QuickOrderDraft, workshopSnapshot?: ServiceOrder["workshopSnapshot"]) {
+    const { data: created, error } = await (supabase.rpc("create_quick_service_order" as never, {
+      request_id: draft.requestId,
+      existing_customer_id: draft.customerId ?? null,
+      new_customer: draft.newCustomer ? asJson(draft.newCustomer) : null,
+      existing_vehicle_id: draft.vehicleId ?? null,
+      vehicle_brand: draft.vehicleBrand,
+      vehicle_model: draft.vehicleModel,
+      vehicle_year: draft.vehicleYear,
+      service_name: draft.service,
+      service_amount: draft.amount,
+      discount_amount: draft.discountAmount,
+      discount_reason: draft.discountReason,
+      received_amount: draft.receivedAmount,
+      payment_method: draft.receivedAmount > 0 ? draft.paymentMethod : null,
+      workshop_snapshot: workshopSnapshot ? asJson(workshopSnapshot) : null,
+    } as never) as unknown as Promise<{ data: Parameters<typeof mapOrder>[0] | null; error: { message: string } | null }>);
+    if (error || !created) throw new Error(error?.message ?? "Não foi possível finalizar o atendimento rápido.");
+    const data = await this.load();
+    this.orderVersions.set(created.id, created.updated_at);
+    return { ...data, orders: [mapOrder(created), ...data.orders.filter((order) => order.databaseId !== created.id)] };
   }
 
   async saveOrder(order: ServiceOrder) {
@@ -517,6 +564,45 @@ class LocalOperationalRepository implements OperationalRepository {
       vehicles: bundle.vehicle ? [...data.vehicles, vehicle] : data.vehicles,
       orders: [order, ...data.orders],
     };
+    this.write(next);
+    return next;
+  }
+
+  async createQuickOrder(draft: QuickOrderDraft, workshopSnapshot?: ServiceOrder["workshopSnapshot"]) {
+    const data = this.read();
+    const existing = data.orders.find((order) => order.creationRequestId === draft.requestId);
+    if (existing) return data;
+    const customer = draft.newCustomer
+      ? { id: crypto.randomUUID(), name: draft.newCustomer.name, phone: draft.newCustomer.phone,
+          email: "", ...(draft.newCustomer.cpf ? { cpf: draft.newCustomer.cpf } : {}), since: String(new Date().getFullYear()) }
+      : data.customers.find((item) => item.id === draft.customerId);
+    if (!customer) throw new Error("Cliente não encontrado.");
+    const vehicle = draft.vehicleId ? data.vehicles.find((item) => item.id === draft.vehicleId && item.customerId === customer.id) : undefined;
+    if (draft.vehicleId && !vehicle) throw new Error("O veículo não pertence ao cliente selecionado.");
+    const now = new Date().toISOString();
+    const total = draft.amount - draft.discountAmount;
+    const payment = draft.receivedAmount > 0 && draft.paymentMethod ? {
+      amount: draft.receivedAmount, method: draft.paymentMethod,
+      status: draft.receivedAmount >= total ? "Pago" as const : "Parcial" as const, date: now,
+      receipts: [{ id: draft.requestId, amount: draft.receivedAmount, method: draft.paymentMethod,
+        date: now, note: "", recordedBy: "local", actorName: "Usuário interno" }],
+    } : undefined;
+    const order: ServiceOrder = {
+      id: `OS-DEV-${Date.now()}`, databaseId: crypto.randomUUID(), customerId: customer.id,
+      ...(vehicle ? { vehicleId: vehicle.id } : {}), flowType: "quick",
+      quickVehicleBrand: draft.vehicleBrand, quickVehicleModel: draft.vehicleModel,
+      quickVehicleYear: draft.vehicleYear, creationRequestId: draft.requestId,
+      status: "Entregue", openedAt: now.slice(0,10), completedAt: now.slice(0,10), entryMileage: 0,
+      complaint: draft.service, diagnosis: "", findings: "", notes: "", team: [], evidence: [],
+      budget: [{ id: `quick-${draft.requestId}`, type: "Serviço", name: draft.service.trim(),
+        price: draft.amount, approval: "Aprovado", executed: true }],
+      discountAmount: draft.discountAmount, discountReason: draft.discountReason,
+      ...(payment ? { payment } : {}), ...(workshopSnapshot ? { workshopSnapshot } : {}), warrantyDays: draft.warrantyDays,
+      activities: [{ id: `a-${draft.requestId}`, type: "created", description: "OS Rápida criada", at: now }],
+      statusHistory: [{ id: `s-${draft.requestId}`, from: "Recebido", to: "Entregue", at: now }], updatedAt: now,
+    };
+    const next = { customers: draft.newCustomer ? [...data.customers, customer] : data.customers,
+      vehicles: data.vehicles, orders: [order, ...data.orders] };
     this.write(next);
     return next;
   }

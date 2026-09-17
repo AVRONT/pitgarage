@@ -1,5 +1,12 @@
 # Changelog
 
+## [OS Rápida / Atendimento rápido — local] - 2026-09-17
+
+- Nova entrada compacta permite finalizar uma OS em uma tela com cliente existente/rápido, veículo oficial ou snapshot, serviço, valor, desconto e recebimento.
+- Finalização idempotente cria a OS como `quick` e `Entregue`; pagamento zero dispensa método, pagamentos positivos aceitam Dinheiro, PIX ou Cartão e podem ser parciais.
+- “Continuar como OS completa” transfere o rascunho e exige veículo oficial antes de criar diretamente a OS `standard` em `Recebido`, sem quick intermediária.
+- Migration `20260917030000_quick_service_orders.sql` preparada somente localmente, incluindo Financeiro, contas a receber, backup e proteção backend contra reabertura/conversão de quick entregue. Nada aplicado remotamente.
+
 ## [Autores do histórico e preparação da limpeza da OS 14 — local] - 2026-09-17
 
 - Histórico do desconto e lista de recebimentos exibem nome legível, reutilizando o diretório interno existente para registros antigos; UUID continua preservado e ausência de perfil usa “Usuário interno”.

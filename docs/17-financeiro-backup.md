@@ -1,5 +1,13 @@
 # Financeiro de peças e snapshots — preparação local
 
+## OS Rápida — integração financeira local
+
+A OS Rápida continua em `service_orders` e representa o serviço como um item aprovado e executado no `budget`. Subtotal, desconto comercial, total final, recebimentos, saldo, contas a receber e relatório reutilizam as regras existentes. Sem veículo oficial, as projeções usam o snapshot Marca/Modelo/Ano por `left join`; histórico veicular continua restrito a vínculo real.
+
+`create_quick_service_order` cria e entrega atomicamente, com `creation_request_id` idempotente. Recebimento zero mantém a OS em aberto sem método/recibo; valor positivo exige Dinheiro, PIX ou Cartão e pode ser parcial. Garantia e autor legível são congelados pelo backend. O rascunho que continua como standard é criado diretamente em `Recebido`, após vínculo/cadastro oficial do veículo, sem quick intermediária nem reabertura de OS entregue.
+
+**Migration local:** `20260917030000_quick_service_orders.sql`. Altera `vehicle_id` para opcional somente sob constraint explícita de identidade quick, adiciona tipo/snapshot/idempotência, RPC, proteção de quick entregue, projeções financeiras e backup estruturado. Aplicar junto com o frontend apenas após autorização; nada foi aplicado remotamente.
+
 ## Desconto comercial final da OS — local
 
 - `service_orders.discount_amount` guarda reais/centavos, com default zero; `discount_reason` guarda observação opcional. Não há percentual, cupom ou rateio nos itens. Preços aprovados, custos, markup e histórico de aprovação permanecem iguais.

@@ -117,7 +117,6 @@ const isOrder = (value: unknown): value is ServiceOrder =>
   hasStrings(value, [
     "id",
     "customerId",
-    "vehicleId",
     "status",
     "openedAt",
     "complaint",
@@ -125,6 +124,9 @@ const isOrder = (value: unknown): value is ServiceOrder =>
     "findings",
     "notes",
   ]) &&
+  (typeof value["vehicleId"] === "string" ||
+    (value["flowType"] === "quick" && hasStrings(value, ["quickVehicleBrand", "quickVehicleModel"]) &&
+      typeof value["quickVehicleYear"] === "number")) &&
   orderStatuses.includes(value["status"] as string) &&
   typeof value["entryMileage"] === "number" &&
   Number.isFinite(value["entryMileage"]) &&
@@ -202,7 +204,8 @@ export function parseBackup(source: string): PilotBackup {
     throw new Error("O backup contém identificadores duplicados.");
   if (
     vehicles.some((vehicle) => !customerIds.has(vehicle.customerId)) ||
-    orders.some((order) => !customerIds.has(order.customerId) || !vehicleIds.has(order.vehicleId))
+    orders.some((order) => !customerIds.has(order.customerId) ||
+      (order.vehicleId !== undefined && !vehicleIds.has(order.vehicleId)))
   )
     throw new Error("O backup contém vínculos inválidos entre clientes, veículos e ordens.");
   if (!isWorkshop(parsed["workshop"]))

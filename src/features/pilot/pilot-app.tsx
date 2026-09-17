@@ -148,6 +148,8 @@ import { QuotesScreen } from "./quotes-screen";
 import { ExportOperationalBackup } from "./pilot-backup-settings";
 import { createBackup } from "./pilot-storage";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
+import { QuickOrderDialog } from "./quick-order-dialog";
+import { quickOrderBudgetItem, orderVehicleLabel, type QuickOrderDraft } from "./quick-order-model";
 import {
   isBasicCpfValid,
   isBasicEmailValid,
@@ -573,6 +575,8 @@ export function PilotApp() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newVehicleOpen, setNewVehicleOpen] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [quickOrderOpen, setQuickOrderOpen] = useState(false);
+  const [initialQuickDraft, setInitialQuickDraft] = useState<QuickOrderDraft>();
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
@@ -695,7 +699,7 @@ export function PilotApp() {
     (order) =>
       !isOrderCancelled(order) &&
       activeCustomers.some((customer) => customer.id === order.customerId) &&
-      activeVehicles.some((vehicle) => vehicle.id === order.vehicleId),
+      (order.flowType === "quick" || activeVehicles.some((vehicle) => vehicle.id === order.vehicleId)),
   );
 
   // Toda falha de gravação precisa de um caminho explícito de volta ao estado do banco:
@@ -1241,6 +1245,7 @@ export function PilotApp() {
                 customers={customers}
                 onOpen={(id) => setQuickView({ type: "order", id })}
                 onNew={() => setNewOrderOpen(true)}
+                onNewQuick={() => setQuickOrderOpen(true)}
               />
             )}
             {screen === "customer" && (
@@ -1310,7 +1315,7 @@ export function PilotApp() {
                   order={selectedOrder}
                   initialTab={selectedOrderTab}
                   workshop={workshop}
-                  vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)!}
+                  vehicle={vehicles.find((item) => item.id === selectedOrder.vehicleId)}
                   customer={customers.find((item) => item.id === selectedOrder.customerId)!}
                   onBack={() => navigate("orders")}
                   onVehicle={(id) => navigate("vehicle", id)}
@@ -1370,12 +1375,13 @@ export function PilotApp() {
       />
       <NewOrderDialog
         open={newOrderOpen}
-        onOpenChange={setNewOrderOpen}
+        onOpenChange={(open) => { setNewOrderOpen(open); if (!open) setInitialQuickDraft(undefined); }}
         customers={activeCustomers}
         vehicles={activeVehicles}
         allCustomers={customers}
         allVehicles={vehicles}
         orders={orders}
+        initialQuickDraft={initialQuickDraft}
         onCreate={async (bundle) => {
           await writeQueue.current;
           if (writeFailed.current) throw new Error("Recarregue os dados antes de criar outra OS.");
@@ -1385,9 +1391,25 @@ export function PilotApp() {
             setOrders(data.orders.map(migrateOrder));
             const createdOrder = data.orders[0];
             setNewOrderOpen(false);
+            setInitialQuickDraft(undefined);
             setNotice("Ordem de serviço criada");
             if (createdOrder) navigate("order", createdOrder.id);
           });
+        }}
+      />
+      <QuickOrderDialog
+        open={quickOrderOpen}
+        onOpenChange={setQuickOrderOpen}
+        customers={activeCustomers}
+        vehicles={activeVehicles}
+        onFinalize={async (draft) => {
+          const data = await repository.createQuickOrder(draft, workshop);
+          setCustomers(data.customers); setVehicles(data.vehicles); setOrders(data.orders.map(migrateOrder));
+          const created = data.orders[0]; setQuickOrderOpen(false); setNotice("Atendimento rápido finalizado");
+          if (created) navigate("order", created.id);
+        }}
+        onContinueAsStandard={(draft) => {
+          setInitialQuickDraft(draft); setQuickOrderOpen(false); setNewOrderOpen(true);
         }}
       />
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
@@ -2011,9 +2033,7 @@ function PilotQuickView({
                     <StatusBadge status={order.status} />
                   </div>
                   <SidePanelDescription>
-                    {relatedVehicle
-                      ? `${relatedVehicle.brand} ${relatedVehicle.model} · ${relatedVehicle.plate}`
-                      : "Veículo não identificado"}
+                    {orderVehicleLabel(order, relatedVehicle) || "Veículo não identificado"}
                   </SidePanelDescription>
                 </SidePanelHeader>
                 <SidePanelBody>
@@ -2310,12 +2330,14 @@ function OrdersScreen({
   customers,
   onOpen,
   onNew,
+  onNewQuick,
 }: {
   orders: ServiceOrder[];
   vehicles: Vehicle[];
   customers: Customer[];
   onOpen: (id: string) => void;
   onNew: () => void;
+  onNewQuick: () => void;
 }) {
   const [filter, setFilter] = useState("Todas");
   const visible = filter === "Todas" ? orders : orders.filter((o) => o.status === filter);
@@ -2327,9 +2349,9 @@ function OrdersScreen({
         text="Acompanhe diagnóstico, aprovação, execução e entrega sem perder o histórico."
         icon={ClipboardList}
         action={
-          <Button onClick={onNew} className="create-order-action gap-2">
-            <Plus className="h-4 w-4" /> Criar ordem de serviço
-          </Button>
+          <div className="flex flex-wrap gap-2"><Button onClick={onNew} className="create-order-action gap-2">
+            <Plus className="h-4 w-4" /> Nova OS
+          </Button><Button onClick={onNewQuick} variant="outline" className="gap-2"><Sparkles className="h-4 w-4" /> OS Rápida</Button></div>
         }
       />
       <div className="directory-status-filter mb-5 flex gap-1 overflow-x-auto p-1">
@@ -2369,7 +2391,7 @@ function OrdersScreen({
             />
           )}
           {visible.map((order) => {
-            const vehicle = vehicles.find((v) => v.id === order.vehicleId)!;
+            const vehicle = vehicles.find((v) => v.id === order.vehicleId);
             const customer = customers.find((c) => c.id === order.customerId)!;
             const total = order.budget.reduce((sum, item) => sum + item.price, 0);
             return (
@@ -2381,13 +2403,13 @@ function OrdersScreen({
                 <strong className="hidden text-sm md:block">{order.id}</strong>
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="directory-order-icon grid h-10 w-10 shrink-0 place-items-center rounded-lg">
-                    <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
+                    {vehicle ? <VehicleIcon kind={vehicle.kind} className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
                   </span>
                   <span className="min-w-0">
                     <strong className="block truncate text-sm">
-                      {vehicle.brand} {vehicle.model}
+                      {orderVehicleLabel(order, vehicle)}
                     </strong>
-                    <span className="text-xs text-muted-foreground">{vehicle.plate}</span>
+                    <span className="text-xs text-muted-foreground">{order.flowType === "quick" ? "Atendimento rápido" : vehicle?.plate}</span>
                   </span>
                 </div>
                 <span className="hidden truncate text-sm md:block">{customer.name}</span>
@@ -2860,7 +2882,7 @@ function OrderDetail({
   onSaveEvidence: SaveEvidence;
   onSavePart: SavePart;
   workshop: Workshop;
-  vehicle: Vehicle;
+  vehicle?: Vehicle | undefined;
   customer: Customer;
   onBack: () => void;
   onVehicle: (id: string) => void;
@@ -2885,11 +2907,17 @@ function OrderDetail({
   const [cancelReason, setCancelReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const cancelled = isOrderCancelled(order);
+  const quickFinalized = order.flowType === "quick" && order.status === "Entregue";
   const deleteBlockers = orderDeleteBlockers(order);
   const cancelBlocker = orderCancelBlocker(order);
   const workflow = evaluateOrderWorkflow(order);
+  const displayVehicle: Vehicle = vehicle ?? {
+    id: "", customerId: order.customerId, kind: "Carro",
+    brand: order.quickVehicleBrand ?? "Veículo", model: order.quickVehicleModel ?? "não informado",
+    year: order.quickVehicleYear ?? 0, plate: "", mileage: 0, color: "Não informada",
+  };
 
-  const availableReversal = getWorkflowReversal(order);
+  const availableReversal = quickFinalized ? null : getWorkflowReversal(order);
   const approved = order.budget
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
@@ -2961,8 +2989,8 @@ function OrderDetail({
       <PageTitle
         back={onBack}
         eyebrow={`Ordem de serviço · ${order.id}`}
-        title={`${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`}
-        text={`${customer.name} · entrada com ${order.entryMileage.toLocaleString("pt-BR")} km`}
+        title={orderVehicleLabel(order, vehicle)}
+        text={`${customer.name}${order.flowType === "quick" ? " · Atendimento rápido" : ` · entrada com ${order.entryMileage.toLocaleString("pt-BR")} km`}`}
         action={
           <div className="flex min-w-52 flex-col items-end gap-2">
             <span className="text-xs font-semibold uppercase text-muted-foreground">
@@ -2976,7 +3004,7 @@ function OrderDetail({
                 Resumo final
               </Button>
             )}
-            {!cancelled && (
+            {!cancelled && !quickFinalized && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -3018,7 +3046,7 @@ function OrderDetail({
         <FinalOrderSummary
           order={order}
           customer={customer}
-          vehicle={vehicle}
+          vehicle={displayVehicle}
           workshop={order.workshopSnapshot ?? workshop}
           open={
             summaryOpen &&
@@ -3027,7 +3055,7 @@ function OrderDetail({
           onOpenChange={setSummaryOpen}
         />
         {customer.deletedAt && <Badge variant="outline">Cliente excluído</Badge>}
-        {vehicle.deletedAt && <Badge variant="outline">Veículo excluído</Badge>}
+        {vehicle?.deletedAt && <Badge variant="outline">Veículo excluído</Badge>}
         <Badge variant="outline" className="bg-white">
           Responsáveis: {order.team.join(", ") || "A definir"}
         </Badge>
@@ -3081,6 +3109,7 @@ function OrderDetail({
       <OrderProgress
         order={order}
         onStep={(index) => {
+          if (quickFinalized) return;
           if (index === workflow.currentIndex) {
             requestAction(workflow.nextAction);
             return;
@@ -3136,7 +3165,7 @@ function OrderDetail({
           </p>
         </div>
       )}
-      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border-l-4 border-l-orange-500 bg-white p-4">
+      {!quickFinalized && <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border-l-4 border-l-orange-500 bg-white p-4">
         <div className="mr-auto">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Próxima ação
@@ -3158,7 +3187,7 @@ function OrderDetail({
             <RotateCcw className="h-4 w-4" /> Voltar etapa
           </Button>
         )}
-      </div>
+      </div>}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-auto w-full justify-start overflow-x-auto bg-white px-1">
           <TabsTrigger value="overview" className="gap-2 py-2">
@@ -3210,7 +3239,7 @@ function OrderDetail({
             onSavePart={onSavePart}
             order={order}
             workshop={order.workshopSnapshot ?? workshop}
-            vehicle={vehicle}
+            vehicle={displayVehicle}
             customer={customer}
             updateItem={updateItem}
             onUpdate={onUpdate}
@@ -3477,7 +3506,7 @@ function OrderOverview({
   activityAuthors,
 }: {
   order: ServiceOrder;
-  vehicle: Vehicle;
+  vehicle?: Vehicle | undefined;
   customer: Customer;
   onVehicle: (id: string) => void;
   approved: number;
@@ -3532,12 +3561,12 @@ function OrderOverview({
             <div>
               <span className="text-xs text-muted-foreground">Veículo</span>
               <p className="font-semibold">
-                {vehicle.brand} {vehicle.model} · {vehicle.plate}
+                {orderVehicleLabel(order, vehicle)}
               </p>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Quilometragem</span>
-              <p className="font-semibold">{order.entryMileage.toLocaleString("pt-BR")} km</p>
+              <p className="font-semibold">{order.flowType === "quick" ? "Não exigida" : `${order.entryMileage.toLocaleString("pt-BR")} km`}</p>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Responsável</span>
@@ -3682,24 +3711,25 @@ function OrderOverview({
       </div>
       <aside className="space-y-4">
         <button
-          onClick={() => onVehicle(vehicle.id)}
-          className="w-full rounded-2xl bg-slate-900 p-5 text-left text-white"
+          onClick={() => vehicle && onVehicle(vehicle.id)}
+          disabled={!vehicle}
+          className="w-full rounded-2xl bg-slate-900 p-5 text-left text-white disabled:cursor-default"
         >
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-orange-500">
-              <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
+              {vehicle ? <VehicleIcon kind={vehicle.kind} className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
             </span>
             <div>
               <p className="text-xs text-slate-400">Veículo</p>
               <strong>
-                {vehicle.brand} {vehicle.model}
+                {orderVehicleLabel(order, vehicle)}
               </strong>
             </div>
           </div>
           <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-slate-400">Placa</dt>
-              <dd className="font-mono">{vehicle.plate}</dd>
+              <dd className="font-mono">{vehicle?.plate || "Sem cadastro oficial"}</dd>
             </div>
             <div>
               <dt className="text-slate-400">Proprietário</dt>
@@ -5228,6 +5258,7 @@ function NewOrderDialog({
   allCustomers,
   allVehicles,
   orders,
+  initialQuickDraft,
   onCreate,
 }: {
   open: boolean;
@@ -5237,6 +5268,7 @@ function NewOrderDialog({
   allCustomers: Customer[];
   allVehicles: Vehicle[];
   orders: ServiceOrder[];
+  initialQuickDraft?: QuickOrderDraft | undefined;
   onCreate: (result: {
     customer?: Customer | undefined;
     vehicle?: Vehicle | undefined;
@@ -5268,6 +5300,21 @@ function NewOrderDialog({
   const [complaint, setComplaint] = useState("");
   const [error, setError] = useState("");
   const [mileageWarningAccepted, setMileageWarningAccepted] = useState(false);
+
+  useEffect(() => {
+    if (!open || !initialQuickDraft) return;
+    if (initialQuickDraft.newCustomer) {
+      const customer: Customer = { id: `quick-c-${initialQuickDraft.requestId}`,
+        name: initialQuickDraft.newCustomer.name, phone: initialQuickDraft.newCustomer.phone,
+        email: "", ...(initialQuickDraft.newCustomer.cpf ? { cpf: initialQuickDraft.newCustomer.cpf } : {}),
+        since: String(new Date().getFullYear()) };
+      setDraftCustomer(customer); setCustomerId(customer.id);
+    } else { setDraftCustomer(undefined); setCustomerId(initialQuickDraft.customerId ?? ""); }
+    setBrand(initialQuickDraft.vehicleBrand); setModel(initialQuickDraft.vehicleModel);
+    setYear(String(initialQuickDraft.vehicleYear)); setComplaint(initialQuickDraft.service);
+    if (initialQuickDraft.vehicleId) { setVehicleId(initialQuickDraft.vehicleId); setNewVehicle(false); setStep(2); }
+    else { setVehicleId(""); setNewVehicle(true); setKind("Carro"); setPlate(""); setVehicleMileage(""); setColor(""); setStep(1); }
+  }, [initialQuickDraft, open]);
 
   const selectedCustomer = draftCustomer ?? customers.find((item) => item.id === customerId);
   const customerVehicles = selectedCustomer
@@ -5476,8 +5523,23 @@ function NewOrderDialog({
           findings: "",
           notes: "",
           team: [],
-          budget: [],
+          budget: initialQuickDraft ? [quickOrderBudgetItem(initialQuickDraft.service, initialQuickDraft.amount, initialQuickDraft.requestId)] : [],
           evidence: [],
+          ...(initialQuickDraft ? {
+            discountAmount: initialQuickDraft.discountAmount,
+            discountReason: initialQuickDraft.discountReason,
+            quickVehicleBrand: initialQuickDraft.vehicleBrand,
+            quickVehicleModel: initialQuickDraft.vehicleModel,
+            quickVehicleYear: initialQuickDraft.vehicleYear,
+            creationRequestId: initialQuickDraft.requestId,
+            ...(initialQuickDraft.receivedAmount > 0 && initialQuickDraft.paymentMethod ? { payment: {
+              amount: initialQuickDraft.receivedAmount, method: initialQuickDraft.paymentMethod,
+              status: initialQuickDraft.receivedAmount >= initialQuickDraft.amount - initialQuickDraft.discountAmount ? "Pago" as const : "Parcial" as const,
+              date: new Date().toISOString(), receipts: [{ id: initialQuickDraft.requestId,
+                amount: initialQuickDraft.receivedAmount, method: initialQuickDraft.paymentMethod,
+                date: new Date().toISOString(), note: "", recordedBy: "" }],
+            } } : {}),
+          } : {}),
         },
       });
       reset();

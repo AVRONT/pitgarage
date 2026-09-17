@@ -677,16 +677,21 @@ export type Database = {
           entry_mileage: number
           evidence: Json
           findings: string
+          flow_type: string
           id: string
           notes: string
           opened_at: string
           order_number: number
           payment: Json | null
+          creation_request_id: string | null
+          quick_vehicle_brand: string | null
+          quick_vehicle_model: string | null
+          quick_vehicle_year: number | null
           status: string
           status_history: Json
           team: Json
           updated_at: string
-          vehicle_id: string
+          vehicle_id: string | null
           warranty_days: number | null
           workshop_snapshot: Json | null
         }
@@ -707,16 +712,21 @@ export type Database = {
           entry_mileage: number
           evidence?: Json
           findings?: string
+          flow_type?: string
           id?: string
           notes?: string
           opened_at?: string
           order_number?: number
           payment?: Json | null
+          creation_request_id?: string | null
+          quick_vehicle_brand?: string | null
+          quick_vehicle_model?: string | null
+          quick_vehicle_year?: number | null
           status: string
           status_history?: Json
           team?: Json
           updated_at?: string
-          vehicle_id: string
+          vehicle_id?: string | null
           warranty_days?: number | null
           workshop_snapshot?: Json | null
         }
@@ -737,16 +747,21 @@ export type Database = {
           entry_mileage?: number
           evidence?: Json
           findings?: string
+          flow_type?: string
           id?: string
           notes?: string
           opened_at?: string
           order_number?: number
           payment?: Json | null
+          creation_request_id?: string | null
+          quick_vehicle_brand?: string | null
+          quick_vehicle_model?: string | null
+          quick_vehicle_year?: number | null
           status?: string
           status_history?: Json
           team?: Json
           updated_at?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
           warranty_days?: number | null
           workshop_snapshot?: Json | null
         }

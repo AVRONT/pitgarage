@@ -96,7 +96,12 @@ export interface ServiceOrder {
   id: string;
   databaseId?: string | undefined;
   customerId: string;
-  vehicleId: string;
+  vehicleId?: string | undefined;
+  flowType?: "standard" | "quick" | undefined;
+  quickVehicleBrand?: string | undefined;
+  quickVehicleModel?: string | undefined;
+  quickVehicleYear?: number | undefined;
+  creationRequestId?: string | undefined;
   status: OrderStatus;
   openedAt: string;
   completedAt?: string | undefined;

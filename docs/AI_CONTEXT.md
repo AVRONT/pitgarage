@@ -26,6 +26,12 @@ Se alguma resposta for sim, a documentação deve ser atualizada antes do encerr
 
 # Estado atual
 
+## OS Rápida / Atendimento rápido — preparação local de 17/09/2026
+
+Fluxo compacto em uma tela para selecionar ou cadastrar cliente com nome/telefone/CPF, usar veículo oficial ou snapshot Marca/Modelo/Ano e registrar serviço, valor, desconto e recebimento. A finalização cria a mesma `service_order` diretamente como `quick`/`Entregue`, com numeração normal, item de serviço aprovado/executado, garantia vigente, histórico, Financeiro e idempotência. Valor recebido zero não exige método; valor positivo exige Dinheiro, PIX ou Cartão e aceita parcial.
+
+“Continuar como OS completa” transfere o rascunho ao fluxo standard e exige veículo oficial antes da criação; não persiste quick intermediária. Preserva cliente, snapshot, serviço, valor, desconto, motivo e recebimento. Quick entregue não pode ser reaberta ou convertida, inclusive por atualização backend protegida. Migration `20260917030000_quick_service_orders.sql` somente local; nenhuma aplicação remota, Lovable, commit ou push. Validação real de RLS/RPC, F5 e UX no cloud permanece pendente.
+
 ## Autor legível no histórico e OS 14 — preparação local de 17/09/2026
 
 Eventos de desconto passam a exibir `actorName` quando disponível; o UUID `recordedBy` permanece no registro. Legados usam o diretório restrito `list_assignable_members`, já existente, com fallback “Usuário interno” para perfil ausente/inativo, nome inválido ou falha de consulta. O mesmo resolver atende a lista de recebimentos. A nova migration `20260917020000_discount_actor_name.sql` prepara apenas o snapshot do nome do perfil autenticado no backend para aplicar/editar/remover descontos, sem receber nome do frontend ou regravar eventos antigos. Depende da migration de desconto; nenhuma aplicação remota nesta rodada.
