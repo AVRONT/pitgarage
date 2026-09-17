@@ -1059,27 +1059,50 @@ export type Database = {
         }
         Returns: Json
       }
-      create_quick_service_order: {
-        Args: {
-          card_fee?: number
-          discount_amount: number
-          discount_reason: string
-          existing_customer_id: string
-          existing_vehicle_id: string
-          internal_cost?: number
-          new_customer: Json
-          payment_method: string
-          received_amount: number
-          request_id: string
-          service_amount: number
-          service_name: string
-          vehicle_brand: string
-          vehicle_model: string
-          vehicle_year: number
-          workshop_snapshot: Json
-        }
-        Returns: Json
-      }
+      create_quick_service_order:
+        | {
+            Args: {
+              card_fee?: number
+              discount_amount: number
+              discount_reason: string
+              existing_customer_id: string
+              existing_vehicle_id: string
+              internal_cost?: number
+              new_customer: Json
+              payment_method: string
+              received_amount: number
+              request_id: string
+              service_amount: number
+              service_name: string
+              vehicle_brand: string
+              vehicle_model: string
+              vehicle_year: number
+              workshop_snapshot: Json
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              additional_items: Json
+              card_fee: number
+              discount_amount: number
+              discount_reason: string
+              existing_customer_id: string
+              existing_vehicle_id: string
+              internal_cost: number
+              new_customer: Json
+              payment_method: string
+              received_amount: number
+              request_id: string
+              service_amount: number
+              service_name: string
+              vehicle_brand: string
+              vehicle_model: string
+              vehicle_year: number
+              workshop_snapshot: Json
+            }
+            Returns: Json
+          }
       create_quick_service_order_before_financial_result: {
         Args: {
           discount_amount?: number
