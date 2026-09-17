@@ -35,6 +35,23 @@ test("quick service becomes one approved and executed service budget item", asyn
     approval: "Aprovado", executed: true });
 });
 
+test("quick parts reuse budget items and contribute quantity times unit price to subtotal", async () => {
+  const quick = await load("quick-order-model.ts");
+  const parts = [
+    { id: "part-a", name: "Filtro", quantity: 2, unitPrice: 35, unitCost: 18 },
+    { id: "part-b", name: "Arruela", quantity: 3, unitPrice: 4 },
+  ];
+  assert.equal(quick.quickOrderSubtotal(180, parts), 262);
+  assert.deepEqual(quick.quickOrderBudgetItems("Troca de óleo", 180, "req-1", parts), [
+    { id: "quick-req-1", type: "Serviço", name: "Troca de óleo", price: 180,
+      approval: "Aprovado", executed: true },
+    { id: "part-a", type: "Peça", name: "Filtro", quantity: 2, unitPrice: 35, price: 70,
+      approval: "Aprovado", executed: true },
+    { id: "part-b", type: "Peça", name: "Arruela", quantity: 3, unitPrice: 4, price: 12,
+      approval: "Aprovado", executed: true },
+  ]);
+});
+
 test("vehicle label uses official vehicle first and quick snapshot without inventing plate", async () => {
   const quick = await load("quick-order-model.ts");
   const order = { quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023 };

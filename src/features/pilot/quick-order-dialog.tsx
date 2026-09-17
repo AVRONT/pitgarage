@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { warrantyDays, type Customer, type Vehicle } from "./pilot-data";
-import { quickPaymentError, type PaymentMethod, type QuickOrderDraft } from "./quick-order-model";
+import { quickOrderSubtotal, quickPaymentError, type PaymentMethod, type QuickOrderDraft } from "./quick-order-model";
 
 const money = (value: string) => Number(value.replace(",", "."));
 const numericSafe = (value: string) => Number.isFinite(money(value)) ? money(value) : 0;
+type QuickPartForm = { id: string; name: string; quantity: string; unitPrice: string; unitCost: string };
 
 export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, financialAllowed, onFinalize, onContinueAsStandard }: {
   open: boolean;
@@ -37,11 +38,15 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   const [received, setReceived] = useState("0");
   const [internalCost, setInternalCost] = useState("");
   const [cardFee, setCardFee] = useState("0");
+  const [parts, setParts] = useState<QuickPartForm[]>([]);
+  const [partsOpen, setPartsOpen] = useState(false);
   const receivedEdited = useRef(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const total = Math.max(0, (money(amount) || 0) - (money(discount) || 0));
+  const partsSubtotal = parts.reduce((sum, part) => sum + numericSafe(part.quantity) * numericSafe(part.unitPrice), 0);
+  const subtotal = numericSafe(amount) + partsSubtotal;
+  const total = Math.max(0, subtotal - numericSafe(discount));
   useEffect(() => {
     if (!receivedEdited.current && method) setReceived(total.toFixed(2));
   }, [method, total]);
@@ -50,7 +55,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
     requestId.current = crypto.randomUUID();
     setNewCustomer(false); setCustomerId(""); setCustomerName(""); setCustomerPhone(""); setCustomerCpf("");
     setVehicleId(""); setBrand(""); setModel(""); setYear(""); setService(""); setAmount("");
-    setDiscount("0"); setDiscountReason(""); setMethod(""); setReceived("0"); setInternalCost(""); setCardFee("0"); setError("");
+    setDiscount("0"); setDiscountReason(""); setMethod(""); setReceived("0"); setInternalCost(""); setCardFee("0"); setParts([]); setPartsOpen(false); setError("");
     receivedEdited.current = false;
   };
   const close = () => { if (!creating.current) { reset(); onOpenChange(false); } };
@@ -63,6 +68,10 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
     const cleanPhone = customerPhone.replace(/\D/g, "");
     const numericYear = Number(year), numericAmount = money(amount), numericDiscount = money(discount), numericReceived = money(received);
     const numericCost = internalCost === "" ? undefined : money(internalCost), numericFee = money(cardFee);
+    const normalizedParts = parts.map((part) => ({
+      id: part.id, name: part.name.trim(), quantity: Number(part.quantity), unitPrice: money(part.unitPrice),
+      ...(financialAllowed && part.unitCost !== "" ? { unitCost: money(part.unitCost) } : {}),
+    }));
     if (newCustomer) {
       if (!customerName.trim() || cleanPhone.length < 10 || cleanPhone.length > 11) return setError("Informe nome e telefone válido do cliente."), null;
     } else if (!customerId) return setError("Selecione um cliente."), null;
@@ -70,9 +79,15 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
       return setError("Informe Marca, Modelo e Ano válidos."), null;
     if (!service.trim()) return setError("Informe o Serviço realizado."), null;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return setError("Informe o Valor do serviço."), null;
-    if (!Number.isFinite(numericDiscount) || numericDiscount < 0 || numericDiscount > numericAmount) return setError("Informe um desconto válido."), null;
+    for (const part of normalizedParts) {
+      if (!part.name || !Number.isInteger(part.quantity) || part.quantity < 1 || !Number.isFinite(part.unitPrice) || part.unitPrice < 0
+        || (part.unitCost !== undefined && (!Number.isFinite(part.unitCost) || part.unitCost < 0)))
+        return setError("Confira nome, quantidade, valor e custo das peças."), null;
+    }
+    const numericSubtotal = quickOrderSubtotal(numericAmount, normalizedParts);
+    if (!Number.isFinite(numericDiscount) || numericDiscount < 0 || numericDiscount > numericSubtotal) return setError("Informe um desconto válido."), null;
     if (numericCost !== undefined && (!Number.isFinite(numericCost) || numericCost < 0)) return setError("Informe um custo interno válido."), null;
-    const paymentIssue = quickPaymentError(numericReceived, method || undefined, numericAmount - numericDiscount, numericFee);
+    const paymentIssue = quickPaymentError(numericReceived, method || undefined, numericSubtotal - numericDiscount, numericFee);
     if (paymentIssue) return setError(paymentIssue), null;
     setError("");
     return {
@@ -82,6 +97,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
       service: service.trim(), amount: numericAmount, discountAmount: numericDiscount,
       discountReason: discountReason.trim(), receivedAmount: numericReceived,
       warrantyDays,
+      parts: normalizedParts,
       ...(numericCost === undefined ? {} : { internalCost: numericCost }), cardFee: numericFee,
       ...(numericReceived > 0 && method ? { paymentMethod: method } : {}),
     };
@@ -109,11 +125,24 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem]"><div><Label htmlFor="quick-brand">Marca</Label><Input id="quick-brand" value={brand} onChange={(e) => { setVehicleId(""); setBrand(e.target.value); }} /></div><div><Label htmlFor="quick-model">Modelo</Label><Input id="quick-model" value={model} onChange={(e) => { setVehicleId(""); setModel(e.target.value); }} /></div><div><Label htmlFor="quick-year">Ano</Label><Input id="quick-year" inputMode="numeric" value={year} onChange={(e) => { setVehicleId(""); setYear(e.target.value); }} /></div></div>
         <div><Label htmlFor="quick-service">Serviço realizado</Label><Input id="quick-service" value={service} onChange={(e) => setService(e.target.value)} placeholder="Troca de óleo e filtro" /></div>
         <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-amount">Valor do serviço</Label><Input id="quick-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="180,00" /></div><div><Label htmlFor="quick-discount">Desconto (opcional)</Label><Input id="quick-discount" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} /></div></div>
+        <section className="rounded-md border border-dashed p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><p className="text-sm font-medium">Peças / itens adicionais</p><p className="text-xs text-muted-foreground">Opcional — abra somente quando precisar.</p></div>
+            <Button type="button" size="sm" variant="outline" onClick={() => { setPartsOpen(true); setParts((current) => [...current, { id: `quick-part-${crypto.randomUUID()}`, name: "", quantity: "1", unitPrice: "", unitCost: "" }]); }}>Adicionar peça</Button>
+          </div>
+          {partsOpen && parts.length > 0 && <div className="mt-3 space-y-3">{parts.map((part, index) => <div key={part.id} className={`grid gap-2 border-t pt-3 ${financialAllowed ? "sm:grid-cols-[minmax(0,1fr)_5rem_8rem_8rem_auto]" : "sm:grid-cols-[minmax(0,1fr)_5rem_8rem_auto]"}`}>
+            <div><Label htmlFor={`quick-part-name-${part.id}`}>Peça</Label><Input id={`quick-part-name-${part.id}`} value={part.name} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, name: e.target.value } : item))} /></div>
+            <div><Label htmlFor={`quick-part-quantity-${part.id}`}>Qtd.</Label><Input id={`quick-part-quantity-${part.id}`} inputMode="numeric" value={part.quantity} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, quantity: e.target.value } : item))} /></div>
+            <div><Label htmlFor={`quick-part-price-${part.id}`}>Venda unit.</Label><Input id={`quick-part-price-${part.id}`} inputMode="decimal" value={part.unitPrice} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitPrice: e.target.value } : item))} /></div>
+            {financialAllowed && <div><Label htmlFor={`quick-part-cost-${part.id}`}>Custo unit.</Label><Input id={`quick-part-cost-${part.id}`} inputMode="decimal" value={part.unitCost} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitCost: e.target.value } : item))} /></div>}
+            <Button type="button" size="sm" variant="ghost" className="self-end" aria-label={`Remover peça ${index + 1}`} onClick={() => setParts((current) => current.filter((item) => item.id !== part.id))}>Remover</Button>
+          </div>)}</div>}
+        </section>
         {money(discount) > 0 && <div><Label htmlFor="quick-discount-reason">Motivo do desconto</Label><Input id="quick-discount-reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} /></div>}
         <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-method">Forma de pagamento</Label><select id="quick-method" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(e) => { const next = e.target.value as PaymentMethod | ""; setMethod(next); if (next !== "Cartão") setCardFee("0"); }}><option value="">Sem recebimento agora</option><option>Dinheiro</option><option>PIX</option><option>Cartão</option></select></div><div><Label htmlFor="quick-received">Valor recebido</Label><Input id="quick-received" inputMode="decimal" value={received} onChange={(e) => { receivedEdited.current = true; setReceived(e.target.value); }} /></div></div>
-        {financialAllowed && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo interno (opcional)</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa do cartão</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}</div>}
+        {financialAllowed && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo interno do serviço (opcional)</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa do cartão</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}</div>}
         {financialAllowed && method === "Cartão" && <p className="text-sm text-muted-foreground">Líquido recebido: {(numericSafe(received) - numericSafe(cardFee)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>}
-        <p className="text-sm text-muted-foreground">Total final: {total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+        <div className="text-sm text-muted-foreground">{parts.length > 0 && <p>Subtotal: {subtotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>}<p>Total final: {total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p></div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter className="gap-2 sm:justify-between"><Button type="button" variant="ghost" disabled={saving} onClick={continueAsStandard}>Continuar como OS completa</Button><Button type="button" disabled={saving} onClick={() => void finalize()}>{saving ? "Finalizando…" : "Finalizar atendimento"}</Button></DialogFooter>

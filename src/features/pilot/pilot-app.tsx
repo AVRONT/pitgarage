@@ -149,7 +149,7 @@ import { ExportOperationalBackup } from "./pilot-backup-settings";
 import { createBackup } from "./pilot-storage";
 import { EvidenceMedia, OrderEvidence, type SaveEvidence } from "./order-evidence";
 import { QuickOrderDialog } from "./quick-order-dialog";
-import { quickOrderBudgetItem, orderVehicleLabel, type QuickOrderDraft } from "./quick-order-model";
+import { quickOrderBudgetItems, quickOrderSubtotal, orderVehicleLabel, type QuickOrderDraft } from "./quick-order-model";
 import {
   isBasicCpfValid,
   isBasicEmailValid,
@@ -5538,7 +5538,7 @@ function NewOrderDialog({
           findings: "",
           notes: "",
           team: [],
-          budget: initialQuickDraft ? [quickOrderBudgetItem(initialQuickDraft.service, initialQuickDraft.amount, initialQuickDraft.requestId)] : [],
+          budget: initialQuickDraft ? quickOrderBudgetItems(initialQuickDraft.service, initialQuickDraft.amount, initialQuickDraft.requestId, initialQuickDraft.parts) : [],
           evidence: [],
           ...(initialQuickDraft ? {
             discountAmount: initialQuickDraft.discountAmount,
@@ -5549,9 +5549,10 @@ function NewOrderDialog({
             creationRequestId: initialQuickDraft.requestId,
             internalCost: initialQuickDraft.internalCost,
             cardFee: initialQuickDraft.cardFee,
+            quickParts: initialQuickDraft.parts,
             ...(initialQuickDraft.receivedAmount > 0 && initialQuickDraft.paymentMethod ? { payment: {
               amount: initialQuickDraft.receivedAmount, method: initialQuickDraft.paymentMethod,
-              status: initialQuickDraft.receivedAmount >= initialQuickDraft.amount - initialQuickDraft.discountAmount ? "Pago" as const : "Parcial" as const,
+              status: initialQuickDraft.receivedAmount >= quickOrderSubtotal(initialQuickDraft.amount, initialQuickDraft.parts) - initialQuickDraft.discountAmount ? "Pago" as const : "Parcial" as const,
               date: new Date().toISOString(), receipts: [{ id: initialQuickDraft.requestId,
                 amount: initialQuickDraft.receivedAmount, method: initialQuickDraft.paymentMethod,
                 feeAmount: initialQuickDraft.cardFee,

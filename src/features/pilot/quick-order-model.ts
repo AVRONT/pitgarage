@@ -2,6 +2,14 @@ import type { BudgetItem, Customer, Payment, ServiceOrder, Vehicle } from "./pil
 
 export type PaymentMethod = Payment["method"];
 
+export interface QuickOrderPart {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  unitCost?: number;
+}
+
 export interface QuickOrderDraft {
   requestId: string;
   customerId?: string;
@@ -17,6 +25,7 @@ export interface QuickOrderDraft {
   receivedAmount: number;
   paymentMethod?: PaymentMethod;
   internalCost?: number;
+  parts: QuickOrderPart[];
   cardFee: number;
   warrantyDays: number;
 }
@@ -47,6 +56,30 @@ export const quickOrderBudgetItem = (service: string, amount: number, requestId:
   approval: "Aprovado",
   executed: true,
 });
+
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+export const quickOrderSubtotal = (serviceAmount: number, parts: QuickOrderPart[]) =>
+  roundMoney(serviceAmount + parts.reduce((sum, part) => sum + roundMoney(part.quantity * part.unitPrice), 0));
+
+export const quickOrderBudgetItems = (
+  service: string,
+  amount: number,
+  requestId: string,
+  parts: QuickOrderPart[],
+): BudgetItem[] => [
+  quickOrderBudgetItem(service, amount, requestId),
+  ...parts.map((part) => ({
+    id: part.id,
+    type: "Peça" as const,
+    name: part.name.trim(),
+    quantity: part.quantity,
+    unitPrice: part.unitPrice,
+    price: roundMoney(part.quantity * part.unitPrice),
+    approval: "Aprovado" as const,
+    executed: true,
+  })),
+];
 
 export const orderFlowType = (order: Pick<ServiceOrder, "flowType">) =>
   order.flowType === "quick" ? "quick" : "standard";

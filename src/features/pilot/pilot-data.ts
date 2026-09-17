@@ -104,6 +104,7 @@ export interface ServiceOrder {
   creationRequestId?: string | undefined;
   internalCost?: number | undefined;
   cardFee?: number | undefined;
+  quickParts?: import("./quick-order-model").QuickOrderPart[] | undefined;
   status: OrderStatus;
   openedAt: string;
   completedAt?: string | undefined;

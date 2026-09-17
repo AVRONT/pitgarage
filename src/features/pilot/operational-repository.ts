@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
 import type { Customer, ServiceOrder, Vehicle } from "./pilot-data";
-import type { QuickOrderDraft } from "./quick-order-model";
+import { quickOrderBudgetItems, quickOrderSubtotal, type QuickOrderDraft } from "./quick-order-model";
 import { financialRpc } from "./financial-api";
 import { roundMoney, validatePart, canRemoveBudgetItem, type FinancialMutation } from "./financial-model";
 
@@ -269,6 +269,7 @@ class CloudOperationalRepository implements OperationalRepository {
           paymentMethod: bundle.order.payment?.method,
           internalCost: bundle.order.internalCost,
           cardFee: bundle.order.cardFee ?? 0,
+          additionalItems: bundle.order.quickParts ?? [],
         } : {}),
       }),
     });
@@ -309,6 +310,7 @@ class CloudOperationalRepository implements OperationalRepository {
       workshop_snapshot: workshopSnapshot ? asJson(workshopSnapshot) : null,
       internal_cost: draft.internalCost ?? null,
       card_fee: draft.cardFee,
+      additional_items: asJson(draft.parts),
     } as never) as unknown as Promise<{ data: Parameters<typeof mapOrder>[0] | null; error: { message: string } | null }>);
     if (error || !created) throw new Error(error?.message ?? "Não foi possível finalizar o atendimento rápido.");
     const data = await this.load();
@@ -588,7 +590,8 @@ class LocalOperationalRepository implements OperationalRepository {
     const vehicle = draft.vehicleId ? data.vehicles.find((item) => item.id === draft.vehicleId && item.customerId === customer.id) : undefined;
     if (draft.vehicleId && !vehicle) throw new Error("O veículo não pertence ao cliente selecionado.");
     const now = new Date().toISOString();
-    const total = draft.amount - draft.discountAmount;
+    const subtotal = quickOrderSubtotal(draft.amount, draft.parts);
+    const total = subtotal - draft.discountAmount;
     const payment = draft.receivedAmount > 0 && draft.paymentMethod ? {
       amount: draft.receivedAmount, method: draft.paymentMethod,
       status: draft.receivedAmount >= total ? "Pago" as const : "Parcial" as const, date: now,
@@ -602,8 +605,7 @@ class LocalOperationalRepository implements OperationalRepository {
       quickVehicleYear: draft.vehicleYear, creationRequestId: draft.requestId,
       status: "Entregue", openedAt: now.slice(0,10), completedAt: now.slice(0,10), entryMileage: 0,
       complaint: draft.service, diagnosis: "", findings: "", notes: "", team: [], evidence: [],
-      budget: [{ id: `quick-${draft.requestId}`, type: "Serviço", name: draft.service.trim(),
-        price: draft.amount, approval: "Aprovado", executed: true }],
+      budget: quickOrderBudgetItems(draft.service, draft.amount, draft.requestId, draft.parts),
       discountAmount: draft.discountAmount, discountReason: draft.discountReason,
       ...(payment ? { payment } : {}), ...(workshopSnapshot ? { workshopSnapshot } : {}), warrantyDays: draft.warrantyDays,
       activities: [{ id: `a-${draft.requestId}`, type: "created", description: "OS Rápida criada", at: now }],

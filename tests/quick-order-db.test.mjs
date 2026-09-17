@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const migration = new URL("../supabase/migrations/20260917030000_quick_service_orders.sql", import.meta.url);
 const financialMigration = new URL("../supabase/migrations/20260917040000_financial_real_result.sql", import.meta.url);
+const quickPartsMigration = new URL("../supabase/migrations/20260917050000_quick_service_order_parts.sql", import.meta.url);
 
 test("quick order migration is explicit, idempotent, protected and financially compatible", async () => {
   const sql = await readFile(migration, "utf8");
@@ -33,9 +34,9 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
     `select public.${name}(${values.map((_, index) => "$" + (index + 1)).join(",")}) result`, values)).rows[0].result;
   const standardRpc = async (values) => (await db.query(
     `select to_jsonb(public.create_service_order_atomic(${values.map((_, index) => "$" + (index + 1)).join(",")})) result`, values)).rows[0].result;
-  const quick = (requestId, received = 0, method = null, discount = 0, cost = null, fee = 0) => rpc("create_quick_service_order", [
+  const quick = (requestId, received = 0, method = null, discount = 0, cost = null, fee = 0, parts = []) => rpc("create_quick_service_order", [
     requestId, customer, null, null, "Honda", "CG 160", 2023, "Troca de óleo", 180,
-    discount, discount ? "PIX" : "", received, method, null, cost, fee,
+    discount, discount ? "PIX" : "", received, method, null, cost, fee, parts,
   ]);
   try {
     await db.exec(`
@@ -75,6 +76,7 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
     `);
     await db.exec(await readFile(migration, "utf8"));
     await db.exec(await readFile(financialMigration, "utf8"));
+    await db.exec(await readFile(quickPartsMigration, "utf8"));
 
     await t.test("snapshot quick, zero payment, warranty, finance and idempotency", async () => {
       const request = crypto.randomUUID();
@@ -88,6 +90,11 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
       assert.equal(receivable.balance, 180); assert.match(receivable.vehicle, /Honda CG 160 2023/);
       const report = (await rpc("financial_order_report", [])).find((row) => row.orderId === first.id);
       assert.equal(report.items[0].revenue, 180); assert.match(report.vehicle, /Honda CG 160 2023/);
+      const legacy = await rpc("create_quick_service_order", [
+        crypto.randomUUID(), customer, null, null, "Honda", "Biz", 2022, "Revisão", 90,
+        0, "", 0, null, null, null, 0,
+      ]);
+      assert.equal(legacy.flow_type, "quick"); assert.equal(legacy.budget.length, 1);
     });
 
     await t.test("positive payment requires supported method; partial and discount persist", async () => {
@@ -115,6 +122,37 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
       await assert.rejects(quick(crypto.randomUUID(), 180, "PIX", 0, 10, 1), /taxa zero/i);
       await assert.rejects(quick(crypto.randomUUID(), 180, "Dinheiro", 0, 10, 1), /taxa zero/i);
       await assert.rejects(quick(crypto.randomUUID(), 180, "Cartão", 0, 10, 181), /taxa/i);
+    });
+
+    await t.test("quick parts persist as normal budget items with private costs and correct totals", async () => {
+      const request = crypto.randomUUID();
+      const parts = [
+        { id: `quick-part-${request}-1`, name: "Filtro", quantity: 2, unitPrice: 35, unitCost: 18 },
+        { id: `quick-part-${request}-2`, name: "Arruela", quantity: 3, unitPrice: 4, unitCost: 1.5 },
+      ];
+      const order = await quick(request, 100, "PIX", 12, 80, 0, parts);
+      assert.equal(order.budget.length, 3);
+      assert.deepEqual(order.budget.map((item) => [item.type, item.name, item.price]), [
+        ["Serviço", "Troca de óleo", 180], ["Peça", "Filtro", 70], ["Peça", "Arruela", 12],
+      ]);
+      assert.ok(order.budget.every((item) => item.approval === "Aprovado" && item.executed === true));
+      assert.match(order.activities.find((activity) => activity.id === `a-service-${request}`).description, /180/);
+      assert.doesNotMatch(order.activities.find((activity) => activity.id === `a-service-${request}`).description, /262/);
+      const costs = await db.query("select item_id,unit_cost from order_part_financials where order_id=$1 order by item_id", [order.id]);
+      assert.deepEqual(costs.rows.map((row) => [row.item_id, Number(row.unit_cost)]), [
+        [`quick-${request}`, 80], [`quick-part-${request}-1`, 18], [`quick-part-${request}-2`, 1.5],
+      ]);
+      const receivable = (await rpc("order_receivables", [])).find((row) => row.id === order.id);
+      assert.equal(receivable.subtotal, 262); assert.equal(receivable.total, 250);
+      assert.equal(receivable.paid, 100); assert.equal(receivable.balance, 150);
+      const report = (await rpc("financial_order_report", [])).find((row) => row.orderId === order.id);
+      assert.equal(report.items.length, 3);
+      assert.equal(report.items.reduce((sum, item) => sum + Number(item.unitCost ?? 0) * Number(item.quantity), 0), 120.5);
+      assert.equal((await quick(request, 100, "PIX", 12, 80, 0, parts)).id, order.id);
+      await assert.rejects(quick(request, 100, "PIX", 10, 80, 0, parts), /outros dados/i);
+      assert.equal((await db.query("select count(*)::int count from service_orders where creation_request_id=$1", [request])).rows[0].count, 1);
+      await assert.rejects(quick(crypto.randomUUID(), 0, null, 0, null, 0,
+        [{ id: crypto.randomUUID(), name: "Quantidade inválida", quantity: 1.5, unitPrice: 20 }]), /dados válidos/i);
     });
 
     await t.test("delivered order accepts audited financial correction without reopening", async () => {
@@ -164,6 +202,8 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
     await t.test("staff needs explicit financial permission for fees", async () => {
       await db.exec("set test.access='staff'");
       await assert.rejects(quick(crypto.randomUUID(), 180, "Cartão", 0, null, 5), /Financial access/);
+      await assert.rejects(quick(crypto.randomUUID(), 0, null, 0, null, 0,
+        [{ id: crypto.randomUUID(), name: "Filtro", quantity: 1, unitPrice: 20, unitCost: 10 }]), /Financial access/);
       await db.query("insert into financial_permissions(user_id) values($1)", [actor]);
       const allowed = await quick(crypto.randomUUID(), 180, "Cartão", 0, null, 5);
       assert.equal(allowed.payment.receipts[0].feeAmount, 5);
@@ -208,16 +248,32 @@ test("quick order migration runs in PostgreSQL and preserves operational invaria
         quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023,
         seedService: "Troca de óleo", seedAmount: 180, discountAmount: 10, discountReason: "PIX",
         receivedAmount: 100, paymentMethod: "PIX", internalCost: 80, cardFee: 0,
+        additionalItems: [{ id: `quick-part-${request}-1`, type: "Peça", name: "Filtro", quantity: 2, unitPrice: 35, price: 70, approval: "Aprovado", executed: true, unitCost: 18 }],
       }]);
       assert.equal(standard.flow_type, "standard"); assert.equal(standard.status, "Recebido");
       assert.equal(standard.vehicle_id, vehicle); assert.equal(standard.budget[0].name, "Troca de óleo");
+      assert.equal(standard.budget[1].name, "Filtro"); assert.equal(standard.budget[1].price, 70);
       assert.equal(standard.discount_amount, 10); assert.equal(standard.payment.amount, 100);
-      assert.equal(Number((await db.query("select unit_cost from order_part_financials where order_id=$1", [standard.id])).rows[0].unit_cost), 80);
+      const standardCosts = await db.query("select item_id,unit_cost from order_part_financials where order_id=$1 order by item_id", [standard.id]);
+      assert.deepEqual(standardCosts.rows.map((row) => [row.item_id, Number(row.unit_cost)]), [
+        [`quick-${request}`, 80], [`quick-part-${request}-1`, 18],
+      ]);
       assert.equal((await standardRpc([customer,null,vehicle,null,{
         entryMileage: 1000, complaint: "Troca de óleo", creationRequestId: request,
         quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023,
         seedService: "Troca de óleo", seedAmount: 180, discountAmount: 10, discountReason: "PIX", receivedAmount: 100, paymentMethod: "PIX", internalCost: 80, cardFee: 0,
+        additionalItems: [{ id: `quick-part-${request}-1`, type: "Peça", name: "Filtro", quantity: 2, unitPrice: 35, price: 70, approval: "Aprovado", executed: true, unitCost: 18 }],
       }])).id, standard.id);
+      await assert.rejects(standardRpc([customer,null,vehicle,null,{
+        entryMileage: 1000, complaint: "Troca de óleo", creationRequestId: request,
+        quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023,
+        seedService: "Troca de óleo", seedAmount: 180, discountAmount: 5, discountReason: "Outro",
+        receivedAmount: 100, paymentMethod: "PIX", internalCost: 80, cardFee: 0,
+        additionalItems: [{ id: `quick-part-${request}-1`, name: "Filtro", quantity: 2, unitPrice: 35, unitCost: 18 }],
+      }]), /outros dados/i);
+      await assert.rejects(quick(request, 100, "PIX", 10, 80, 0, [
+        { id: `quick-part-${request}-1`, name: "Filtro", quantity: 2, unitPrice: 35, unitCost: 18 },
+      ]), /outro fluxo/i);
       assert.equal((await db.query("select count(*)::int count from service_orders where creation_request_id=$1", [request])).rows[0].count, 1);
       assert.ok(standard.order_number > 1);
     });
