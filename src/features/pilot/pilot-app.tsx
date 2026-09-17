@@ -116,6 +116,7 @@ import { loadWorkshop } from "./workshop-api";
 import { FinalOrderSummary } from "./final-order-summary";
 import {
   formatDate,
+  formatDateTime,
   isOrderCancelled,
   logicallyDeleteCustomer,
   logicallyDeleteVehicle,
@@ -378,15 +379,6 @@ function PilotShellLayout({
     </ResizablePanelGroup>
   );
 }
-
-const formatActivityDate = (value: string) =>
-  new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 
 const countOrdersByStatus = (orders: ServiceOrder[], statuses: ServiceOrder["status"][]) =>
   orders.filter((order) => statuses.includes(order.status)).length;
@@ -3042,7 +3034,7 @@ function OrderDetail({
         </Badge>
         <Badge variant="outline" className="bg-white">
           Última atualização:{" "}
-          {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
+          {formatDateTime(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
       {cancelled && (
@@ -3663,14 +3655,14 @@ function OrderOverview({
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-bold">Atividades</h2>
               <span className="text-xs text-muted-foreground">
-                Última: {formatActivityDate(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
+                Última: {formatDateTime(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
               </span>
             </div>
             <div className="mt-5 space-y-4 border-l-2 border-slate-200 pl-5">
               {[...(order.activities ?? [])].reverse().map((activity) => (
                 <div key={activity.id} className="relative">
                   <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-white bg-orange-500" />
-                  <p className="text-xs text-muted-foreground">{formatActivityDate(activity.at)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(activity.at)}</p>
                   <p className="mt-1 text-sm font-medium">{activity.description}</p>
                 </div>
               ))}

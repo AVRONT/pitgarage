@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { money, type ServiceOrder } from "./pilot-data";
+import { formatDateTime, money, type ServiceOrder } from "./pilot-data";
 import { paymentSummary } from "./payment-model";
 import type { SavePart } from "./financial-api";
 
@@ -128,7 +128,7 @@ export function OrderPayments({ order, save }: { order: ServiceOrder; save: Save
       <ul className="mt-4 space-y-2 text-sm">
         {order.payment?.receipts?.map((p) => (
           <li className="border-t pt-2" key={p.id}>
-            {money(p.amount)} · {p.method} · {new Date(p.date).toLocaleString("pt-BR")}
+            {money(p.amount)} · {p.method} · {formatDateTime(p.date)}
             <span className="block text-xs text-muted-foreground">
               Registrado por: {p.recordedBy || "Não informado (legado)"} {p.note && " · " + p.note}
             </span>

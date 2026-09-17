@@ -129,7 +129,8 @@ export const orderWarrantyDays = (order: ServiceOrder) =>
 
 export const warrantyDeadline = (order: ServiceOrder) => {
   if (!order.completedAt) return null;
-  const end = new Date(`${order.completedAt}T12:00:00Z`);
+  const end = parsePilotDate(order.completedAt, true);
+  if (!end) return null;
   end.setUTCDate(end.getUTCDate() + orderWarrantyDays(order));
   return end;
 };
@@ -651,5 +652,32 @@ export const initialOrders: ServiceOrder[] = [
 
 export const money = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-export const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`));
+
+const parsePilotDate = (value: unknown, calendarDate = false): Date | null => {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = calendarDate && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T12:00:00Z`
+    : value;
+  const date = new Date(normalized);
+  return Number.isFinite(date.getTime()) ? date : null;
+};
+
+export const formatDate = (value: unknown) => {
+  const date = parsePilotDate(value, true);
+  return date
+    ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(date)
+    : "—";
+};
+
+export const formatDateTime = (value: unknown) => {
+  const date = parsePilotDate(value);
+  return date
+    ? new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date)
+    : "—";
+};
