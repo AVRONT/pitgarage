@@ -76,6 +76,20 @@ test("vehicles screen exposes operational actions and starts a standard order wi
   assert.match(newOrderDialog, /setVehicleId\(initialVehicle\.id\)/);
 });
 
+test("completed orders present a professional closeout without exposing internal costs", async () => {
+  const appSource = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const summarySource = await readFile(new URL("../src/features/pilot/final-order-summary.tsx", import.meta.url), "utf8");
+  const orderDetail = appSource.slice(appSource.indexOf("function OrderDetail"), appSource.indexOf("function OrderOverview"));
+
+  assert.match(orderDetail, /OS entregue/);
+  assert.match(orderDetail, /Pagamento pendente/);
+  assert.match(orderDetail, /Pagamento em dia/);
+  for (const label of ["OS finalizada", "Serviços realizados", "Peças utilizadas", "Total da OS", "Valor recebido", "Falta receber", "Imprimir resumo"])
+    assert.match(summarySource, new RegExp(label));
+  assert.match(summarySource, /window\.print\(\)/);
+  assert.doesNotMatch(summarySource, /Custo interno|Garantia demonstrativa|data de referência do piloto/i);
+});
+
 test("operational home prioritizes action-oriented workshop shortcuts", async () => {
   const icons = Object.fromEntries(
     ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Settings2", "Sparkles", "WalletCards", "Wrench"].map((name) => [name, name]),

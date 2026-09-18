@@ -3022,6 +3022,7 @@ function OrderDetail({
     .filter((item) => item.approval === "Aprovado")
     .reduce((sum, item) => sum + item.price, 0);
   const total = order.budget.reduce((sum, item) => sum + item.price, 0);
+  const payment = paymentSummary(order);
   const waitingApprovalCount = order.budget.filter(
     (item) => item.approval === "Aguardando aprovação",
   ).length;
@@ -3093,9 +3094,7 @@ function OrderDetail({
         text={`${customer.name}${order.flowType === "quick" ? " · Atendimento rápido" : ` · entrada com ${order.entryMileage.toLocaleString("pt-BR")} km`}`}
         action={
           <div className="flex min-w-52 flex-col items-end gap-2">
-            <span className="text-xs font-semibold uppercase text-muted-foreground">
-              Status atual · provisório
-            </span>
+            <span className="text-xs font-semibold text-muted-foreground">Status da OS</span>
             <StatusBadge status={order.status} />
             {cancelled && <Badge variant="outline">Cancelada</Badge>}
             {["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status) && (
@@ -3167,6 +3166,45 @@ function OrderDetail({
           {formatDateTime(order.updatedAt ?? `${order.openedAt}T12:00:00-03:00`)}
         </Badge>
       </div>
+      {order.status === "Entregue" && !cancelled && (
+        <section className="mb-5 overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm">
+          <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-6">
+            <div className="flex gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-6 w-6" />
+              </span>
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">OS entregue</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {order.completedAt
+                    ? `Serviço concluído em ${formatDate(order.completedAt)}.`
+                    : "Serviço concluído e veículo entregue ao cliente."}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      payment.balance > 0
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    }
+                  >
+                    {payment.balance > 0 ? "Pagamento pendente" : "Pagamento em dia"}
+                  </Badge>
+                  <span className="text-sm font-semibold tabular-nums text-slate-700">
+                    {payment.balance > 0
+                      ? `Falta receber ${money(payment.balance)}`
+                      : `Valor recebido ${money(payment.paid)}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Button className="gap-2 md:self-center" onClick={() => setSummaryOpen(true)}>
+              <FileText className="h-4 w-4" /> Ver resumo final
+            </Button>
+          </div>
+        </section>
+      )}
       {cancelled && (
         <div className="mb-5 rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-950">
           <p className="font-bold">OS cancelada · somente leitura</p>
@@ -3192,11 +3230,11 @@ function OrderDetail({
         {[
           ["Orçado", money(total)],
           ["Aprovado", money(approved)],
-          ["Pago", money(paymentSummary(order).paid)],
+          ["Pago", money(payment.paid)],
           [
             "Saldo em aberto",
             money(
-              paymentSummary(order).balance,
+              payment.balance,
             ),
           ],
         ].map(([label, value]) => (
@@ -4818,8 +4856,6 @@ function PaymentPanel({
     return () => { active = false; };
   }, [accessLevel, isLocalBypass, identity?.userId]);
   const canEditDiscount = !isLocalBypass && (accessLevel === "owner" || accessLevel === "admin" || (accessLevel === "staff" && financialAllowed));
-  const today = new Date("2026-09-01T12:00:00Z");
-  const warrantyStatus = warrantyEnd && warrantyEnd >= today ? "ATIVA" : "EXPIRADA";
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <OrderPayments order={order} save={save} canEditDiscount={canEditDiscount} activityAuthors={activityAuthors} />
@@ -4831,12 +4867,11 @@ function PaymentPanel({
             </span>
             <div>
               <h2 className="font-bold">Garantia do serviço</h2>
-              <p className="text-sm text-slate-400">Regra piloto sujeita a exceções.</p>
+              <p className="text-sm text-slate-400">Período registrado para esta OS.</p>
             </div>
           </div>
           {order.completedAt && warrantyEnd ? (
             <div className="mt-6">
-              <StatusBadge status={warrantyStatus} />
               <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <dt className="text-slate-400">Data do serviço</dt>
@@ -4861,8 +4896,7 @@ function PaymentPanel({
             </div>
           )}
           <p className="mt-5 text-xs leading-relaxed text-slate-400">
-            O início na conclusão ou entrega e possíveis variações do período padrão ainda precisam
-            ser validados.
+            O período exibido segue a garantia registrada pelas regras atuais da ordem de serviço.
           </p>
 
         </CardContent>
