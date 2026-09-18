@@ -90,6 +90,28 @@ test("completed orders present a professional closeout without exposing internal
   assert.doesNotMatch(summarySource, /Custo interno|Garantia demonstrativa|data de referência do piloto/i);
 });
 
+test("customers screen supports operational search and preselected customer actions", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const customersScreen = source.slice(source.indexOf("function CustomersScreen"), source.indexOf("function VehiclesScreen"));
+  const customerDetail = source.slice(source.indexOf("function CustomerDetail"), source.indexOf("function VehicleDetail"));
+  const newVehicleDialog = source.slice(source.indexOf("function NewVehicleDialog"), source.indexOf("function EditVehicleDialog"));
+  const newOrderDialog = source.slice(source.indexOf("function NewOrderDialog"));
+
+  assert.match(customersScreen, /vehicle\.plate/);
+  assert.match(customersScreen, /showClear/);
+  assert.match(customersScreen, /Continuar OS/);
+  assert.match(customersScreen, /Ver cliente/);
+  assert.match(customersScreen, /Nova OS/);
+  assert.match(customerDetail, /Veículos deste cliente/);
+  assert.match(customerDetail, /Novo veículo/);
+  assert.match(customerDetail, /Histórico de OS/);
+  assert.match(customerDetail, /onNewOrderForVehicle\(vehicle\.id\)/);
+  assert.match(newVehicleDialog, /initialCustomerId\?: string/);
+  assert.match(newVehicleDialog, /setCustomerId\(initialCustomerId\)/);
+  assert.match(newOrderDialog, /initialCustomerId\?: string/);
+  assert.match(newOrderDialog, /setCustomerId\(initialCustomer\.id\)/);
+});
+
 test("operational home prioritizes action-oriented workshop shortcuts", async () => {
   const icons = Object.fromEntries(
     ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Settings2", "Sparkles", "WalletCards", "Wrench"].map((name) => [name, name]),

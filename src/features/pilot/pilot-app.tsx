@@ -587,6 +587,8 @@ export function PilotApp() {
   const [quickFinancialAllowed, setQuickFinancialAllowed] = useState(false);
   const [initialQuickDraft, setInitialQuickDraft] = useState<QuickOrderDraft>();
   const [initialOrderVehicleId, setInitialOrderVehicleId] = useState<string>();
+  const [initialOrderCustomerId, setInitialOrderCustomerId] = useState<string>();
+  const [initialVehicleCustomerId, setInitialVehicleCustomerId] = useState<string>();
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
@@ -1249,8 +1251,15 @@ export function PilotApp() {
                 customers={activeCustomers}
                 vehicles={activeVehicles}
                 orders={orders}
-                onOpen={(id) => setQuickView({ type: "customer", id })}
+                onOpen={(id) => navigate("customer", id)}
+                onOpenOrder={(id) => navigate("order", id)}
                 onNew={() => setNewOrderOpen(true)}
+                onNewForCustomer={(id) => {
+                  setInitialOrderCustomerId(id);
+                  setInitialOrderVehicleId(undefined);
+                  setInitialQuickDraft(undefined);
+                  setNewOrderOpen(true);
+                }}
               />
             )}
             {screen === "vehicles" && (
@@ -1287,6 +1296,22 @@ export function PilotApp() {
                 onBack={() => navigate("customers")}
                 onVehicle={(id) => navigate("vehicle", id)}
                 onOrder={(id) => navigate("order", id)}
+                onNewOrder={() => {
+                  setInitialOrderCustomerId(selectedCustomerId);
+                  setInitialOrderVehicleId(undefined);
+                  setInitialQuickDraft(undefined);
+                  setNewOrderOpen(true);
+                }}
+                onNewOrderForVehicle={(id) => {
+                  setInitialOrderVehicleId(id);
+                  setInitialOrderCustomerId(undefined);
+                  setInitialQuickDraft(undefined);
+                  setNewOrderOpen(true);
+                }}
+                onNewVehicle={() => {
+                  setInitialVehicleCustomerId(selectedCustomerId);
+                  setNewVehicleOpen(true);
+                }}
                 onDelete={() => {
                   const at = orderTimestamp();
                   const deleted = logicallyDeleteCustomer(
@@ -1390,9 +1415,13 @@ export function PilotApp() {
       />
       <NewVehicleDialog
         open={newVehicleOpen}
-        onOpenChange={setNewVehicleOpen}
+        onOpenChange={(open) => {
+          setNewVehicleOpen(open);
+          if (!open) setInitialVehicleCustomerId(undefined);
+        }}
         customers={customers}
         vehicles={vehicles}
+        initialCustomerId={initialVehicleCustomerId}
         onExisting={(id) => {
           setNewVehicleOpen(false);
           navigate("vehicle", id);
@@ -1400,6 +1429,7 @@ export function PilotApp() {
         onCreate={(vehicle) => {
           setVehicles((current) => [...current, vehicle]);
           setNewVehicleOpen(false);
+          setInitialVehicleCustomerId(undefined);
           setNotice("Veículo criado para demonstração");
           navigate("vehicle", vehicle.id);
         }}
@@ -1411,6 +1441,7 @@ export function PilotApp() {
           if (!open) {
             setInitialQuickDraft(undefined);
             setInitialOrderVehicleId(undefined);
+            setInitialOrderCustomerId(undefined);
           }
         }}
         customers={activeCustomers}
@@ -1420,6 +1451,7 @@ export function PilotApp() {
         orders={orders}
         initialQuickDraft={initialQuickDraft}
         initialVehicleId={initialOrderVehicleId}
+        initialCustomerId={initialOrderCustomerId}
         onCreate={async (bundle) => {
           await writeQueue.current;
           if (writeFailed.current) throw new Error("Recarregue os dados antes de criar outra OS.");
@@ -1431,6 +1463,7 @@ export function PilotApp() {
             setNewOrderOpen(false);
             setInitialQuickDraft(undefined);
             setInitialOrderVehicleId(undefined);
+            setInitialOrderCustomerId(undefined);
             setNotice("Ordem de serviço criada");
             if (createdOrder) navigate("order", createdOrder.id);
           });
@@ -1879,10 +1912,12 @@ function DirectorySearch({
   value,
   onChange,
   placeholder,
+  showClear = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  showClear?: boolean;
 }) {
   return (
     <div className="directory-search relative mb-5 max-w-lg">
@@ -1893,10 +1928,20 @@ function DirectorySearch({
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 bg-white pl-10 pr-4"
+        className={cn("h-11 bg-white pl-10", showClear && value ? "pr-10" : "pr-4")}
         placeholder={placeholder}
         aria-label={placeholder}
       />
+      {showClear && value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+          aria-label="Limpar busca"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -2100,24 +2145,35 @@ function CustomersScreen({
   vehicles,
   orders,
   onOpen,
+  onOpenOrder,
   onNew,
+  onNewForCustomer,
 }: {
   customers: Customer[];
   vehicles: Vehicle[];
   orders: ServiceOrder[];
   onOpen: (id: string) => void;
+  onOpenOrder: (id: string) => void;
   onNew: () => void;
+  onNewForCustomer: (id: string) => void;
 }) {
   const [filter, setFilter] = useState("");
-  const visible = customers.filter((c) =>
-    `${c.name} ${c.phone}`.toLowerCase().includes(filter.toLowerCase()),
-  );
+  const search = filter.toLocaleLowerCase("pt-BR").trim();
+  const visible = customers.filter((customer) => {
+    const plates = vehicles
+      .filter((vehicle) => vehicle.customerId === customer.id)
+      .map((vehicle) => vehicle.plate)
+      .join(" ");
+    return `${customer.name} ${customer.phone} ${plates}`
+      .toLocaleLowerCase("pt-BR")
+      .includes(search);
+  });
   return (
     <div className="directory-screen">
       <PageTitle
-        eyebrow="Relacionamento"
+        eyebrow="Relacionamento da oficina"
         title="Clientes"
-        text="Encontre rapidamente quem chegou à oficina e os veículos relacionados."
+        text="Encontre o cliente, seus veículos e atendimentos em andamento."
         icon={Users}
         action={
           <Button onClick={onNew} className="create-order-action gap-2">
@@ -2125,101 +2181,117 @@ function CustomersScreen({
           </Button>
         }
       />
-      <DirectoryMetrics
-        items={[
-          {
-            label: "Clientes ativos",
-            value: customers.length,
-            description: "Cadastros disponíveis para atendimento.",
-            icon: Users,
-            tone: "navy",
-          },
-          {
-            label: "Com veículos",
-            value: customers.filter((customer) =>
-              vehicles.some((vehicle) => vehicle.customerId === customer.id),
-            ).length,
-            description: "Clientes com ao menos um veículo vinculado.",
-            icon: CarFront,
-          },
-          {
-            label: "Com OS em aberto",
-            value: customers.filter((customer) =>
-              orders.some(
-                (order) => order.customerId === customer.id && order.status !== "Entregue",
-              ),
-            ).length,
-            description: "Atendimentos ainda em andamento.",
-            icon: ClipboardList,
-            tone: "orange",
-          },
-          {
-            label: "Veículos vinculados",
-            value: vehicles.length,
-            description: "Frota relacionada aos clientes ativos.",
-            icon: Gauge,
-            tone: "green",
-          },
-        ]}
-      />
       <DirectorySearch
         value={filter}
         onChange={setFilter}
-        placeholder="Pesquisar por nome ou telefone"
+        placeholder="Pesquisar por nome, telefone ou placa"
+        showClear
       />
-      <div className="pilot-table directory-table">
-        <div className="pilot-table-header grid-cols-[minmax(0,1.4fr)_190px_160px_120px_28px] px-4 md:grid">
-          <span>Cliente</span>
-          <span>Contato</span>
-          <span>Relacionamento</span>
-          <span>Veículos</span>
-          <span />
-        </div>
-        {visible.length === 0 && (
-          <div>
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+        <span>
+          <strong className="text-slate-900">{customers.length}</strong> cliente
+          {customers.length !== 1 && "s"}
+        </span>
+        {filter.trim() && (
+          <span>
+            <strong className="text-slate-900">{visible.length}</strong> encontrado
+            {visible.length !== 1 && "s"}
+          </span>
+        )}
+      </div>
+      <Card className="pilot-table directory-table overflow-hidden bg-white">
+        <div>
+          {visible.length === 0 && (
             <EmptyState
               title={customers.length ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
               text={
                 customers.length
-                  ? "Tente outro nome ou telefone."
+                  ? "Tente outro nome, telefone ou placa."
                   : "Comece por Criar ordem de serviço para cadastrar o primeiro cliente."
               }
             />
-          </div>
-        )}
-        {visible.map((customer) => {
-          const related = vehicles.filter((v) => v.customerId === customer.id);
-          return (
-            <button
-              key={customer.id}
-              onClick={() => onOpen(customer.id)}
-              className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_190px_160px_120px_28px] md:px-4"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="directory-avatar grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sm font-bold">
-                  {customer.name
-                    .split(" ")
-                    .slice(0, 2)
-                    .map((word) => word[0])
-                    .join("")}
+          )}
+          {visible.map((customer) => {
+            const related = vehicles.filter((vehicle) => vehicle.customerId === customer.id);
+            const current = orders.find(
+              (order) => order.customerId === customer.id && order.status !== "Entregue",
+            );
+            return (
+              <article
+                key={customer.id}
+                className="pilot-table-row grid gap-4 border-l-4 border-l-transparent p-4 transition-[background-color,border-color] duration-150 hover:border-l-orange-500 hover:bg-orange-50/30 motion-reduce:transition-none md:grid-cols-[minmax(220px,0.85fr)_minmax(260px,1.25fr)_minmax(190px,0.75fr)_auto] md:items-center md:gap-5 md:px-6 md:py-5"
+              >
+                <div className="flex min-w-0 items-center gap-3.5">
+                  <div className="directory-avatar grid h-12 w-12 min-w-12 shrink-0 place-items-center rounded-xl text-sm font-bold">
+                    {customer.name
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((word) => word[0])
+                      .join("")}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="truncate font-bold text-slate-950">{customer.name}</h2>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-4 w-4 shrink-0" />
+                      {customer.phone}
+                    </p>
+                  </div>
                 </div>
-                <h2 className="truncate font-bold">{customer.name}</h2>
-              </div>
-              <p className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
-                <Phone className="h-3.5 w-3.5" />
-                {customer.phone}
-              </p>
-              <span className="hidden text-sm text-muted-foreground md:block">
-                Desde {customer.since}
-              </span>
-              <span className="hidden text-sm font-semibold md:block">
-                {related.length} veículo{related.length !== 1 && "s"}
-              </span>
-              <ChevronRight className="h-4 w-4 text-slate-400" />
-            </button>
-          );
-        })}
-      </div>
+                <div className="min-w-0">
+                  <span className="block text-xs font-semibold text-muted-foreground">
+                    Veículos vinculados
+                  </span>
+                  {related.length ? (
+                    <div className="mt-1.5 space-y-1">
+                      {related.slice(0, 2).map((vehicle) => (
+                        <p key={vehicle.id} className="truncate text-sm text-slate-700">
+                          {vehicle.brand} {vehicle.model} · {vehicle.plate}
+                        </p>
+                      ))}
+                      {related.length > 2 && (
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          +{related.length - 2} veículo{related.length - 2 !== 1 && "s"}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      Nenhum veículo vinculado
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold text-muted-foreground">
+                    Situação atual
+                  </span>
+                  {current ? (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <strong className="text-sm text-slate-900">{current.id}</strong>
+                      <StatusBadge status={current.status} />
+                    </div>
+                  ) : (
+                    <p className="mt-1.5 text-sm text-muted-foreground">Sem OS em andamento</p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 md:max-w-44 md:justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => onOpen(customer.id)}>
+                    Ver cliente
+                  </Button>
+                  {current ? (
+                    <Button type="button" size="sm" onClick={() => onOpenOrder(current.id)}>
+                      Continuar OS
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" onClick={() => onNewForCustomer(customer.id)}>
+                      Nova OS
+                    </Button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -2536,6 +2608,9 @@ function CustomerDetail({
   onBack,
   onVehicle,
   onOrder,
+  onNewOrder,
+  onNewOrderForVehicle,
+  onNewVehicle,
   onDelete,
 }: {
   customer: Customer;
@@ -2544,11 +2619,15 @@ function CustomerDetail({
   onBack: () => void;
   onVehicle: (id: string) => void;
   onOrder: (id: string) => void;
+  onNewOrder: () => void;
+  onNewOrderForVehicle: (id: string) => void;
+  onNewVehicle: () => void;
   onDelete: () => void;
 }) {
   const { accessLevel, isLocalBypass } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const relatedOrders = orders.filter((o) => o.customerId === customer.id);
+  const activeOrders = relatedOrders.filter((order) => order.status !== "Entregue");
   const debt = customerDebts(orders, customer.id);
   return (
     <>
@@ -2561,21 +2640,36 @@ function CustomerDetail({
           customer.deletedAt ? (
             <Badge variant="outline">Cliente excluído</Badge>
           ) : (
-            <Button
-              variant="outline"
-              className="gap-2 text-rose-700"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="h-4 w-4" /> Excluir cliente
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="gap-2" onClick={onNewVehicle}>
+                <CarFront className="h-4 w-4" /> Novo veículo
+              </Button>
+              <Button className="create-order-action gap-2" onClick={onNewOrder}>
+                <Plus className="h-4 w-4" /> Nova OS
+              </Button>
+              <Button
+                variant="ghost"
+                className="gap-2 text-rose-700"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" /> Excluir cliente
+              </Button>
+            </div>
           )
         }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-lg border bg-white p-5 xl:col-span-2">
-          <h2 className="font-semibold">Saldo em aberto: {money(debt.balance)}</h2>
-          {debt.debts.length ? <><p className="text-sm">{debt.debts.length} OS com saldo pendente</p><ul className="mt-2 space-y-2">{debt.debts.map(entry =>
-            <li key={entry.order.id}><Button variant="link" onClick={() => onOrder(entry.order.id)}>{entry.order.id} · {money(entry.balance)} · {entry.status}</Button></li>)}</ul></> : <p className="text-sm">Nenhum débito em aberto.</p>}
+        <section className="grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 xl:col-span-2">
+          {[
+            ["Veículos", `${vehicles.length}`],
+            ["OS em andamento", `${activeOrders.length}`],
+            ["Pagamento", debt.balance > 0 ? "Existe valor pendente" : "Em dia"],
+          ].map(([label, value]) => (
+            <div key={label} className="bg-white px-5 py-4">
+              <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+              <p className="mt-1 font-bold text-slate-950">{value}</p>
+            </div>
+          ))}
         </section>
         {(accessLevel === "owner" || accessLevel === "admin") && !isLocalBypass && (
           <section className="rounded-lg border bg-white p-5 xl:col-span-2">
@@ -2587,53 +2681,137 @@ function CustomerDetail({
             )}
           </section>
         )}
-        <section>
-          <h2 className="mb-3 text-lg font-bold">Veículos relacionados</h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {vehicles.map((vehicle) => (
-              <button
-                key={vehicle.id}
-                onClick={() => onVehicle(vehicle.id)}
-                className="flex items-center gap-4 rounded-2xl border bg-white p-5 text-left hover:border-orange-200"
-              >
-                <span className="grid h-12 w-12 place-items-center rounded-xl bg-slate-900 text-white">
-                  <VehicleIcon kind={vehicle.kind} className="h-6 w-6" />
-                </span>
-                <span className="flex-1">
-                  <strong className="block">
-                    {vehicle.brand} {vehicle.model} {vehicle.year}
-                  </strong>
-                  <span className="text-sm text-muted-foreground">
-                    {vehicle.plate} · {vehicle.mileage.toLocaleString("pt-BR")} km
-                  </span>
-                </span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            ))}
+        <section className="xl:col-span-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Veículos deste cliente</h2>
+            <Button variant="outline" size="sm" className="gap-2" onClick={onNewVehicle}>
+              <Plus className="h-4 w-4" /> Novo veículo
+            </Button>
           </div>
+          {vehicles.length ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {vehicles.map((vehicle) => {
+                const current = relatedOrders.find(
+                  (order) => order.vehicleId === vehicle.id && order.status !== "Entregue",
+                );
+                const workflow = current ? evaluateOrderWorkflow(current) : undefined;
+                return (
+                  <article key={vehicle.id} className="rounded-xl border bg-white p-4">
+                    <div className="flex min-w-0 items-start gap-3.5">
+                      <span className="directory-vehicle-icon grid h-12 w-12 min-w-12 shrink-0 place-items-center rounded-xl">
+                        <VehicleIcon kind={vehicle.kind} className="h-7 w-7" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <strong className="truncate text-slate-950">
+                            {vehicle.brand} {vehicle.model}
+                          </strong>
+                          {current ? (
+                            <StatusBadge status={current.status} />
+                          ) : (
+                            <Badge variant="outline">Sem OS atual</Badge>
+                          )}
+                        </div>
+                        <p className="mt-1 font-mono text-sm font-semibold text-slate-700">
+                          {vehicle.plate}
+                        </p>
+                        {workflow && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            Próxima ação: {workflow.nextAction.label}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-3">
+                      <Button variant="outline" size="sm" onClick={() => onVehicle(vehicle.id)}>
+                        Ver veículo
+                      </Button>
+                      {current ? (
+                        <Button size="sm" onClick={() => onOrder(current.id)}>
+                          Continuar OS
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => onNewOrderForVehicle(vehicle.id)}>
+                          Nova OS
+                        </Button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed bg-white p-6 text-center">
+              <p className="font-semibold text-slate-900">Nenhum veículo vinculado</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Cadastre o primeiro veículo deste cliente para iniciar uma OS completa.
+              </p>
+              <Button className="mt-4 gap-2" onClick={onNewVehicle}>
+                <Plus className="h-4 w-4" /> Novo veículo
+              </Button>
+            </div>
+          )}
         </section>
-        <Card className="border-0 bg-white">
+        <Card className="border-0 bg-white xl:col-span-2">
           <CardContent className="p-6">
-            <h2 className="font-bold">Atendimentos recentes</h2>
+            <h2 className="font-bold">Histórico de OS</h2>
             <div className="mt-4 space-y-3">
-              {relatedOrders.map((order) => (
-                <button
-                  key={order.id}
-                  onClick={() => onOrder(order.id)}
-                  className="flex w-full items-center justify-between rounded-xl bg-slate-50 p-3 text-left"
-                >
-                  <span>
-                    <strong className="block text-sm">{order.id}</strong>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(order.openedAt)}
-                    </span>
-                  </span>
-                  <StatusBadge status={order.status} />
-                </button>
-              ))}
+              {relatedOrders.length ? (
+                relatedOrders.map((order) => {
+                  const relatedVehicle = vehicles.find((vehicle) => vehicle.id === order.vehicleId);
+                  const performedService = order.budget.find(
+                    (item) => item.type === "Serviço" && item.executed,
+                  )?.name;
+                  return (
+                    <button
+                      key={order.id}
+                      onClick={() => onOrder(order.id)}
+                      className="grid w-full gap-2 rounded-lg border bg-slate-50/70 p-4 text-left hover:border-orange-200 sm:grid-cols-[110px_minmax(0,1fr)_auto] sm:items-center"
+                    >
+                      <span>
+                        <strong className="block text-sm">{order.id}</strong>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(order.openedAt)}
+                        </span>
+                      </span>
+                      <span className="min-w-0">
+                        <strong className="block truncate text-sm">
+                          {orderVehicleLabel(order, relatedVehicle)}
+                        </strong>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {performedService || order.complaint || "Serviço não informado"}
+                        </span>
+                      </span>
+                      <StatusBadge status={order.status} />
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Este cliente ainda não possui ordens de serviço.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
+        <section className="rounded-lg border bg-white p-5 xl:col-span-2">
+          <h2 className="font-semibold">
+            {debt.balance > 0 ? "Existe valor pendente" : "Pagamento em dia"}
+          </h2>
+          {debt.debts.length ? (
+            <ul className="mt-2 space-y-2">
+              {debt.debts.map((entry) => (
+                <li key={entry.order.id}>
+                  <Button variant="link" onClick={() => onOrder(entry.order.id)}>
+                    {entry.order.id} · {money(entry.balance)} · {entry.status}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">Nenhum valor em aberto.</p>
+          )}
+        </section>
       </div>
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
@@ -5047,6 +5225,7 @@ function NewVehicleDialog({
   onOpenChange,
   customers,
   vehicles,
+  initialCustomerId,
   onExisting,
   onCreate,
 }: {
@@ -5054,6 +5233,7 @@ function NewVehicleDialog({
   onOpenChange: (value: boolean) => void;
   customers: Customer[];
   vehicles: Vehicle[];
+  initialCustomerId?: string | undefined;
   onExisting: (id: string) => void;
   onCreate: (vehicle: Vehicle) => void;
 }) {
@@ -5066,6 +5246,11 @@ function NewVehicleDialog({
   const [mileage, setMileage] = useState("");
   const [color, setColor] = useState("");
   const [error, setError] = useState<{ message: string; existingId?: string }>();
+  useEffect(() => {
+    if (!open || !initialCustomerId) return;
+    setCustomerId(initialCustomerId);
+    setError(undefined);
+  }, [initialCustomerId, open]);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const cleanPlate = normalizePlate(plate);
@@ -5394,6 +5579,7 @@ function NewOrderDialog({
   orders,
   initialQuickDraft,
   initialVehicleId,
+  initialCustomerId,
   onCreate,
 }: {
   open: boolean;
@@ -5405,6 +5591,7 @@ function NewOrderDialog({
   orders: ServiceOrder[];
   initialQuickDraft?: QuickOrderDraft | undefined;
   initialVehicleId?: string | undefined;
+  initialCustomerId?: string | undefined;
   onCreate: (result: {
     customer?: Customer | undefined;
     vehicle?: Vehicle | undefined;
@@ -5468,6 +5655,23 @@ function NewOrderDialog({
     setError("");
     setStep(2);
   }, [initialQuickDraft, initialVehicleId, open, vehicles]);
+
+  useEffect(() => {
+    if (!open || initialQuickDraft || initialVehicleId || !initialCustomerId) return;
+    const initialCustomer = customers.find((customer) => customer.id === initialCustomerId);
+    if (!initialCustomer) return;
+    setDraftCustomer(undefined);
+    setCustomerId(initialCustomer.id);
+    setDraftVehicle(undefined);
+    setVehicleId("");
+    setNewCustomer(false);
+    setNewVehicle(false);
+    setEntryMileage("");
+    setComplaint("");
+    setMileageWarningAccepted(false);
+    setError("");
+    setStep(1);
+  }, [customers, initialCustomerId, initialQuickDraft, initialVehicleId, open]);
 
   const selectedCustomer = draftCustomer ?? customers.find((item) => item.id === customerId);
   const customerVehicles = selectedCustomer
