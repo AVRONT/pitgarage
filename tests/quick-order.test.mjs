@@ -69,6 +69,17 @@ test("quick payment status mirrors total, received amount and open balance", asy
   assert.equal(quick.quickPaymentStatus(0, 0), "Em aberto");
 });
 
+test("quick customer search filters by name or phone", async () => {
+  const quick = await load("quick-order-model.ts");
+  const customers = [
+    { id: "1", name: "Maria Souza", phone: "11987654321" },
+    { id: "2", name: "João Lima", phone: "21912345678" },
+  ];
+  assert.deepEqual(quick.filterQuickCustomers(customers, "maria").map((customer) => customer.id), ["1"]);
+  assert.deepEqual(quick.filterQuickCustomers(customers, "91234").map((customer) => customer.id), ["2"]);
+  assert.deepEqual(quick.filterQuickCustomers(customers, "").map((customer) => customer.id), ["1", "2"]);
+});
+
 test("vehicle label uses official vehicle first and quick snapshot without inventing plate", async () => {
   const quick = await load("quick-order-model.ts");
   const order = { quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023 };

@@ -58,6 +58,14 @@ export const quickServiceDescription = (service: string, rescue?: { pickup: stri
 export const quickPaymentStatus = (total: number, received: number) =>
   total > 0 && Math.max(0, total - received) === 0 ? "Pago" : received > 0 ? "Parcial" : "Em aberto";
 
+export const filterQuickCustomers = <T extends Pick<Customer, "name" | "phone">>(customers: T[], query: string) => {
+  const normalized = query.trim().toLocaleLowerCase("pt-BR");
+  if (!normalized) return customers;
+  const digits = query.replace(/\D/g, "");
+  return customers.filter((customer) =>
+    customer.name.toLocaleLowerCase("pt-BR").includes(normalized) || (digits.length > 0 && customer.phone.includes(digits)));
+};
+
 export const quickOrderBudgetItem = (service: string, amount: number, requestId: string): BudgetItem => ({
   id: `quick-${requestId}`,
   type: "Serviço",
