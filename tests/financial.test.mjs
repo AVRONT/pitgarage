@@ -18,6 +18,7 @@ async function load(name, mocks = {}) {
   return exports;
 }
 const model = await load("financial-model.ts");
+const extraRevenueModel = await load("extra-revenue-model.ts", { "./financial-model": model });
 const { suggestedPrice, partAmounts, validatePart, aggregateFinancial, dateRange } = model;
 test("markup is based on cost; quantity and actual manual sale determine profit", () => {
   assert.equal(suggestedPrice(100, 30), 130);
@@ -366,6 +367,143 @@ async function uiHarness(api, owner = false) {
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
+async function extraRevenueHarness(api) {
+  let cursor = 0;
+  const slots = [],
+    effects = [];
+  const react = {
+    useState(initial) {
+      const i = cursor++;
+      if (!(i in slots)) slots[i] = typeof initial === "function" ? initial() : initial;
+      return [
+        slots[i],
+        (value) => {
+          slots[i] = typeof value === "function" ? value(slots[i]) : value;
+        },
+      ];
+    },
+    useRef(initial) {
+      const i = cursor++;
+      return (slots[i] ??= { current: initial });
+    },
+    useEffect(fn, deps) {
+      const i = cursor++;
+      const previous = slots[i];
+      if (!previous || deps.some((value, n) => value !== previous[n])) {
+        slots[i] = deps;
+        effects.push(fn);
+      }
+    },
+  };
+  const ui = await load("extra-revenues.tsx", {
+    react,
+    "react/jsx-runtime": jsxRuntime,
+    "lucide-react": new Proxy({}, { get: (_, name) => String(name) }),
+    "@/features/auth/auth-context": { useAuth: () => ({ accessLevel: "owner" }) },
+    "@/components/ui/button": { Button: "button" },
+    "@/components/ui/input": { Input: "input" },
+    "./extra-revenue-api": { extraRevenueApi: api },
+    "./extra-revenue-model": extraRevenueModel,
+    "./pilot-data": {
+      money: (value) => `R$ ${Number(value).toFixed(2).replace(".", ",")}`,
+    },
+    "./payment-model": { receiptDay: (value) => String(value).slice(0, 10) },
+  });
+  return {
+    ui,
+    render(props) {
+      cursor = 0;
+      const tree = ui.ExtraRevenues(props);
+      for (const effect of effects.splice(0)) effect();
+      return nodes(tree);
+    },
+  };
+}
+
+test("extra revenue uses a quick type-first form and keeps accounting fields advanced", async () => {
+  const saved = [];
+  const categories = [
+    { id: "oil", name: "Venda de óleo", parent_id: null, active: true },
+    { id: "other", name: "Outros ganhos", parent_id: null, active: true },
+  ];
+  const harness = await extraRevenueHarness({
+    list: async () => ({ categories, entries: [] }),
+    receivables: async () => [],
+    add: async (entry) => {
+      saved.push(entry);
+      return {
+        id: entry.id,
+        date: entry.date,
+        category_id: entry.categoryId,
+        subcategory_id: entry.subcategoryId || null,
+        description: entry.description,
+        revenue: entry.revenue,
+        cost: entry.cost,
+        created_by: "owner",
+        created_at: entry.date,
+      };
+    },
+    category: async () => categories[0],
+  });
+  const props = {
+    view: "extras",
+    start: "",
+    end: "",
+    kind: "Todos",
+    os: { revenue: 0, cost: 0, result: 0 },
+  };
+  harness.render(props);
+  await tick();
+  let tree = harness.render(props);
+  tree.find((node) => node.type === "button" && node.props.children?.includes?.("Adicionar receita"))
+    .props.onClick();
+  tree = harness.render(props);
+
+  const typeLabels = tree
+    .filter((node) => node.type === "button" && node.props["data-revenue-type"])
+    .map((node) => node.props.children);
+  assert.deepEqual(typeLabels, ["Venda de óleo", "Ferro velho", "Venda de peças", "Resgate", "Outro"]);
+  assert.ok(
+    tree.some(
+      (node) =>
+        node.type === "summary" && node.props.children === "Opções avançadas",
+    ),
+  );
+
+  tree.find((node) => node.props["data-revenue-type"] === "oil").props.onClick();
+  tree = harness.render(props);
+  assert.equal(tree.find((node) => node.props["aria-label"] === "Descrição").props.value, "Venda de óleo");
+  assert.equal(tree.find((node) => node.props["aria-label"] === "Categoria da receita").props.value, "oil");
+  let advanced = tree.find(
+    (node) =>
+      node.type === "details" &&
+      nodes(node).some(
+        (child) => child.type === "summary" && child.props.children === "Opções avançadas",
+      ),
+  );
+  advanced.props.onToggle({ currentTarget: { open: true } });
+  tree = harness.render(props);
+  advanced = tree.find(
+    (node) =>
+      node.type === "details" &&
+      nodes(node).some(
+        (child) => child.type === "summary" && child.props.children === "Opções avançadas",
+      ),
+  );
+  assert.equal(advanced.props.open, true);
+  tree.find((node) => node.props["aria-label"] === "Valor recebido").props.onChange({
+    target: { value: "125.50" },
+  });
+  tree = harness.render(props);
+  tree.find((node) => node.type === "form" && node.props["aria-label"] === "Nova receita extra")
+    .props.onSubmit({ preventDefault() {} });
+  await tick();
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].categoryId, "oil");
+  assert.equal(saved[0].description, "Venda de óleo");
+  assert.equal(saved[0].revenue, 125.5);
+});
+
 test("financial tabs open with a concise summary and separate operational details", async () => {
   const harness = await uiHarness({ access: async () => true, report: async () => orderRows });
   harness.render(harness.ui.FinancialScreen);
@@ -386,7 +524,27 @@ test("financial tabs open with a concise summary and separate operational detail
 
   tree.find((node) => node.type === "Tabs").props.onValueChange("performance");
   tree = nodes(harness.render(harness.ui.FinancialScreen));
-  assert.equal(tree.filter((node) => node.type === "BarChart").length, 2);
+  const performance = tree.find(
+    (node) => node.type === "section" && node.props["aria-label"] === "Desempenho da oficina",
+  );
+  assert.ok(performance);
+  assert.deepEqual(
+    nodes(performance)
+      .filter((node) => node.type === "dt")
+      .map((node) => node.props.children),
+    ["Resultado bruto", "Ticket médio", "OS concluídas"],
+  );
+  assert.equal(tree.filter((node) => node.type?.name === "PerformanceTrend").length, 1);
+  const advanced = tree.find(
+    (node) =>
+      node.type === "details" &&
+      nodes(node).some(
+        (child) => child.type === "summary" && child.props.children === "Ver análises detalhadas",
+      ),
+  );
+  assert.ok(advanced);
+  assert.equal(advanced.props.open, undefined);
+  assert.equal(nodes(advanced).filter((node) => node.type === "BarChart").length, 2);
   assert.ok(
     tree.some(
       (node) => node.type === "summary" && node.props.children === "Rentabilidade de peças",

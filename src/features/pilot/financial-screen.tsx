@@ -14,17 +14,11 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Banknote,
   ChartNoAxesCombined,
-  ClipboardCheck,
-  Package,
-  ReceiptText,
   RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
-  Wrench,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { ExtraRevenues } from "./extra-revenues";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -116,6 +110,103 @@ function FinancialChartTooltip({
         ))}
       </dl>
     </div>
+  );
+}
+
+function PerformanceTrend({
+  data,
+  reducedMotion,
+}: {
+  data: Array<{
+    name: string;
+    Faturamento: number | null;
+    Custo: number | null;
+    Resultado: number | null;
+  }>;
+  reducedMotion: boolean;
+}) {
+  return (
+    <Card className="min-w-0 overflow-hidden rounded-xl border-slate-200 bg-white shadow-sm shadow-slate-950/[0.03]">
+      <CardContent className="min-w-0 p-4 sm:p-6">
+        <div className="mb-5 border-b border-slate-100 pb-4">
+          <h3 className="text-base font-semibold tracking-tight text-slate-950">
+            Faturamento e resultado ao longo do período
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            Cada ponto considera a data de conclusão da OS.
+          </p>
+        </div>
+        {!data.length ? (
+          <div className="flex h-64 items-center justify-center rounded-md border border-dashed bg-slate-50/50 px-5 text-center sm:h-72">
+            <p className="text-sm text-slate-500">Sem dados para mostrar neste período.</p>
+          </div>
+        ) : (
+          <div
+            className="h-64 min-w-0 text-xs tabular-nums sm:h-72 xl:h-80"
+            role="img"
+            aria-label="Evolução de faturamento e resultado"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data} margin={{ top: 12, right: 10, bottom: 8, left: 0 }}>
+                <defs>
+                  <linearGradient id="performance-revenue-area" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#173f8f" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="#173f8f" stopOpacity={0.01} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 5" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tickFormatter={(value) => chartDate(String(value))}
+                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#cbd5e1" }}
+                  minTickGap={24}
+                />
+                <YAxis
+                  tickFormatter={(value) => chartCurrency.format(Number(value))}
+                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={74}
+                />
+                <Tooltip content={<FinancialChartTooltip />} />
+                <ReferenceLine y={0} stroke="#94a3b8" />
+                <Area
+                  type="monotone"
+                  dataKey="Faturamento"
+                  fill="url(#performance-revenue-area)"
+                  stroke="none"
+                  isAnimationActive={!reducedMotion}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Faturamento"
+                  name="Faturamento"
+                  stroke="#173f8f"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  connectNulls={false}
+                  isAnimationActive={!reducedMotion}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Resultado"
+                  name="Resultado"
+                  stroke="#16803c"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  connectNulls={false}
+                  isAnimationActive={!reducedMotion}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -619,120 +710,44 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
           ) : (
             <>
               {activeTab === "performance" && (
-                <>
-                  <section
-                aria-label="Desempenho financeiro da oficina"
-                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/[0.04]"
-              >
-                <div className="grid xl:grid-cols-[minmax(18rem,1fr)_minmax(0,1.8fr)]">
-                  <div className="relative min-w-0 overflow-hidden bg-primary px-5 py-6 text-primary-foreground sm:p-7">
-                    <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full border border-white/10" />
-                    <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-                      <Banknote className="h-4 w-4" aria-hidden="true" />
-                      Resultado bruto
-                    </div>
-                    <p className="relative mt-4 break-words text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">
-                      {money(summary.result)}
-                    </p>
-                    <p className="relative mt-3 max-w-sm text-xs leading-relaxed text-white/70">
-                      Venda final menos custos diretos conhecidos e taxas financeiras.
+                <section aria-label="Desempenho da oficina" className="space-y-4">
+                  <div>
+                    <h2 className="text-xl font-semibold tracking-tight text-slate-950">
+                      Desempenho da oficina
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Uma leitura rápida das OS concluídas no período.
                     </p>
                   </div>
-                  <dl className="grid min-w-0 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                    {(
+                  <dl className="grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/[0.03] sm:grid-cols-3 sm:divide-x sm:divide-slate-200">
+                    {[
                       [
-                        [
-                          "Faturamento total",
-                          money(summary.revenue),
-                          "Total das OS concluídas após descontos, dentro dos filtros.",
-                          ReceiptText,
-                        ],
-                        [
-                          "Ticket médio",
-                          money(summary.ticket),
-                          "Média das OS que possuem valor conhecido.",
-                          Banknote,
-                        ],
-                        [
-                          "OS consideradas",
-                          String(summary.orders),
-                          "Ordens concluídas incluídas neste período.",
-                          ClipboardCheck,
-                        ],
-                      ] as Array<[string, string, string, LucideIcon]>
-                    ).map(([label, value, description, Icon]) => (
+                        "Resultado bruto",
+                        money(summary.result),
+                        "Venda final menos custos diretos conhecidos e taxas financeiras.",
+                      ],
+                      ["Ticket médio", money(summary.ticket), "Média das OS com valor conhecido."],
+                      ["OS concluídas", String(summary.orders), "Ordens incluídas neste período."],
+                    ].map(([label, value, explanation], index) => (
                       <div
-                        key={String(label)}
-                        className="group min-w-0 p-5 transition-colors duration-150 hover:bg-slate-50/80 sm:p-6"
+                        key={label}
+                        className={`min-w-0 p-5 sm:p-6 ${
+                          index === 0 ? "bg-primary text-primary-foreground" : "bg-white"
+                        }`}
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <dt className="text-xs font-medium leading-5 text-slate-600">{label}</dt>
-                          <Icon className="h-4 w-4 text-slate-400 group-hover:text-primary" />
-                        </div>
-                        <dd className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950 tabular-nums sm:text-2xl">
+                        <dt className={`text-sm font-medium ${index === 0 ? "text-white/80" : "text-slate-600"}`}>
+                          {label}
+                        </dt>
+                        <dd className={`mt-2 break-words text-2xl font-semibold tracking-tight tabular-nums ${index === 0 ? "text-white" : "text-slate-950"}`}>
                           {value}
                         </dd>
-                        <p className="mt-2 text-xs leading-relaxed text-slate-500">{description}</p>
+                        <p className={`mt-2 text-xs leading-relaxed ${index === 0 ? "text-white/70" : "text-slate-500"}`}>
+                          {explanation}
+                        </p>
                       </div>
                     ))}
                   </dl>
-                </div>
-                <dl className="flex flex-wrap gap-x-8 gap-y-2 border-t border-slate-200 px-5 py-3 text-sm">
-                  <div><dt className="text-muted-foreground">Faturamento bruto</dt><dd className="font-semibold tabular-nums">{money(summary.grossRevenue)}</dd></div>
-                  <div><dt className="text-muted-foreground">Descontos concedidos</dt><dd className="font-semibold tabular-nums">{money(summary.discountAmount)}</dd></div>
-                  <div><dt className="text-muted-foreground">Pago pelo cliente</dt><dd className="font-semibold tabular-nums">{money(summary.paid)}</dd></div>
-                  <div><dt className="text-muted-foreground">Taxas financeiras</dt><dd className="font-semibold tabular-nums">{money(summary.fees)}</dd></div>
-                  <div><dt className="text-muted-foreground">Entrada líquida</dt><dd className="font-semibold tabular-nums">{money(summary.netReceived)}</dd></div>
-                </dl>
-                <dl className="grid border-t border-slate-200 bg-slate-50/60 sm:grid-cols-3 sm:divide-x sm:divide-slate-200">
-                  {(
-                    [
-                      [
-                        "Serviços / mão de obra",
-                        money(summary.servicesRevenue),
-                        "Receita dos serviços executados, antes do desconto da OS.",
-                        Wrench,
-                      ],
-                      [
-                        "Peças",
-                        money(summary.partsRevenue),
-                        "Receita das peças executadas, antes do desconto da OS.",
-                        Package,
-                      ],
-                      [
-                        "Custos diretos conhecidos",
-                        money(summary.cost),
-                        "Peças e serviços com custo interno cadastrado.",
-                        ReceiptText,
-                      ],
-                    ] as Array<[string, string, string, LucideIcon]>
-                  ).map(([label, value, description, Icon]) => (
-                    <div key={String(label)} className="flex min-w-0 gap-3 p-4 sm:px-5">
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-primary shadow-sm ring-1 ring-slate-200">
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </div>
-                      <div>
-                        <dt className="text-xs font-medium leading-5 text-slate-600">{label}</dt>
-                        <dd className="break-words text-base font-semibold text-slate-900 tabular-nums">
-                          {value}
-                        </dd>
-                        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-                          {description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </dl>
-                  </section>
-                  <p className="rounded-lg border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-xs leading-relaxed text-amber-950/75">
-                    {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
-                    {summary.incompleteCosts} OS com custo de peças incompleto. Resultados com custo
-                    parcial são provisórios; quando o custo de uma OS com peças é totalmente
-                    desconhecido, seu resultado e o agregado ficam não informados. {summary.undated} OS
-                    sem data de conclusão válida foram excluídas. O custo de OS somente com serviços é
-                    zero porque não há peças, não por estimativa.
-                  </p>
-                </>
+                </section>
               )}
               <ExtraRevenues
                 view={activeTab}
@@ -747,7 +762,38 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                 </p>
               )}
               {(activeTab === "summary" || activeTab === "performance") && (
-              <section aria-label="Análises financeiras" className="space-y-3">
+              <>
+              {activeTab === "performance" && (
+                <section aria-label="Evolução do desempenho" className="space-y-3">
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+                      Evolução do período
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Compare faturamento e resultado das OS ao longo do tempo.
+                    </p>
+                  </div>
+                  <PerformanceTrend data={summary.timeline} reducedMotion={reducedMotion} />
+                </section>
+              )}
+              <details
+                aria-label="Análises financeiras"
+                className={
+                  activeTab === "performance"
+                    ? "group rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm shadow-slate-950/[0.03] sm:px-6"
+                    : "space-y-3"
+                }
+                open={activeTab === "summary" ? true : undefined}
+              >
+                <summary
+                  className={
+                    activeTab === "performance"
+                      ? "cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight text-slate-800 marker:text-slate-400 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                      : "sr-only"
+                  }
+                >
+                  {activeTab === "performance" ? "Ver análises detalhadas" : "Evolução do período"}
+                </summary>
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight text-slate-950">
                     {activeTab === "summary" ? "Evolução do período" : "Comparações do período"}
@@ -1199,7 +1245,8 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                     </Card>
                   ))}
                 </div>
-              </section>
+              </details>
+              </>
               )}
               {activeTab === "orders" && (
               <Card className="min-w-0 overflow-hidden rounded-xl border-slate-200 shadow-sm shadow-slate-950/[0.03]">
@@ -1289,6 +1336,38 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                   )}
                 </CardContent>
               </Card>
+              )}
+              {activeTab === "performance" && (
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm shadow-slate-950/[0.03] sm:px-6">
+                <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight text-slate-800 marker:text-slate-400 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
+                  Ver composição dos números
+                </summary>
+                <div className="space-y-5 border-t border-slate-100 py-5">
+                  <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      ["Faturamento bruto", money(summary.grossRevenue)],
+                      ["Descontos concedidos", money(summary.discountAmount)],
+                      ["Pago pelo cliente", money(summary.paid)],
+                      ["Taxas financeiras", money(summary.fees)],
+                      ["Entrada líquida", money(summary.netReceived)],
+                      ["Serviços / mão de obra", money(summary.servicesRevenue)],
+                      ["Peças", money(summary.partsRevenue)],
+                      ["Custos diretos conhecidos", money(summary.cost)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                        <dt className="text-xs text-slate-500">{label}</dt>
+                        <dd className="mt-1 font-semibold text-slate-900 tabular-nums">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="rounded-lg border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-xs leading-relaxed text-amber-950/75">
+                    {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
+                    {summary.incompleteCosts} OS com custo incompleto. Resultados com custo parcial
+                    são provisórios; quando o custo é totalmente desconhecido, o resultado não é
+                    informado. {summary.undated} OS sem data de conclusão válida foram excluídas.
+                  </p>
+                </div>
+              </details>
               )}
               {activeTab === "performance" && (
               <details className="group rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm shadow-slate-950/[0.03] sm:px-6">
@@ -1401,9 +1480,12 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
           )}
           {activeTab === "performance" &&
             (accessLevel === "owner" || accessLevel === "admin") && (
-            <Card className="border-slate-200 shadow-sm shadow-slate-950/[0.03]">
-              <CardContent className="space-y-3 p-4 sm:p-6">
-                <div className="flex items-center gap-2">
+            <details className="group rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm shadow-slate-950/[0.03] sm:px-6">
+              <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight text-slate-700 marker:text-slate-400 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
+                Configurar acesso ao financeiro
+              </summary>
+              <div className="space-y-3 border-t border-slate-100 py-5">
+                <div className="flex items-center gap-2 text-slate-900">
                   <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
                   <h2 className="font-semibold">Acesso ao financeiro</h2>
                 </div>
@@ -1442,8 +1524,8 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                     {member.owner ? " · proprietário" : ""}
                   </label>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </details>
           )}
           </div>
         </>
