@@ -2312,9 +2312,9 @@ function VehiclesScreen({
                 key={vehicle.id}
                 className="pilot-table-row grid gap-4 border-l-4 border-l-transparent p-4 transition-[background-color,border-color] duration-150 hover:border-l-orange-500 hover:bg-orange-50/30 motion-reduce:transition-none md:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)_auto] md:items-center md:gap-6 md:px-6 md:py-5"
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="directory-vehicle-icon grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-900 text-white">
-                    <VehicleIcon kind={vehicle.kind} className="h-6 w-6" />
+                <div className="flex min-w-0 items-center gap-3.5">
+                  <div className="directory-vehicle-icon grid h-12 w-12 min-w-12 shrink-0 place-items-center rounded-xl">
+                    <VehicleIcon kind={vehicle.kind} className="h-7 w-7" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -2473,12 +2473,12 @@ function OrdersScreen({
                       <span className="text-xs font-semibold text-amber-700">Precisa de atenção</span>
                     )}
                   </div>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="directory-order-icon grid h-11 w-11 shrink-0 place-items-center rounded-lg">
+                  <div className="flex min-w-0 items-center gap-3.5">
+                    <span className="directory-order-icon grid h-12 w-12 min-w-12 shrink-0 place-items-center rounded-xl">
                       {vehicle ? (
-                        <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
+                        <VehicleIcon kind={vehicle.kind} className="h-7 w-7" />
                       ) : (
-                        <Wrench className="h-5 w-5" />
+                        <Wrench className="h-7 w-7" />
                       )}
                     </span>
                     <span className="min-w-0">

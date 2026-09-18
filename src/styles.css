@@ -1185,16 +1185,18 @@ button:hover > .brand-mark::after {
 }
 
 .directory-vehicle-icon {
-  background: linear-gradient(145deg, #1e3a6d, #0f172a);
+  border: 1px solid #fdba74;
+  background: linear-gradient(145deg, #fff7ed, #ffedd5);
+  color: #c2410c;
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.15),
-    0 3px 7px rgb(15 23 42 / 0.14);
+    inset 0 1px 0 rgb(255 255 255 / 0.8),
+    0 2px 5px rgb(194 65 12 / 0.1);
 }
 
 .directory-order-icon {
-  border: 1px solid #dbe3ef;
-  background: linear-gradient(145deg, #f8fafc, #e8eef7);
-  color: #173f8f;
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(145deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
   box-shadow: inset 0 1px 0 white;
 }
 
