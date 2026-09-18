@@ -29,6 +29,7 @@ import { ExtraRevenues } from "./extra-revenues";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth/auth-context";
 import type { BudgetItem, ServiceOrder } from "./pilot-data";
 import { financialApi, type FinancialMember, type SavePart } from "./financial-api";
@@ -402,7 +403,7 @@ export function PartFinancialEditor({
   );
 }
 
-export function FinancialScreen({ heading = "Financeiro", description = "Visão executiva das ordens de serviço concluídas no período selecionado." }: { heading?: string; description?: string } = {}) {
+export function FinancialScreen({ heading = "Financeiro", description = "Acompanhe o dinheiro da oficina e avance para os detalhes quando precisar." }: { heading?: string; description?: string } = {}) {
   const { accessLevel, isLocalBypass } = useAuth();
   const reducedMotion = useReducedMotion();
   const [lineMotionReady, setLineMotionReady] = useState(false);
@@ -417,6 +418,9 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
     [period, setPeriod] = useState("month"),
     [customStart, setCustomStart] = useState(""),
     [customEnd, setCustomEnd] = useState("");
+  const [activeTab, setActiveTab] = useState<
+    "summary" | "orders" | "extras" | "receivables" | "performance"
+  >("summary");
   useEffect(() => {
     if (reducedMotion) {
       setLineMotionReady(true);
@@ -593,11 +597,30 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
               </>
             )}
           </section>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
+            <div className="overflow-x-auto border-b border-slate-200" aria-label="Áreas do financeiro">
+              <TabsList className="h-auto min-w-max justify-start border-0" aria-label="Áreas do financeiro">
+                <TabsTrigger id="financial-tab-summary" aria-controls="financial-tab-panel" value="summary">Resumo</TabsTrigger>
+                <TabsTrigger id="financial-tab-orders" aria-controls="financial-tab-panel" value="orders">OS</TabsTrigger>
+                <TabsTrigger id="financial-tab-extras" aria-controls="financial-tab-panel" value="extras">Receitas extras</TabsTrigger>
+                <TabsTrigger id="financial-tab-receivables" aria-controls="financial-tab-panel" value="receivables">A receber</TabsTrigger>
+                <TabsTrigger id="financial-tab-performance" aria-controls="financial-tab-panel" value="performance">Desempenho</TabsTrigger>
+              </TabsList>
+            </div>
+          </Tabs>
+          <div
+            id="financial-tab-panel"
+            role="tabpanel"
+            aria-labelledby={`financial-tab-${activeTab}`}
+            className="space-y-7"
+          >
           {invalidRange ? (
             <p role="alert">A data inicial deve ser anterior à data final.</p>
           ) : (
             <>
-              <section
+              {activeTab === "performance" && (
+                <>
+                  <section
                 aria-label="Desempenho financeiro da oficina"
                 className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/[0.04]"
               >
@@ -700,32 +723,47 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
                     </div>
                   ))}
                 </dl>
-              </section>
-              <p className="rounded-lg border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-xs leading-relaxed text-amber-950/75">
-                {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
-                {summary.incompleteCosts} OS com custo de peças incompleto. Resultados com custo
-                parcial são provisórios; quando o custo de uma OS com peças é totalmente
-                desconhecido, seu resultado e o agregado ficam não informados. {summary.undated} OS
-                sem data de conclusão válida foram excluídas. O custo de OS somente com serviços é
-                zero porque não há peças, não por estimativa.
-              </p>
-              <ExtraRevenues start={range.start ?? ""} end={range.end ?? ""} kind={kind} os={summary} />
-              {summary.orders === 0 && (
+                  </section>
+                  <p className="rounded-lg border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-xs leading-relaxed text-amber-950/75">
+                    {summary.unpriced} OS sem valor suficiente: excluídas das somas e do ticket.{" "}
+                    {summary.incompleteCosts} OS com custo de peças incompleto. Resultados com custo
+                    parcial são provisórios; quando o custo de uma OS com peças é totalmente
+                    desconhecido, seu resultado e o agregado ficam não informados. {summary.undated} OS
+                    sem data de conclusão válida foram excluídas. O custo de OS somente com serviços é
+                    zero porque não há peças, não por estimativa.
+                  </p>
+                </>
+              )}
+              <ExtraRevenues
+                view={activeTab}
+                start={range.start ?? ""}
+                end={range.end ?? ""}
+                kind={kind}
+                os={summary}
+              />
+              {(activeTab === "summary" || activeTab === "orders") && summary.orders === 0 && (
                 <p className="rounded-md border border-dashed p-5">
                   Nenhuma OS concluída para estes filtros.
                 </p>
               )}
+              {(activeTab === "summary" || activeTab === "performance") && (
               <section aria-label="Análises financeiras" className="space-y-3">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-                    Análises do período
+                    {activeTab === "summary" ? "Evolução do período" : "Comparações do período"}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Composição e evolução dos valores considerados pelos filtros atuais.
+                    {activeTab === "summary"
+                      ? "Faturamento e resultado das OS por data de conclusão."
+                      : "Composição dos valores considerados pelos filtros atuais."}
                   </p>
                 </div>
                 <div className="grid gap-4 xl:grid-cols-2">
-                  {charts.map((chart, chartIndex) => (
+                  {charts
+                    .filter((chart) =>
+                      activeTab === "summary" ? chart.mode === "timeline" : chart.mode === "comparison",
+                    )
+                    .map((chart, chartIndex) => (
                     <Card
                       key={chart.title}
                       className={
@@ -1162,6 +1200,8 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
                   ))}
                 </div>
               </section>
+              )}
+              {activeTab === "orders" && (
               <Card className="min-w-0 overflow-hidden rounded-xl border-slate-200 shadow-sm shadow-slate-950/[0.03]">
                 <CardContent className="min-w-0 p-4 sm:p-6">
                   <div className="mb-4">
@@ -1249,6 +1289,8 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
                   )}
                 </CardContent>
               </Card>
+              )}
+              {activeTab === "performance" && (
               <details className="group rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm shadow-slate-950/[0.03] sm:px-6">
                 <summary className="cursor-pointer rounded-sm py-3 text-sm font-semibold tracking-tight text-slate-800 marker:text-slate-400 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
                   Rentabilidade de peças
@@ -1354,9 +1396,11 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
                   </p>
                 )}
               </details>
+              )}
             </>
           )}
-          {(accessLevel === "owner" || accessLevel === "admin") && (
+          {activeTab === "performance" &&
+            (accessLevel === "owner" || accessLevel === "admin") && (
             <Card className="border-slate-200 shadow-sm shadow-slate-950/[0.03]">
               <CardContent className="space-y-3 p-4 sm:p-6">
                 <div className="flex items-center gap-2">
@@ -1401,6 +1445,7 @@ export function FinancialScreen({ heading = "Financeiro", description = "Visão 
               </CardContent>
             </Card>
           )}
+          </div>
         </>
       )}
     </div>

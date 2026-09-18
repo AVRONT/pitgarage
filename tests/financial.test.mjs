@@ -279,7 +279,10 @@ async function uiHarness(api, owner = false) {
   globalThis.window ??= {
     matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
   };
-  globalThis.requestAnimationFrame ??= (callback) => callback();
+  globalThis.requestAnimationFrame ??= (callback) => {
+    callback();
+    return 1;
+  };
   globalThis.cancelAnimationFrame ??= () => {};
   let cursor = 0;
   const slots = [],
@@ -338,13 +341,18 @@ async function uiHarness(api, owner = false) {
     "@/components/ui/button": { Button: "button" },
     "@/components/ui/card": { Card: "section", CardContent: "div" },
     "@/components/ui/input": { Input: "input" },
+    "@/components/ui/tabs": {
+      Tabs: "Tabs",
+      TabsList: "TabsList",
+      TabsTrigger: "TabsTrigger",
+    },
     "lucide-react": new Proxy({}, { get: (_, name) => String(name) }),
     "@/features/auth/auth-context": {
       useAuth: () => ({ accessLevel: owner ? "owner" : "staff", isLocalBypass: false }),
     },
-    "./extra-revenues": { ExtraRevenues: "div" },
     "./financial-api": { financialApi: api },
     "./financial-model": model,
+    "./extra-revenues": { ExtraRevenues: "ExtraRevenues" },
   });
   return {
     ui,
@@ -357,6 +365,34 @@ async function uiHarness(api, owner = false) {
   };
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("financial tabs open with a concise summary and separate operational details", async () => {
+  const harness = await uiHarness({ access: async () => true, report: async () => orderRows });
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+  const labels = tree
+    .filter((node) => node.type === "TabsTrigger")
+    .map((node) => node.props.children);
+  assert.deepEqual(labels, ["Resumo", "OS", "Receitas extras", "A receber", "Desempenho"]);
+  assert.equal(tree.find((node) => node.type === "ExtraRevenues").props.view, "summary");
+  assert.equal(tree.filter((node) => node.type === "ComposedChart").length, 1);
+  assert.ok(!tree.some((node) => node.props?.children === "Resumo por OS"));
+
+  tree.find((node) => node.type === "Tabs").props.onValueChange("orders");
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  assert.ok(tree.some((node) => node.props?.children === "Resumo por OS"));
+  assert.equal(tree.filter((node) => node.type === "ComposedChart").length, 0);
+
+  tree.find((node) => node.type === "Tabs").props.onValueChange("performance");
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  assert.equal(tree.filter((node) => node.type === "BarChart").length, 2);
+  assert.ok(
+    tree.some(
+      (node) => node.type === "summary" && node.props.children === "Rentabilidade de peças",
+    ),
+  );
+});
 
 test("chart presentation formats currency, dates and tooltips without hiding zeros", async () => {
   const harness = await uiHarness({ access: async () => true, report: async () => orderRows });
@@ -436,6 +472,8 @@ test("piece detail uses real names and keeps positional fallbacks for legacy ite
   await tick();
   let tree = nodes(harness.render(harness.ui.FinancialScreen));
   tree.filter((node) => node.type === "select")[1].props.onChange({ target: { value: "all" } });
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.find((node) => node.type === "Tabs").props.onValueChange("performance");
   tree = nodes(harness.render(harness.ui.FinancialScreen));
   const textOf = (value) =>
     Array.isArray(value)
@@ -692,7 +730,7 @@ test("editor preserves manual final price when cost/markup changes; applies sugg
     .props.onClick();
   assert.equal(render().filter((node) => node.type === "input")[3].props.value, "130");
 });
-test("financial screen creates all three charts with data and hides charts on empty/denied data", async () => {
+test("financial summary shows one evolution chart and performance keeps both comparisons", async () => {
   for (const mode of ["data", "empty", "denied"]) {
     const harness = await uiHarness({
       access: async () => mode !== "denied",
@@ -706,17 +744,20 @@ test("financial screen creates all three charts with data and hides charts on em
       selects[1].props.onChange({ target: { value: "all" } });
       tree = nodes(harness.render(harness.ui.FinancialScreen));
       assert.equal(tree.filter((node) => node.type === "ComposedChart").length, 1);
-      const bars = tree.filter((node) => node.type === "BarChart");
+      assert.equal(tree.filter((node) => node.type === "BarChart").length, 0);
       const timeline = tree.find((node) => node.type === "ComposedChart").props.data;
-      const unchanged = nodes(harness.render(harness.ui.FinancialScreen));
-      assert.equal(unchanged.find((node) => node.type === "ComposedChart").props.data, timeline);
-      assert.equal(bars.length, 2);
-      assert.equal(bars[0].props.data[0].Faturamento, 850);
-      assert.equal(bars[0].props.data[0].Resultado, 650);
       assert.deepEqual(
         tree.filter((node) => node.type === "Line").map((node) => node.props.dataKey),
         ["Faturamento", "Resultado"],
       );
+      const unchanged = nodes(harness.render(harness.ui.FinancialScreen));
+      assert.equal(unchanged.find((node) => node.type === "ComposedChart").props.data, timeline);
+      tree.find((node) => node.type === "Tabs").props.onValueChange("performance");
+      tree = nodes(harness.render(harness.ui.FinancialScreen));
+      const bars = tree.filter((node) => node.type === "BarChart");
+      assert.equal(bars.length, 2);
+      assert.equal(bars[0].props.data[0].Faturamento, 850);
+      assert.equal(bars[0].props.data[0].Resultado, 650);
       assert.ok(
         tree.some(
           (node) => node.type === "summary" && node.props.children === "Rentabilidade de peças",
@@ -728,7 +769,7 @@ test("financial screen creates all three charts with data and hides charts on em
       assert.ok(tree.some((node) => node.type === "td" && node.props.children === "25%"));
     } else {
       assert.equal(
-        tree.filter((node) => node.type === "LineChart" || node.type === "BarChart").length,
+        tree.filter((node) => node.type === "ComposedChart" || node.type === "BarChart").length,
         0,
       );
       if (mode === "denied") assert.ok(tree.some((node) => node.props?.role === "alert"));
