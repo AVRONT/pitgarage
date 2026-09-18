@@ -123,6 +123,7 @@ import {
   logicallyDeleteVehicle,
   money,
   orderCancelBlocker,
+  orderCancellationRecords,
   orderDeleteBlockers,
   orderStatuses,
   orderWarrantyDays,
@@ -3188,6 +3189,7 @@ function OrderDetail({
   const quickFinalized = order.flowType === "quick" && order.status === "Entregue";
   const deleteBlockers = orderDeleteBlockers(order);
   const cancelBlocker = orderCancelBlocker(order);
+  const cancellationRecords = orderCancellationRecords(order);
   const workflow = evaluateOrderWorkflow(order);
   const displayVehicle: Vehicle = vehicle ?? {
     id: "", customerId: order.customerId, kind: "Carro",
@@ -3734,6 +3736,19 @@ function OrderDetail({
               consulta. A OS sai das listas ativas e não aceita mais alterações.
             </DialogDescription>
           </DialogHeader>
+          {cancellationRecords.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-semibold">
+                Esta OS possui registros financeiros. Ao cancelar, ela deixará de considerar nos indicadores financeiros.
+              </p>
+              <ul className="space-y-1" aria-label="Registros preservados após o cancelamento">
+                {cancellationRecords.map((record) => (
+                  <li key={record}>• {record}</li>
+                ))}
+              </ul>
+              <p>Os registros e o histórico continuarão preservados para consulta.</p>
+            </div>
+          )}
           {cancelBlocker ? (
             <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
               {cancelBlocker}
@@ -3750,21 +3765,23 @@ function OrderDetail({
           {actionError && <p className="text-sm font-semibold text-rose-700">{actionError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancelOpen(false)}>
-              Voltar
+              Voltar para a OS
             </Button>
-            <Button
-              variant="destructive"
-              disabled={Boolean(cancelBlocker) || !cancelReason.trim() || actionBusy}
-              onClick={() => {
-                void onCancel(cancelReason.trim()).then((done) => {
-                  if (!done) return;
-                  setCancelOpen(false);
-                  setCancelReason("");
-                });
-              }}
-            >
-              {actionBusy ? "Cancelando…" : "Confirmar cancelamento"}
-            </Button>
+            {!cancelBlocker && (
+              <Button
+                variant="destructive"
+                disabled={!cancelReason.trim() || actionBusy}
+                onClick={() => {
+                  void onCancel(cancelReason.trim()).then((done) => {
+                    if (!done) return;
+                    setCancelOpen(false);
+                    setCancelReason("");
+                  });
+                }}
+              >
+                {actionBusy ? "Cancelando…" : "Confirmar cancelamento"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

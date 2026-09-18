@@ -40,6 +40,7 @@ const workflow = await load("pilot-workflow.ts", {
   "./pilot-data": data,
   "./payment-model": payments,
 });
+
 const base = {
   ...data.initialOrders[0],
   id: "OS-1",
@@ -72,6 +73,62 @@ const partial = {
   status: "Parcial",
   receipts: [receipt],
 };
+test("cancellation records warn about financial impact without blocking cancellation", async () => {
+  const paymentOnly = {
+    ...base,
+    status: "Em diagnóstico",
+    budget: [],
+    completedAt: undefined,
+    payment: partial,
+  };
+  assert.deepEqual(data.orderCancellationRecords(paymentOnly), ["Pagamento registrado"]);
+  assert.deepEqual(
+    data.orderCancellationRecords({
+      ...paymentOnly,
+      payment: undefined,
+      budget: [{ ...base.budget[0] }],
+    }),
+    ["Serviço executado"],
+  );
+  const blockedByBoth = { ...base, payment: partial };
+  assert.deepEqual(data.orderCancellationRecords(blockedByBoth), [
+    "Pagamento registrado",
+    "Serviço executado",
+  ]);
+  assert.equal(
+    data.orderCancelBlocker(blockedByBoth),
+    null,
+  );
+  const appSource = await readFile(
+    new URL("../src/features/pilot/pilot-app.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    appSource,
+    /Esta OS possui registros financeiros\. Ao cancelar, ela deixará de considerar nos indicadores financeiros\./,
+  );
+});
+
+test("cancel migration preserves records and excludes cancelled orders from financial reports", async () => {
+  const source = await readFile(
+    new URL(
+      "../supabase/migrations/20260918010000_allow_cancel_with_financial_records.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const cancelSource = source.split(
+    "create or replace function public.financial_order_report",
+  )[0];
+  assert.match(source, /current_access_level\(\) not in \('owner','admin'\)/);
+  assert.match(source, /btrim\(coalesce\(reason, ''\)\) = ''/);
+  assert.match(source, /cancelled_at = clock_timestamp\(\)/);
+  assert.match(source, /'description', 'OS cancelada: '/);
+  assert.match(source, /s\.cancelled_at is null/);
+  assert.doesNotMatch(cancelSource, /target\.payment is not null/);
+  assert.doesNotMatch(cancelSource, /b->>'executed'/);
+  assert.doesNotMatch(cancelSource, /set[\s\S]*payment\s*=/i);
+});
 test("debt is derived: unpaid / partial / paid, including delivered OS and customer totals", () => {
   assert.deepEqual(payments.paymentSummary(base), {
     subtotal: 1000,
@@ -212,9 +269,11 @@ test("financial adjustment uses workshop language while preserving internal corr
   tree.find((node) => node.props?.["aria-label"] === "Motivo do ajuste").props.onChange({ target: { value: "Valor combinado com o cliente" } });
   tree = render();
   await tree.find((node) => node.type === "button" && node.props.children === "Salvar ajuste").props.onClick();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(saved[0].correction.type, "discount");
   assert.equal(saved[0].correction.payload.amount, 75);
   assert.equal(saved[0].correction.reason, "Valor combinado com o cliente");
+  assert.equal(render().find((node) => node.type === "Dialog").props.open, false);
 
   tree = render();
   tree.find((node) => node.type === "button" && node.props.children === "Ajustar valor").props.onClick();
@@ -247,6 +306,112 @@ test("financial adjustment uses workshop language while preserving internal corr
   const source = await readFile(new URL("../src/features/pilot/financial-correction.tsx", import.meta.url), "utf8");
   assert.match(source, /receipt|discount|cost/);
   assert.doesNotMatch(source, /status\s*:/);
+});
+
+test("financial adjustment always releases saving state and reports validation, failure and timeout", async () => {
+  const nodes = (tree) => {
+    if (!tree || typeof tree !== "object") return [];
+    if (Array.isArray(tree)) return tree.flatMap(nodes);
+    return [tree, ...nodes(tree.props?.children)];
+  };
+  let cursor = 0;
+  const slots = [];
+  const react = {
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [slots[index], (value) => {
+        slots[index] = typeof value === "function" ? value(slots[index]) : value;
+      }];
+    },
+    useRef(initial) {
+      const index = cursor++;
+      return (slots[index] ??= { current: initial });
+    },
+    useMemo(factory) {
+      cursor++;
+      return factory();
+    },
+  };
+  const ui = await load("financial-correction.tsx", {
+    react,
+    "react/jsx-runtime": jsxRuntime,
+    "@/components/ui/button": { Button: "button" },
+    "@/components/ui/input": { Input: "input" },
+    "@/components/ui/dialog": {
+      Dialog: "Dialog",
+      DialogContent: "DialogContent",
+      DialogDescription: "DialogDescription",
+      DialogFooter: "DialogFooter",
+      DialogHeader: "DialogHeader",
+      DialogTitle: "DialogTitle",
+    },
+  });
+  const order = {
+    ...base,
+    payment: { ...partial, receipts: [receipt] },
+  };
+  let save = async () => {};
+  const render = () => {
+    cursor = 0;
+    return nodes(ui.FinancialCorrection({ order, save: (value) => save(value) }));
+  };
+  const open = () => {
+    let tree = render();
+    tree.find((node) => node.type === "button" && node.props.children === "Ajustar valor").props.onClick();
+    return render();
+  };
+  const fillReason = (tree) => {
+    tree.find((node) => node.props?.["aria-label"] === "Motivo do ajuste").props.onChange({
+      target: { value: "Correção de teste" },
+    });
+  };
+  const submit = () => {
+    const tree = render();
+    tree.find((node) => node.type === "button" && node.props.children === "Salvar ajuste").props.onClick();
+  };
+  const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+  let tree = open();
+  submit();
+  tree = render();
+  assert.equal(tree.find((node) => node.props?.role === "alert").props.children, "Explique o motivo deste ajuste.");
+  tree.find((node) => node.type === "button" && node.props.children === "Cancelar").props.onClick();
+  assert.equal(render().find((node) => node.type === "Dialog").props.open, false);
+
+  save = async () => {
+    throw new Error("Não foi possível confirmar o ajuste.");
+  };
+  tree = open();
+  fillReason(tree);
+  submit();
+  await tick();
+  tree = render();
+  assert.equal(tree.find((node) => node.props?.role === "alert").props.children, "Não foi possível confirmar o ajuste.");
+  assert.ok(tree.some((node) => node.type === "button" && node.props.children === "Salvar ajuste"));
+
+  tree.find((node) => node.type === "button" && node.props.children === "Cancelar").props.onClick();
+  save = () => new Promise(() => {});
+  tree = open();
+  fillReason(tree);
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  globalThis.setTimeout = (callback) => {
+    queueMicrotask(callback);
+    return 1;
+  };
+  globalThis.clearTimeout = () => {};
+  try {
+    submit();
+    assert.ok(render().some((node) => node.type === "button" && node.props.children === "Salvando…"));
+    await tick();
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+  tree = render();
+  assert.match(tree.find((node) => node.props?.role === "alert").props.children, /Recarregue a OS/);
+  assert.ok(tree.some((node) => node.type === "button" && node.props.children === "Salvar ajuste"));
 });
 test("legacy paid/pending are not lost or mistaken for cash; reversal preserves receipts and exposes credit", () => {
   assert.equal(

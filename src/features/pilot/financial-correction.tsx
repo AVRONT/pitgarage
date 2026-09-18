@@ -13,6 +13,7 @@ import type { ServiceOrder } from "./pilot-data";
 import type { SavePart } from "./financial-api";
 
 type CorrectionType = "receipt" | "discount" | "cost";
+const saveConfirmationTimeout = 20_000;
 
 const money = (value: number | null | undefined) =>
   value === null || value === undefined
@@ -29,6 +30,7 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const saveLock = useRef(false);
   const requestId = useRef(crypto.randomUUID());
   const receipts = order.payment?.receipts ?? [];
   const selectedReceipt = receipts.find((item) => item.id === target);
@@ -94,15 +96,32 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
   };
 
   const submit = async () => {
+    if (saveLock.current) return;
     if (!reason.trim()) return setError("Explique o motivo deste ajuste.");
     if (type !== "discount" && !target)
       return setError(type === "receipt" ? "Escolha um pagamento." : "Escolha um item.");
-    if (amount !== "" && !Number.isFinite(Number(amount)))
+    if (type !== "cost" && amount === "") return setError("Informe o novo valor.");
+    if (amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0))
       return setError("Informe um novo valor válido.");
+    saveLock.current = true;
     setBusy(true);
     setError("");
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      await save({ correction: { id: requestId.current, type, payload, reason: reason.trim() } });
+      await Promise.race([
+        save({ correction: { id: requestId.current, type, payload, reason: reason.trim() } }),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "A confirmação está demorando. Recarregue a OS para conferir se o ajuste foi salvo antes de tentar novamente.",
+                ),
+              ),
+            saveConfirmationTimeout,
+          );
+        }),
+      ]);
       requestId.current = crypto.randomUUID();
       setOpen(false);
       setReason("");
@@ -111,6 +130,8 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o ajuste.");
     } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
+      saveLock.current = false;
       setBusy(false);
     }
   };

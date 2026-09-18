@@ -170,12 +170,15 @@ export function orderDeleteBlockers(order: ServiceOrder): string[] {
 }
 
 /** Mesmas regras aplicadas em public.cancel_service_order. */
+export function orderCancellationRecords(order: ServiceOrder): string[] {
+  const records: string[] = [];
+  if (order.payment) records.push("Pagamento registrado");
+  if (order.budget.some((item) => item.executed)) records.push("Serviço executado");
+  return records;
+}
+
 export function orderCancelBlocker(order: ServiceOrder): string | null {
   if (isOrderCancelled(order)) return "Esta OS já está cancelada.";
-  if (order.payment || order.budget.some((item) => item.executed))
-    return "Esta OS tem pagamento registrado ou serviço executado: o cancelamento precisa de tratamento manual.";
-  if (["Serviço concluído", "Aguardando retirada", "Entregue"].includes(order.status))
-    return "OS concluída ou entregue não pode ser cancelada automaticamente.";
   return null;
 }
 

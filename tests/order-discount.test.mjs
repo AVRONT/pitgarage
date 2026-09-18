@@ -102,7 +102,7 @@ test("final document displays approved subtotal, discount, net total and derived
   assert.match(html, /1\.560,00/);
   assert.match(html, /60,00/);
   assert.match(html, /1\.500,00/);
-  assert.match(html, /Pago/);
+  assert.match(html, /Pagamento em dia/);
   assert.doesNotMatch(html, /markup|margem|custo/i);
   assert.doesNotMatch(render(base), /Desconto/);
 });
@@ -148,6 +148,7 @@ test("repository reload maps persisted discount, uses current version, and does 
   const query = { select() { return this; }, eq() { return this; }, async single() { return { data: row }; } };
   const { createOperationalRepository } = await load("operational-repository.ts", {
     "./financial-model": financial,
+    "./quick-order-model": { quickOrderBudgetItems: () => [], quickOrderSubtotal: () => 0 },
     "@/integrations/supabase/client": { supabase: { from: () => query } },
     "./financial-api": { financialRpc: async (name, args) => {
       assert.equal(name, "set_order_discount");
