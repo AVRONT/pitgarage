@@ -222,6 +222,31 @@ somente deste resumo. Carregue apenas as skills necessárias para economizar con
 evitar conflitos. Skills complementares podem ser combinadas. Se o usuário pedir uma
 skill pelo nome, ela deve ser usada.
 
+### Instalação compatível e seleção
+
+As mesmas cinco skills universais também possuem cópias convencionais em
+`skills/<nome>/SKILL.md`. As versões preexistentes em `.agent-skills/` permanecem
+preservadas; o README do pacote é somente documentação e nunca deve ser tratado como
+skill.
+
+- Não carregue todas as skills automaticamente nem use uma skill apenas porque ela está
+  instalada. Leia somente as realmente necessárias para a tarefa atual.
+- Em caso de conflito, siga: instruções explícitas da tarefa, instruções específicas do
+  projeto neste arquivo, skills locais/específicas do projeto e, por último, skills
+  universais.
+- `grill-me`: não use em tarefa simples, requisitos claros, plano aprovado ou execução
+  direta quando novas perguntas não mudariam materialmente a solução. Use apenas para
+  ambiguidades, riscos ou decisões importantes ainda abertas.
+- `frontend-design`: use em trabalho relevante de interface, layout, componentes,
+  hierarquia visual ou experiência frontend, sempre subordinada aos padrões locais.
+- `design-engineering`: use em UX, interação, estados, comportamento de componentes,
+  responsividade percebida e detalhes de implementação visual, também subordinada às
+  regras locais.
+- `revenue-centric-design`: use somente quando houver relação real com receita,
+  monetização, conversão, negócio, funil ou resultado comercial.
+- `viral-product-principles`: use somente quando houver relação real com crescimento,
+  aquisição, compartilhamento, loops de produto, retenção ou viralidade.
+
 ### grill-me
 
 Arquivo: `.agent-skills/grill-me/grill-me-universal.md`
