@@ -49,6 +49,18 @@ test("application keeps standard action and wires quick draft into standard flow
   assert.match(source, /createQuickOrder/);
 });
 
+test("orders screen presents an operational queue with status, next action and continue CTA", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const ordersScreen = source.slice(source.indexOf("function OrdersScreen"), source.indexOf("function CustomerDetail"));
+
+  assert.match(ordersScreen, /const workflow = evaluateOrderWorkflow\(order\)/);
+  assert.match(ordersScreen, /Próxima ação/);
+  assert.match(ordersScreen, /workflow\.nextAction\.label/);
+  assert.match(ordersScreen, />\s*Continuar\s*</);
+  assert.match(ordersScreen, /StatusBadge status=\{order\.status\}/);
+  assert.doesNotMatch(ordersScreen, /hidden md:block[\s\S]{0,80}<StatusBadge status=\{order\.status\}/);
+});
+
 test("operational home prioritizes action-oriented workshop shortcuts", async () => {
   const icons = Object.fromEntries(
     ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Settings2", "Sparkles", "WalletCards", "Wrench"].map((name) => [name, name]),

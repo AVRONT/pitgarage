@@ -2391,14 +2391,6 @@ function OrdersScreen({
       </div>
       <Card className="pilot-table directory-table overflow-hidden bg-white">
         <div>
-          <div className="pilot-table-header hidden grid-cols-[90px_1.2fr_1fr_160px_120px_24px] px-6 md:grid">
-            <span>OS</span>
-            <span>Veículo</span>
-            <span>Cliente</span>
-            <span>Status</span>
-            <span className="text-right">Valor</span>
-            <span />
-          </div>
           {visible.length === 0 && (
             <EmptyState
               title={orders.length ? "Nenhuma OS neste estado" : "Nenhuma ordem de serviço"}
@@ -2413,32 +2405,72 @@ function OrdersScreen({
             const vehicle = vehicles.find((v) => v.id === order.vehicleId);
             const customer = customers.find((c) => c.id === order.customerId)!;
             const total = order.budget.reduce((sum, item) => sum + item.price, 0);
+            const workflow = evaluateOrderWorkflow(order);
+            const needsAttention = Boolean(
+              workflow.inconsistency || workflow.blockers.length || workflow.warnings.length,
+            );
             return (
               <button
                 key={order.id}
                 onClick={() => onOpen(order.id)}
-                className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 p-3 text-left md:grid-cols-[90px_1.2fr_1fr_160px_120px_24px] md:px-6"
+                aria-label={`Continuar ${order.id}: ${workflow.nextAction.label}`}
+                className="pilot-table-row group grid w-full gap-4 border-l-4 border-l-transparent p-4 text-left transition-[background-color,border-color] duration-150 hover:border-l-orange-500 hover:bg-orange-50/40 focus-visible:border-l-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 motion-reduce:transition-none md:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)_auto] md:items-center md:gap-6 md:px-6 md:py-5"
               >
-                <strong className="hidden text-sm md:block">{order.id}</strong>
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="directory-order-icon grid h-10 w-10 shrink-0 place-items-center rounded-lg">
-                    {vehicle ? <VehicleIcon kind={vehicle.kind} className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
+                <div className="min-w-0">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <strong className="text-sm text-slate-900">{order.id}</strong>
+                    <StatusBadge status={order.status} />
+                    {needsAttention && order.status !== "Entregue" && (
+                      <span className="text-xs font-semibold text-amber-700">Precisa de atenção</span>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="directory-order-icon grid h-11 w-11 shrink-0 place-items-center rounded-lg">
+                      {vehicle ? (
+                        <VehicleIcon kind={vehicle.kind} className="h-5 w-5" />
+                      ) : (
+                        <Wrench className="h-5 w-5" />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <strong className="block truncate text-base text-slate-950">
+                        {orderVehicleLabel(order, vehicle)}
+                      </strong>
+                      <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                        {customer.name}
+                        {order.flowType === "quick"
+                          ? " · OS Rápida"
+                          : vehicle?.plate
+                            ? ` · ${vehicle.plate}`
+                            : ""}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "rounded-lg border px-4 py-3",
+                    needsAttention && order.status !== "Entregue"
+                      ? "border-amber-200 bg-amber-50/70"
+                      : "border-slate-200 bg-slate-50/70",
+                  )}
+                >
+                  <span className="block text-xs font-semibold text-muted-foreground">
+                    Próxima ação
                   </span>
-                  <span className="min-w-0">
-                    <strong className="block truncate text-sm">
-                      {orderVehicleLabel(order, vehicle)}
-                    </strong>
-                    <span className="text-xs text-muted-foreground">{order.flowType === "quick" ? "Atendimento rápido" : vehicle?.plate}</span>
+                  <strong className="mt-1 block text-sm text-slate-900">
+                    {workflow.nextAction.label}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-4 md:flex-col md:items-end md:justify-center">
+                  <span className="text-sm font-semibold tabular-nums text-slate-700">
+                    {money(total)}
+                  </span>
+                  <span className="inline-flex min-h-10 items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white group-hover:bg-orange-700">
+                    Continuar
+                    <ChevronRight className="h-4 w-4" />
                   </span>
                 </div>
-                <span className="hidden truncate text-sm md:block">{customer.name}</span>
-                <span className="hidden md:block">
-                  <StatusBadge status={order.status} />
-                </span>
-                <strong className="hidden text-right text-sm tabular-nums md:block">
-                  {money(total)}
-                </strong>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             );
           })}
