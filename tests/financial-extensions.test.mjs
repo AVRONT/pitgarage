@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import ts from "typescript";
+import * as jsxRuntime from "react/jsx-runtime";
 const require = createRequire(import.meta.url);
 async function load(name, mocks = {}) {
   const source = await readFile(new URL("../src/features/pilot/" + name, import.meta.url), "utf8");
@@ -135,10 +136,115 @@ test("order result subtracts service costs and financial fees", () => {
   assert.equal(amounts.result, 380);
 });
 
-test("financial correction UI is separate from operational reopening and requires a reason", async () => {
+test("financial adjustment uses workshop language while preserving internal correction types", async () => {
+  const nodes = (tree) => {
+    if (!tree || typeof tree !== "object") return [];
+    if (Array.isArray(tree)) return tree.flatMap(nodes);
+    return [tree, ...nodes(tree.props?.children)];
+  };
+  let cursor = 0;
+  const slots = [];
+  const react = {
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [slots[index], (value) => {
+        slots[index] = typeof value === "function" ? value(slots[index]) : value;
+      }];
+    },
+    useRef(initial) {
+      const index = cursor++;
+      return (slots[index] ??= { current: initial });
+    },
+    useMemo(factory) {
+      cursor++;
+      return factory();
+    },
+  };
+  const ui = await load("financial-correction.tsx", {
+    react,
+    "react/jsx-runtime": jsxRuntime,
+    "@/components/ui/button": { Button: "button" },
+    "@/components/ui/input": { Input: "input" },
+    "@/components/ui/dialog": {
+      Dialog: "Dialog",
+      DialogContent: "DialogContent",
+      DialogDescription: "DialogDescription",
+      DialogFooter: "DialogFooter",
+      DialogHeader: "DialogHeader",
+      DialogTitle: "DialogTitle",
+    },
+  });
+  const saved = [];
+  const order = {
+    ...base,
+    discountAmount: 50,
+    budget: [{ ...base.budget[0], id: "service", name: "Troca de óleo", cost: 80 }],
+    payment: { ...partial, receipts: [receipt] },
+  };
+  const render = () => {
+    cursor = 0;
+    return nodes(ui.FinancialCorrection({ order, save: async (value) => saved.push(value) }));
+  };
+
+  let tree = render();
+  tree.find((node) => node.type === "button" && node.props.children === "Ajustar valor").props.onClick();
+  tree = render();
+  assert.ok(tree.some((node) => node.type === "DialogTitle" && node.props.children === "Ajustar valor"));
+  assert.deepEqual(
+    tree
+      .filter((node) => node.props?.["data-adjustment-type"])
+      .map((node) => node.props.children),
+    ["Valor recebido", "Desconto da OS", "Custo de um item"],
+  );
+  assert.equal(
+    tree.find((node) => node.props?.["aria-label"] === "Valor recebido atualmente").props.children,
+    "R$ 400,00",
+  );
+  assert.equal(tree.find((node) => node.props?.["aria-label"] === "Novo valor recebido").props.value, "400");
+  assert.ok(tree.some((node) => node.props?.["aria-label"] === "Forma de pagamento"));
+
+  tree.find((node) => node.props?.["data-adjustment-type"] === "discount").props.onClick();
+  tree = render();
+  assert.equal(tree.find((node) => node.props?.["aria-label"] === "Desconto atual").props.children, "R$ 50,00");
+  assert.equal(tree.find((node) => node.props?.["aria-label"] === "Novo desconto").props.value, "50");
+  tree.find((node) => node.props?.["aria-label"] === "Novo desconto").props.onChange({ target: { value: "75" } });
+  tree.find((node) => node.props?.["aria-label"] === "Motivo do ajuste").props.onChange({ target: { value: "Valor combinado com o cliente" } });
+  tree = render();
+  await tree.find((node) => node.type === "button" && node.props.children === "Salvar ajuste").props.onClick();
+  assert.equal(saved[0].correction.type, "discount");
+  assert.equal(saved[0].correction.payload.amount, 75);
+  assert.equal(saved[0].correction.reason, "Valor combinado com o cliente");
+
+  tree = render();
+  tree.find((node) => node.type === "button" && node.props.children === "Ajustar valor").props.onClick();
+  tree = render();
+  tree.find((node) => node.props?.["aria-label"] === "Novo valor recebido").props.onChange({ target: { value: "450" } });
+  tree.find((node) => node.props?.["aria-label"] === "Motivo do ajuste").props.onChange({ target: { value: "Correção do pagamento" } });
+  tree = render();
+  tree.find((node) => node.type === "button" && node.props.children === "Salvar ajuste").props.onClick();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(saved[1].correction.payload, {
+    receiptId: "r",
+    amount: 450,
+    method: "PIX",
+    feeAmount: 0,
+  });
+
+  tree = render();
+  tree.find((node) => node.type === "button" && node.props.children === "Ajustar valor").props.onClick();
+  tree = render();
+  tree.find((node) => node.props?.["data-adjustment-type"] === "cost").props.onClick();
+  tree = render();
+  assert.equal(tree.find((node) => node.props?.["aria-label"] === "Custo atual").props.children, "R$ 80,00");
+  tree.find((node) => node.props?.["aria-label"] === "Novo custo").props.onChange({ target: { value: "90" } });
+  tree.find((node) => node.props?.["aria-label"] === "Motivo do ajuste").props.onChange({ target: { value: "Nota corrigida" } });
+  tree = render();
+  tree.find((node) => node.type === "button" && node.props.children === "Salvar ajuste").props.onClick();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(saved[2].correction.payload, { itemId: "service", unitCost: 90 });
+
   const source = await readFile(new URL("../src/features/pilot/financial-correction.tsx", import.meta.url), "utf8");
-  assert.match(source, /Corrigir financeiro/);
-  assert.match(source, /Motivo obrigatório/);
   assert.match(source, /receipt|discount|cost/);
   assert.doesNotMatch(source, /status\s*:/);
 });
