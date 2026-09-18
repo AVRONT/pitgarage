@@ -402,7 +402,7 @@ export function PartFinancialEditor({
   );
 }
 
-export function FinancialScreen() {
+export function FinancialScreen({ heading = "Financeiro", description = "Visão executiva das ordens de serviço concluídas no período selecionado." }: { heading?: string; description?: string } = {}) {
   const { accessLevel, isLocalBypass } = useAuth();
   const reducedMotion = useReducedMotion();
   const [lineMotionReady, setLineMotionReady] = useState(false);
@@ -509,9 +509,9 @@ export function FinancialScreen() {
             <ChartNoAxesCombined className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Financeiro</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{heading}</h1>
             <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600">
-              Visão executiva das ordens de serviço concluídas no período selecionado.
+              {description}
             </p>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
               Venda, recebimentos, custos diretos e taxas são apresentados separadamente.

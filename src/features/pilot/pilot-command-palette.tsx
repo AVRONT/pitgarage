@@ -4,6 +4,7 @@ import {
   ClipboardList,
   CornerDownLeft,
   Plus,
+  Sparkles,
   UserRound,
   Users,
 } from "lucide-react";
@@ -35,7 +36,8 @@ type Props = {
   onQueryChange: (query: string) => void;
   onSelectResult: (result: GlobalSearchResult) => void;
   onNewOrder: () => void;
-  onNavigate: (screen: "calendar" | "customers" | "vehicles" | "orders") => void;
+  onNewQuickOrder: () => void;
+  onNavigate: (screen: "calendar" | "customers" | "vehicles" | "orders" | "financial") => void;
 };
 
 const itemClass =
@@ -51,6 +53,7 @@ export function PilotCommandPalette({
   onQueryChange,
   onSelectResult,
   onNewOrder,
+  onNewQuickOrder,
   onNavigate,
 }: Props) {
   const customerResults = results.filter((result) => result.type === "customer");
@@ -84,12 +87,20 @@ export function PilotCommandPalette({
 
         {!query.trim() && (
           <CommandGroup heading="Ações rápidas">
-            <CommandItem className={itemClass} onSelect={() => run(onNewOrder)}>
+            <CommandItem className={itemClass} onSelect={() => run(onNewQuickOrder)}>
               <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary group-data-[selected=true]:bg-white/15 group-data-[selected=true]:text-white">
-                <Plus />
+                <Sparkles />
               </span>
-              <span className="flex-1 font-medium">Nova ordem de serviço</span>
+              <span className="flex-1 font-medium">Nova OS Rápida</span>
               <CommandShortcut>ação</CommandShortcut>
+            </CommandItem>
+            <CommandItem className={itemClass} onSelect={() => run(onNewOrder)}>
+              <span className="grid h-8 w-8 place-items-center rounded-md bg-secondary text-primary group-data-[selected=true]:bg-white/15 group-data-[selected=true]:text-white"><Plus /></span>
+              <span className="flex-1 font-medium">Abrir OS Completa</span>
+            </CommandItem>
+            <CommandItem className={itemClass} onSelect={() => run(() => onNavigate("financial"))}>
+              <span className="grid h-8 w-8 place-items-center rounded-md bg-secondary text-primary group-data-[selected=true]:bg-white/15 group-data-[selected=true]:text-white"><ClipboardList /></span>
+              <span className="flex-1 font-medium">Ver pagamentos</span>
             </CommandItem>
             <CommandItem className={itemClass} onSelect={() => run(() => onNavigate("calendar"))}>
               <span className="grid h-8 w-8 place-items-center rounded-md bg-secondary text-primary group-data-[selected=true]:bg-white/15 group-data-[selected=true]:text-white">
@@ -113,7 +124,7 @@ export function PilotCommandPalette({
               <span className="grid h-8 w-8 place-items-center rounded-md bg-secondary text-primary group-data-[selected=true]:bg-white/15 group-data-[selected=true]:text-white">
                 <ClipboardList />
               </span>
-              <span className="flex-1 font-medium">Ver Ordens de serviço</span>
+              <span className="flex-1 font-medium">Ver OS</span>
             </CommandItem>
           </CommandGroup>
         )}

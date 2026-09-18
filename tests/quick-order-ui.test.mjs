@@ -49,9 +49,9 @@ test("application keeps standard action and wires quick draft into standard flow
   assert.match(source, /createQuickOrder/);
 });
 
-test("operational home exposes both order actions and keeps them stacked on mobile", async () => {
+test("operational home prioritizes action-oriented workshop shortcuts", async () => {
   const icons = Object.fromEntries(
-    ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Sparkles", "Wrench"].map((name) => [name, name]),
+    ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Settings2", "Sparkles", "WalletCards", "Wrench"].map((name) => [name, name]),
   );
   const { OperationalDashboard } = await load("operational-dashboard.tsx", {
     react: { useEffect() {}, useMemo: (factory) => factory(), useState: (initial) => [initial, () => {}] },
@@ -67,21 +67,28 @@ test("operational home exposes both order actions and keeps them stacked on mobi
   });
   let standard = 0;
   let quick = 0;
+  const destinations = [];
   const tree = OperationalDashboard({
-    orders: [], vehicles: [], customers: [], onNavigate() {},
+    orders: [], vehicles: [], customers: [], onNavigate(target) { destinations.push(target.screen); },
     onNewOrder: () => standard++, onNewQuickOrder: () => quick++,
   });
   const buttons = nodes(tree).filter((node) => node.type === "button");
-  const quickButton = buttons.find((node) => text(node).includes("OS Rápida"));
-  const standardButton = buttons.find((node) => text(node).includes("Nova ordem de serviço"));
+  const quickButton = buttons.find((node) => text(node).includes("Nova OS Rápida"));
+  const standardButton = buttons.find((node) => text(node).includes("OS Completa"));
+  const continueButton = buttons.find((node) => text(node).includes("Continuar OS"));
+  const paymentButton = buttons.find((node) => text(node).includes("Pagamentos"));
   assert.ok(quickButton);
   assert.ok(standardButton);
+  assert.ok(continueButton);
+  assert.ok(paymentButton);
+  assert.match(text(tree), /O que você quer fazer\?/);
+  assert.match(text(tree), /Registrar um serviço simples/);
+  assert.match(text(tree), /Ver valores pendentes/);
   quickButton.props.onClick();
   standardButton.props.onClick();
+  continueButton.props.onClick();
+  paymentButton.props.onClick();
   assert.equal(quick, 1);
   assert.equal(standard, 1);
-  const actionGroup = nodes(tree).find(
-    (node) => node.props?.children && text(node).includes("OS Rápida") && text(node).includes("Nova ordem de serviço") && /flex-col/.test(node.props?.className ?? ""),
-  );
-  assert.match(actionGroup?.props.className ?? "", /sm:flex-row/);
+  assert.deepEqual(destinations, ["orders", "financial"]);
 });

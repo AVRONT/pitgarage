@@ -10,6 +10,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
+  BarChart3,
   Bike,
   CalendarDays,
   Camera,
@@ -254,6 +255,7 @@ const withStatusTransition = (
 
 type Screen =
   | "financial"
+  | "reports"
   | "dashboard"
   | "calendar"
   | "customers"
@@ -265,16 +267,22 @@ type Screen =
   | "order"
   | "settings";
 
-const navItems = [
-  { id: "dashboard" as Screen, label: "Visão geral", icon: LayoutDashboard },
-  { id: "calendar" as Screen, label: "Agenda", icon: CalendarDays },
-  { id: "customers" as Screen, label: "Clientes", icon: Users },
-  { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
-  { id: "orders" as Screen, label: "Ordens de serviço", icon: ClipboardList },
-  { id: "quotes" as Screen, label: "Orçamentos", icon: FileText },
-  { id: "settings" as Screen, label: "Configurações da oficina", icon: Settings2 },
-  { id: "financial" as Screen, label: "Financeiro", icon: WalletCards },
+const navGroups = [
+  { label: "Operação", items: [
+    { id: "dashboard" as Screen, label: "Início", icon: LayoutDashboard },
+    { id: "orders" as Screen, label: "OS", icon: ClipboardList },
+    { id: "customers" as Screen, label: "Clientes", icon: Users },
+    { id: "vehicles" as Screen, label: "Veículos", icon: CarFront },
+    { id: "calendar" as Screen, label: "Agenda", icon: CalendarDays },
+    { id: "quotes" as Screen, label: "Orçamentos", icon: FileText },
+  ] },
+  { label: "Administração", items: [
+    { id: "financial" as Screen, label: "Financeiro", icon: WalletCards },
+    { id: "settings" as Screen, label: "Configurações", icon: Settings2 },
+    { id: "reports" as Screen, label: "Relatórios", icon: BarChart3 },
+  ] },
 ];
+const navItems = navGroups.flatMap((group) => group.items);
 
 
 const sidebarPreferenceKey = "pitgarage:desktop-sidebar";
@@ -771,7 +779,7 @@ export function PilotApp() {
             item.id === id ? migrateOrder(updated) : item,
           );
           setOrders(ordersRef.current);
-          setNotice("correction" in input ? "Correção financeira registrada." : "discount" in input ? "Desconto comercial salvo." : "receipt" in input ? "Recebimento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados financeiros salvos.");
+          setNotice("correction" in input ? "Correção financeira registrada." : "discount" in input ? "Desconto comercial salvo." : "receipt" in input ? "Pagamento registrado." : "removeItem" in input ? "Item removido do orçamento." : input.newItem ? "Item adicionado ao orçamento." : "Dados financeiros salvos.");
         } catch (error) {
           if (error instanceof OrderVersionConflict) requireOrderSync(current, error.message);
           throw error;
@@ -1067,6 +1075,7 @@ export function PilotApp() {
         onQueryChange={setQuery}
         onSelectResult={selectGlobalResult}
         onNewOrder={() => setNewOrderOpen(true)}
+        onNewQuickOrder={() => setQuickOrderOpen(true)}
         onNavigate={(target) => navigate(target)}
       />
       <PilotQuickView
@@ -1170,6 +1179,7 @@ export function PilotApp() {
           )}
           <div className="mx-auto max-w-[1600px] p-4 md:p-7 lg:p-8">
             {screen === "financial" && <FinancialScreen />}
+            {screen === "reports" && <FinancialScreen heading="Relatórios" description="Acompanhe os resultados das OS por período, veículo, custos e pagamentos." />}
             {screen === "quotes" && (
               <QuotesScreen
                 customers={activeCustomers}
@@ -1665,15 +1675,9 @@ function Sidebar({
           className={cn("space-y-1 px-3 py-3", collapsed && "lg:px-2")}
           aria-label="Navegação principal"
         >
-          <p
-            className={cn(
-              "px-3 pb-2 pt-3 text-[11px] font-semibold tracking-wide text-slate-300",
-              collapsed && "lg:sr-only",
-            )}
-          >
-            Operação
-          </p>
-          {navItems.map((item) => {
+          {navGroups.map((group) => <div key={group.label} className="space-y-1">
+          <p className={cn("px-3 pb-2 pt-3 text-[11px] font-semibold tracking-wide text-slate-300", collapsed && "lg:sr-only")}>{group.label}</p>
+          {group.items.map((item) => {
             const itemActive = isItemActive(item.id);
             const navigationButton = (
               <button
@@ -1707,7 +1711,7 @@ function Sidebar({
             ) : (
               <div key={item.id}>{navigationButton}</div>
             );
-          })}
+          })}</div>)}
         </nav>
         {showDevelopmentTools && (
           <div
@@ -2364,9 +2368,9 @@ function OrdersScreen({
         text="Acompanhe diagnóstico, aprovação, execução e entrega sem perder o histórico."
         icon={ClipboardList}
         action={
-          <div className="flex flex-wrap gap-2"><Button onClick={onNew} className="create-order-action gap-2">
-            <Plus className="h-4 w-4" /> Nova OS
-          </Button><Button onClick={onNewQuick} variant="outline" className="gap-2"><Sparkles className="h-4 w-4" /> OS Rápida</Button></div>
+          <div className="flex flex-wrap gap-2"><Button onClick={onNewQuick} className="create-order-action gap-2"><Sparkles className="h-4 w-4" /> Nova OS Rápida</Button><Button onClick={onNew} variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" /> OS Completa
+          </Button></div>
         }
       />
       <div className="directory-status-filter mb-5 flex gap-1 overflow-x-auto p-1">
@@ -5580,7 +5584,7 @@ function NewOrderDialog({
       <DialogContent className="max-h-[92vh] overflow-y-auto border-slate-200 bg-white shadow-xl sm:max-w-3xl">
         <div>
           <DialogHeader className="pr-8">
-            <DialogTitle className="text-xl tracking-tight">Nova ordem de serviço</DialogTitle>
+            <DialogTitle className="text-xl tracking-tight">Nova OS Completa</DialogTitle>
             <DialogDescription className="leading-relaxed">
               Cadastre ou selecione cliente e veículo antes de confirmar a entrada.
             </DialogDescription>

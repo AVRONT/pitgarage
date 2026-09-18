@@ -10,7 +10,9 @@ import {
   Gauge,
   PackageCheck,
   Plus,
+  Settings2,
   Sparkles,
+  WalletCards,
   Wrench,
 } from "lucide-react";
 
@@ -24,7 +26,7 @@ import { type Customer, type ServiceOrder, type Vehicle } from "./pilot-data";
 import { evaluateOrderWorkflow } from "./pilot-workflow";
 
 type DashboardTarget =
-  { screen: "calendar" | "orders" } | { screen: "order" | "vehicle"; id: string; tab?: string };
+  { screen: "calendar" | "orders" | "financial" | "settings" } | { screen: "order" | "vehicle"; id: string; tab?: string };
 
 const statusTone: Record<string, string> = {
   Recebido: "border-slate-200 bg-slate-50 text-slate-700",
@@ -353,32 +355,31 @@ export function OperationalDashboard({
 
   return (
     <div className="dashboard-premium">
-      <header className="mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-4 border-b pb-4">
         <div>
-          <p className="text-sm font-semibold text-primary">Visão geral</p>
+          <p className="text-sm font-semibold text-primary">Início</p>
           <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
-            Central operacional
+            Sua oficina agora
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Situação atual da oficina e caminhos diretos para o próximo passo.
+            Comece uma OS ou veja o que precisa da sua atenção.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <Button
-            onClick={onNewQuickOrder}
-            variant="outline"
-            className="h-10 w-full gap-2 px-5 sm:w-auto"
-          >
-            <Sparkles className="h-4 w-4" /> OS Rápida
-          </Button>
-          <Button
-            onClick={onNewOrder}
-            className="create-order-action h-10 w-full gap-2 px-5 sm:w-auto"
-          >
-            <Plus className="h-4 w-4" /> Nova ordem de serviço
-          </Button>
-        </div>
       </header>
+
+      <section className="mb-4" aria-labelledby="dashboard-actions-title">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div><h2 id="dashboard-actions-title" className="text-xl font-bold text-slate-950">O que você quer fazer?</h2><p className="mt-1 text-sm text-muted-foreground">Escolha uma ação para começar.</p></div>
+          <Button type="button" variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={onNewOrder}><Plus className="h-4 w-4" /> Abrir OS Completa</Button>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <button type="button" onClick={onNewQuickOrder} className="dashboard-interactive flex min-h-24 items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white"><Sparkles className="h-5 w-5" /></span><span><strong className="block text-sm text-emerald-950">Nova OS Rápida</strong><span className="mt-1 block text-xs leading-relaxed text-emerald-800">Registrar um serviço simples</span></span></button>
+          <button type="button" onClick={() => onNavigate({ screen: "orders" })} className="dashboard-interactive flex min-h-24 items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-white"><ClipboardList className="h-5 w-5" /></span><span><strong className="block text-sm text-blue-950">Continuar OS</strong><span className="mt-1 block text-xs leading-relaxed text-blue-800">Ver serviços em andamento</span></span></button>
+          <button type="button" onClick={() => onNavigate({ screen: "financial" })} className="dashboard-interactive flex min-h-24 items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-amber-500 text-white"><WalletCards className="h-5 w-5" /></span><span><strong className="block text-sm text-amber-950">Pagamentos</strong><span className="mt-1 block text-xs leading-relaxed text-amber-800">Ver valores pendentes</span></span></button>
+          <button type="button" onClick={() => onNavigate({ screen: "calendar" })} className="dashboard-interactive flex min-h-24 items-start gap-3 rounded-lg border border-violet-200 bg-violet-50 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white"><CalendarDays className="h-5 w-5" /></span><span><strong className="block text-sm text-violet-950">Agenda</strong><span className="mt-1 block text-xs leading-relaxed text-violet-800">Ver próximos compromissos</span></span></button>
+          <button type="button" onClick={() => onNavigate({ screen: "settings" })} className="dashboard-interactive flex min-h-24 items-start gap-3 rounded-lg border bg-white p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-700 text-white"><Settings2 className="h-5 w-5" /></span><span><strong className="block text-sm text-slate-950">Administração</strong><span className="mt-1 block text-xs leading-relaxed text-slate-600">Financeiro, relatórios e configurações</span></span></button>
+        </div>
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <section className="order-2 min-w-0 xl:order-1" aria-labelledby="active-orders-title">
@@ -390,8 +391,8 @@ export function OperationalDashboard({
                 </h2>
                 <p className="mt-0.5 text-sm text-muted-foreground">
                   {queue.length
-                    ? plural(queue.length, "ordem ativa")
-                    : "A oficina não tem ordens ativas neste momento."}
+                    ? plural(queue.length, "OS ativa")
+                    : "A oficina não tem OS ativas neste momento."}
                 </p>
               </div>
               <Button variant="ghost" size="sm" onClick={() => onNavigate({ screen: "orders" })}>
@@ -462,7 +463,7 @@ export function OperationalDashboard({
                           })
                         }
                       >
-                        {order.id} · abrir ordem
+                          {order.id} · abrir OS
                       </button>
                       <dl className="mt-3 space-y-2 border-t pt-2.5 text-sm">
                         <div>
@@ -522,14 +523,14 @@ export function OperationalDashboard({
             <div className="border-b border-l-4 border-l-primary bg-primary/[.035] px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <h2 id="next-actions-title" className="text-lg font-bold">
-                  Próximas ações
+                  O que precisa ser feito
                 </h2>
                 <Badge className="bg-primary text-primary-foreground">
                   {plural(queue.length, "pendente")}
                 </Badge>
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Ordenadas por etapa do workflow, não por urgência ou atraso.
+                Organizado pela etapa atual de cada OS.
               </p>
             </div>
             {!queue.length ? (
@@ -591,7 +592,7 @@ export function OperationalDashboard({
                                     : "text-primary",
                             )}
                           >
-                            {workflow.inconsistency ? "Inconsistência real do fluxo" : order.status}
+                            {workflow.inconsistency ? "Etapa precisa de atenção" : order.status}
                           </span>
                           <span className="mt-1 block text-[11px] font-bold text-primary">
                             Abrir em {tabLabel[workflow.nextAction.tab] ?? "Resumo"}
