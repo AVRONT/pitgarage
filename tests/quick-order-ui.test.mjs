@@ -61,6 +61,21 @@ test("orders screen presents an operational queue with status, next action and c
   assert.doesNotMatch(ordersScreen, /hidden md:block[\s\S]{0,80}<StatusBadge status=\{order\.status\}/);
 });
 
+test("vehicles screen exposes operational actions and starts a standard order with the vehicle selected", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const vehiclesScreen = source.slice(source.indexOf("function VehiclesScreen"), source.indexOf("function OrdersScreen"));
+  const newOrderDialog = source.slice(source.indexOf("function NewOrderDialog"));
+
+  assert.match(vehiclesScreen, /evaluateOrderWorkflow\(current\)/);
+  assert.match(vehiclesScreen, /Continuar OS/);
+  assert.match(vehiclesScreen, /Ver veículo/);
+  assert.match(vehiclesScreen, /Nova OS/);
+  assert.match(vehiclesScreen, /onNewForVehicle\(vehicle\.id\)/);
+  assert.match(newOrderDialog, /initialVehicleId\?: string/);
+  assert.match(newOrderDialog, /setCustomerId\(initialVehicle\.customerId\)/);
+  assert.match(newOrderDialog, /setVehicleId\(initialVehicle\.id\)/);
+});
+
 test("operational home prioritizes action-oriented workshop shortcuts", async () => {
   const icons = Object.fromEntries(
     ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Settings2", "Sparkles", "WalletCards", "Wrench"].map((name) => [name, name]),

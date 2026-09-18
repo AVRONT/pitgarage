@@ -586,6 +586,7 @@ export function PilotApp() {
   const [quickOrderOpen, setQuickOrderOpen] = useState(false);
   const [quickFinancialAllowed, setQuickFinancialAllowed] = useState(false);
   const [initialQuickDraft, setInitialQuickDraft] = useState<QuickOrderDraft>();
+  const [initialOrderVehicleId, setInitialOrderVehicleId] = useState<string>();
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [workshop, setWorkshop] = useState<Workshop>(defaultWorkshop);
@@ -1258,7 +1259,13 @@ export function PilotApp() {
                 customers={activeCustomers}
                 orders={orders}
                 onOpen={(id) => setQuickView({ type: "vehicle", id })}
+                onOpenOrder={(id) => navigate("order", id)}
                 onNew={() => setNewOrderOpen(true)}
+                onNewForVehicle={(id) => {
+                  setInitialOrderVehicleId(id);
+                  setInitialQuickDraft(undefined);
+                  setNewOrderOpen(true);
+                }}
               />
             )}
             {screen === "orders" && (
@@ -1399,13 +1406,20 @@ export function PilotApp() {
       />
       <NewOrderDialog
         open={newOrderOpen}
-        onOpenChange={(open) => { setNewOrderOpen(open); if (!open) setInitialQuickDraft(undefined); }}
+        onOpenChange={(open) => {
+          setNewOrderOpen(open);
+          if (!open) {
+            setInitialQuickDraft(undefined);
+            setInitialOrderVehicleId(undefined);
+          }
+        }}
         customers={activeCustomers}
         vehicles={activeVehicles}
         allCustomers={customers}
         allVehicles={vehicles}
         orders={orders}
         initialQuickDraft={initialQuickDraft}
+        initialVehicleId={initialOrderVehicleId}
         onCreate={async (bundle) => {
           await writeQueue.current;
           if (writeFailed.current) throw new Error("Recarregue os dados antes de criar outra OS.");
@@ -1416,6 +1430,7 @@ export function PilotApp() {
             const createdOrder = data.orders[0];
             setNewOrderOpen(false);
             setInitialQuickDraft(undefined);
+            setInitialOrderVehicleId(undefined);
             setNotice("Ordem de serviço criada");
             if (createdOrder) navigate("order", createdOrder.id);
           });
@@ -2214,13 +2229,17 @@ function VehiclesScreen({
   customers,
   orders,
   onOpen,
+  onOpenOrder,
   onNew,
+  onNewForVehicle,
 }: {
   vehicles: Vehicle[];
   customers: Customer[];
   orders: ServiceOrder[];
   onOpen: (id: string) => void;
+  onOpenOrder: (id: string) => void;
   onNew: () => void;
+  onNewForVehicle: (id: string) => void;
 }) {
   const [filter, setFilter] = useState("");
   const visible = vehicles.filter((v) =>
@@ -2231,9 +2250,9 @@ function VehiclesScreen({
   return (
     <div className="directory-screen">
       <PageTitle
-        eyebrow="Histórico centralizado"
+        eyebrow="Operação da oficina"
         title="Veículos"
-        text="Carros e motos com informações, serviços atuais e histórico em um só lugar."
+        text="Encontre o veículo e veja rapidamente se existe um atendimento em andamento."
         icon={CarFront}
         action={
           <Button onClick={onNew} className="create-order-action gap-2">
@@ -2241,55 +2260,38 @@ function VehiclesScreen({
           </Button>
         }
       />
-      <DirectoryMetrics
-        items={[
-          {
-            label: "Veículos ativos",
-            value: vehicles.length,
-            description: "Veículos disponíveis no cadastro da oficina.",
-            icon: CarFront,
-            tone: "navy",
-          },
-          {
-            label: "Carros",
-            value: vehicles.filter((vehicle) => vehicle.kind === "Carro").length,
-            description: "Automóveis cadastrados.",
-            icon: CarFront,
-          },
-          {
-            label: "Motos",
-            value: vehicles.filter((vehicle) => vehicle.kind === "Moto").length,
-            description: "Motocicletas cadastradas.",
-            icon: Bike,
-            tone: "green",
-          },
-          {
-            label: "Com OS em aberto",
-            value: vehicles.filter((vehicle) =>
-              orders.some((order) => order.vehicleId === vehicle.id && order.status !== "Entregue"),
-            ).length,
-            description: "Veículos em atendimento no momento.",
-            icon: Wrench,
-            tone: "orange",
-          },
-        ]}
-      />
       <DirectorySearch
         value={filter}
         onChange={setFilter}
         placeholder="Pesquisar placa, modelo ou proprietário"
       />
-      <div className="pilot-table directory-table">
-        <div className="pilot-table-header grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_160px_28px] px-4 md:grid">
-          <span>Veículo</span>
-          <span>Placa</span>
-          <span>Proprietário</span>
-          <span>Tipo</span>
-          <span>Status</span>
-          <span />
-        </div>
-        {visible.length === 0 && (
-          <div>
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+        <span>
+          <strong className="text-slate-900">{vehicles.length}</strong> veículo
+          {vehicles.length !== 1 && "s"}
+        </span>
+        <span>
+          <strong className="text-slate-900">
+            {
+              vehicles.filter((vehicle) =>
+                orders.some(
+                  (order) => order.vehicleId === vehicle.id && order.status !== "Entregue",
+                ),
+              ).length
+            }
+          </strong>{" "}
+          em atendimento
+        </span>
+        {filter.trim() && (
+          <span>
+            <strong className="text-slate-900">{visible.length}</strong> encontrado
+            {visible.length !== 1 && "s"}
+          </span>
+        )}
+      </div>
+      <Card className="pilot-table directory-table overflow-hidden bg-white">
+        <div>
+          {visible.length === 0 && (
             <EmptyState
               title={vehicles.length ? "Nenhum veículo encontrado" : "Nenhum veículo cadastrado"}
               text={
@@ -2298,47 +2300,94 @@ function VehiclesScreen({
                   : "Cadastre o primeiro veículo ao criar uma ordem de serviço."
               }
             />
-          </div>
-        )}
-        {visible.map((vehicle) => {
-          const owner = customers.find((c) => c.id === vehicle.customerId)!;
-          const current = orders.find((o) => o.vehicleId === vehicle.id && o.status !== "Entregue");
-          return (
-            <button
-              key={vehicle.id}
-              onClick={() => onOpen(vehicle.id)}
-              className="pilot-table-row grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 p-3 text-left md:grid-cols-[minmax(0,1.4fr)_110px_minmax(0,1fr)_130px_160px_28px] md:px-4"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="directory-vehicle-icon grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-900 text-white">
-                  <VehicleIcon kind={vehicle.kind} className="h-6 w-6" />
+          )}
+          {visible.map((vehicle) => {
+            const owner = customers.find((c) => c.id === vehicle.customerId)!;
+            const current = orders.find(
+              (order) => order.vehicleId === vehicle.id && order.status !== "Entregue",
+            );
+            const workflow = current ? evaluateOrderWorkflow(current) : undefined;
+            return (
+              <article
+                key={vehicle.id}
+                className="pilot-table-row grid gap-4 border-l-4 border-l-transparent p-4 transition-[background-color,border-color] duration-150 hover:border-l-orange-500 hover:bg-orange-50/30 motion-reduce:transition-none md:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)_auto] md:items-center md:gap-6 md:px-6 md:py-5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="directory-vehicle-icon grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-900 text-white">
+                    <VehicleIcon kind={vehicle.kind} className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="truncate text-base text-slate-950">
+                        {vehicle.brand} {vehicle.model}
+                      </strong>
+                      {current ? (
+                        <StatusBadge status={current.status} />
+                      ) : (
+                        <Badge variant="outline">Sem OS atual</Badge>
+                      )}
+                    </div>
+                    <span className="mt-1 block font-mono text-sm font-semibold text-slate-700">
+                      {vehicle.plate}
+                    </span>
+                    <span className="mt-1 block truncate text-sm text-muted-foreground">
+                      Cliente: {owner.name}
+                    </span>
+                  </div>
                 </div>
-                <span className="min-w-0">
-                  <strong className="block truncate">
-                    {vehicle.brand} {vehicle.model}
-                  </strong>
-                  <span className="text-xs text-muted-foreground">
-                    {vehicle.year} · {vehicle.color} · {vehicle.mileage.toLocaleString("pt-BR")} km
-                  </span>
-                </span>
-              </div>
-              <span className="hidden font-mono text-xs font-semibold md:block">
-                {vehicle.plate}
-              </span>
-              <span className="hidden truncate text-sm md:block">{owner.name}</span>
-              <span className="hidden text-sm md:block">{vehicle.kind}</span>
-              <span className="hidden md:block">
-                {current ? (
-                  <StatusBadge status={current.status} />
-                ) : (
-                  <Badge variant="outline">Sem OS atual</Badge>
-                )}
-              </span>
-              <ChevronRight className="h-4 w-4 text-slate-400" />
-            </button>
-          );
-        })}
-      </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3">
+                  {current && workflow ? (
+                    <>
+                      <span className="block text-xs font-semibold text-muted-foreground">
+                        Próxima ação
+                      </span>
+                      <strong className="mt-1 block text-sm text-slate-900">
+                        {workflow.nextAction.label}
+                      </strong>
+                    </>
+                  ) : (
+                    <>
+                      <span className="block text-xs font-semibold text-muted-foreground">
+                        Informações do veículo
+                      </span>
+                      <strong className="mt-1 block text-sm text-slate-900">
+                        {vehicle.year || "Ano não informado"} · {vehicle.color || "Cor não informada"}
+                      </strong>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {vehicle.mileage.toLocaleString("pt-BR")} km cadastrados
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 md:max-w-48 md:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onOpen(vehicle.id)}
+                  >
+                    Ver veículo
+                  </Button>
+                  {current ? (
+                    <Button type="button" size="sm" onClick={() => onOpenOrder(current.id)}>
+                      Continuar OS
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => onNewForVehicle(vehicle.id)}
+                    >
+                      <Plus className="h-4 w-4" /> Nova OS
+                    </Button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -5310,6 +5359,7 @@ function NewOrderDialog({
   allVehicles,
   orders,
   initialQuickDraft,
+  initialVehicleId,
   onCreate,
 }: {
   open: boolean;
@@ -5320,6 +5370,7 @@ function NewOrderDialog({
   allVehicles: Vehicle[];
   orders: ServiceOrder[];
   initialQuickDraft?: QuickOrderDraft | undefined;
+  initialVehicleId?: string | undefined;
   onCreate: (result: {
     customer?: Customer | undefined;
     vehicle?: Vehicle | undefined;
@@ -5366,6 +5417,23 @@ function NewOrderDialog({
     if (initialQuickDraft.vehicleId) { setVehicleId(initialQuickDraft.vehicleId); setNewVehicle(false); setStep(2); }
     else { setVehicleId(""); setNewVehicle(true); setKind("Carro"); setPlate(""); setVehicleMileage(""); setColor(""); setStep(1); }
   }, [initialQuickDraft, open]);
+
+  useEffect(() => {
+    if (!open || initialQuickDraft || !initialVehicleId) return;
+    const initialVehicle = vehicles.find((vehicle) => vehicle.id === initialVehicleId);
+    if (!initialVehicle) return;
+    setDraftCustomer(undefined);
+    setCustomerId(initialVehicle.customerId);
+    setDraftVehicle(undefined);
+    setVehicleId(initialVehicle.id);
+    setNewCustomer(false);
+    setNewVehicle(false);
+    setEntryMileage("");
+    setComplaint("");
+    setMileageWarningAccepted(false);
+    setError("");
+    setStep(2);
+  }, [initialQuickDraft, initialVehicleId, open, vehicles]);
 
   const selectedCustomer = draftCustomer ?? customers.find((item) => item.id === customerId);
   const customerVehicles = selectedCustomer
