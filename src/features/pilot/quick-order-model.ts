@@ -13,7 +13,7 @@ export interface QuickOrderPart {
 export interface QuickOrderDraft {
   requestId: string;
   customerId?: string;
-  newCustomer?: Pick<Customer, "name" | "phone" | "cpf">;
+  newCustomer?: Pick<Customer, "name" | "phone"> & Partial<Pick<Customer, "cpf" | "email">>;
   vehicleId?: string;
   vehicleBrand: string;
   vehicleModel: string;
@@ -47,6 +47,16 @@ export const quickPaymentError = (
     return "PIX e Dinheiro aceitam somente taxa zero.";
   return null;
 };
+
+export const quickServiceDescription = (service: string, rescue?: { pickup: string; destination: string; note: string }) =>
+  [service.trim(),
+    ...(rescue?.pickup.trim() ? [`Retirada: ${rescue.pickup.trim()}`] : []),
+    ...(rescue?.destination.trim() ? [`Destino: ${rescue.destination.trim()}`] : []),
+    ...(rescue?.note.trim() ? [`Observação: ${rescue.note.trim()}`] : []),
+  ].join("\n");
+
+export const quickPaymentStatus = (total: number, received: number) =>
+  total > 0 && Math.max(0, total - received) === 0 ? "Pago" : received > 0 ? "Parcial" : "Em aberto";
 
 export const quickOrderBudgetItem = (service: string, amount: number, requestId: string): BudgetItem => ({
   id: `quick-${requestId}`,

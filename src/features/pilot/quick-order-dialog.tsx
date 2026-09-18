@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { warrantyDays, type Customer, type Vehicle } from "./pilot-data";
-import { quickOrderSubtotal, quickPaymentError, type PaymentMethod, type QuickOrderDraft } from "./quick-order-model";
+import { quickOrderSubtotal, quickPaymentError, quickPaymentStatus, quickServiceDescription, type PaymentMethod, type QuickOrderDraft } from "./quick-order-model";
 
 const money = (value: string) => Number(value.replace(",", "."));
 const numericSafe = (value: string) => Number.isFinite(money(value)) ? money(value) : 0;
@@ -27,11 +27,17 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerCpf, setCustomerCpf] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
   const [service, setService] = useState("");
+  const [serviceType, setServiceType] = useState<"review" | "oil" | "rescue" | "other" | "">("");
+  const [rescuePickup, setRescuePickup] = useState("");
+  const [rescueDestination, setRescueDestination] = useState("");
+  const [rescueNote, setRescueNote] = useState("");
   const [amount, setAmount] = useState("");
   const [discount, setDiscount] = useState("0");
   const [discountReason, setDiscountReason] = useState("");
@@ -39,6 +45,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   const [received, setReceived] = useState("0");
   const [internalCost, setInternalCost] = useState("");
   const [cardFee, setCardFee] = useState("0");
+  const [receiveNow, setReceiveNow] = useState(false);
   const [parts, setParts] = useState<QuickPartForm[]>([]);
   const [partsOpen, setPartsOpen] = useState(false);
   const receivedEdited = useRef(false);
@@ -49,15 +56,16 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   const subtotal = numericSafe(amount) + partsSubtotal;
   const total = Math.max(0, subtotal - numericSafe(discount));
   const balance = Math.max(0, total - numericSafe(received));
+  const paymentStatus = quickPaymentStatus(total, numericSafe(received));
   useEffect(() => {
     if (!receivedEdited.current && method) setReceived(total.toFixed(2));
   }, [method, total]);
 
   const reset = () => {
     requestId.current = crypto.randomUUID();
-    setNewCustomer(false); setCustomerId(""); setCustomerName(""); setCustomerPhone(""); setCustomerCpf("");
-    setVehicleId(""); setBrand(""); setModel(""); setYear(""); setService(""); setAmount("");
-    setDiscount("0"); setDiscountReason(""); setMethod(""); setReceived("0"); setInternalCost(""); setCardFee("0"); setParts([]); setPartsOpen(false); setError("");
+    setNewCustomer(false); setCustomerId(""); setCustomerName(""); setCustomerPhone(""); setCustomerCpf(""); setCustomerEmail(""); setCustomerSearch("");
+    setVehicleId(""); setBrand(""); setModel(""); setYear(""); setService(""); setServiceType(""); setRescuePickup(""); setRescueDestination(""); setRescueNote(""); setAmount("");
+    setDiscount("0"); setDiscountReason(""); setMethod(""); setReceived("0"); setInternalCost(""); setCardFee("0"); setReceiveNow(false); setParts([]); setPartsOpen(false); setError("");
     receivedEdited.current = false;
   };
   const close = () => { if (!creating.current) { reset(); onOpenChange(false); } };
@@ -94,9 +102,9 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
     setError("");
     return {
       requestId: requestId.current,
-      ...(newCustomer ? { newCustomer: { name: customerName.trim(), phone: cleanPhone, ...(customerCpf.replace(/\D/g, "") ? { cpf: customerCpf.replace(/\D/g, "") } : {}) } } : { customerId }),
+      ...(newCustomer ? { newCustomer: { name: customerName.trim(), phone: cleanPhone, ...(customerCpf.replace(/\D/g, "") ? { cpf: customerCpf.replace(/\D/g, "") } : {}), ...(customerEmail.trim() ? { email: customerEmail.trim() } : {}) } } : { customerId }),
       ...(vehicleId ? { vehicleId } : {}), vehicleBrand: brand.trim(), vehicleModel: model.trim(), vehicleYear: numericYear,
-      service: service.trim(), amount: numericAmount, discountAmount: numericDiscount,
+      service: quickServiceDescription(service, serviceType === "rescue" ? { pickup: rescuePickup, destination: rescueDestination, note: rescueNote } : undefined), amount: numericAmount, discountAmount: numericDiscount,
       discountReason: discountReason.trim(), receivedAmount: numericReceived,
       warrantyDays,
       parts: normalizedParts,
@@ -115,48 +123,58 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   const continueAsStandard = () => { const value = draft(); if (value) onContinueAsStandard(value); };
 
   const customerVehicles = vehicles.filter((item) => item.customerId === customerId && !item.deletedAt);
+  const normalizedSearch = customerSearch.trim().toLocaleLowerCase("pt-BR");
+  const searchDigits = customerSearch.replace(/\D/g, "");
+  const visibleCustomers = normalizedSearch ? customers.filter((customer) =>
+    customer.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch) || (searchDigits.length > 0 && customer.phone.includes(searchDigits))) : customers;
+  const selectServiceType = (type: "review" | "oil" | "rescue" | "other", suggestion: string) => {
+    setServiceType(type);
+    setService(suggestion);
+  };
   return <Dialog open={open} onOpenChange={(value) => value ? onOpenChange(true) : close()}>
-    <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
-      <DialogHeader><DialogTitle>OS Rápida</DialogTitle><DialogDescription>Registre e finalize um atendimento simples em uma única tela.</DialogDescription></DialogHeader>
-      <div className="space-y-5">
-        <section className="space-y-3">
-          <div className="flex gap-2"><Button type="button" size="sm" variant={!newCustomer ? "default" : "outline"} onClick={() => setNewCustomer(false)}>Cliente existente</Button><Button type="button" size="sm" variant={newCustomer ? "default" : "outline"} onClick={() => { setNewCustomer(true); setCustomerId(""); setVehicleId(""); }}>Novo cliente</Button></div>
-          {newCustomer ? <div className="grid gap-3 sm:grid-cols-3"><div><Label htmlFor="quick-name">Nome</Label><Input id="quick-name" autoFocus value={customerName} onChange={(e) => setCustomerName(e.target.value)} /></div><div><Label htmlFor="quick-phone">Telefone</Label><Input id="quick-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div><div><Label htmlFor="quick-cpf">CPF</Label><Input id="quick-cpf" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value)} /></div></div> : <div><Label htmlFor="quick-customer">Cliente</Label><select id="quick-customer" autoFocus className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={customerId} onChange={(e) => { setCustomerId(e.target.value); setVehicleId(""); }}><option value="">Selecione</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · {customer.phone}</option>)}</select></div>}
-        </section>
-        {!newCustomer && customerId && customerVehicles.length > 0 && <div><Label htmlFor="quick-vehicle">Veículo existente (opcional)</Label><select id="quick-vehicle" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={vehicleId} onChange={(e) => selectVehicle(e.target.value)}><option value="">Informar somente Marca, Modelo e Ano</option>{customerVehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.brand} {vehicle.model} · {vehicle.year} · {vehicle.plate}</option>)}</select></div>}
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem]"><div><Label htmlFor="quick-brand">Marca</Label><Input id="quick-brand" value={brand} onChange={(e) => { setVehicleId(""); setBrand(e.target.value); }} /></div><div><Label htmlFor="quick-model">Modelo</Label><Input id="quick-model" value={model} onChange={(e) => { setVehicleId(""); setModel(e.target.value); }} /></div><div><Label htmlFor="quick-year">Ano</Label><Input id="quick-year" inputMode="numeric" value={year} onChange={(e) => { setVehicleId(""); setYear(e.target.value); }} /></div></div>
-        <div><Label htmlFor="quick-service">Serviço realizado</Label><Input id="quick-service" value={service} onChange={(e) => setService(e.target.value)} placeholder="Troca de óleo e filtro" /></div>
-        <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-amount">Valor do serviço</Label><Input id="quick-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="180,00" /></div><div><Label htmlFor="quick-discount">Desconto (opcional)</Label><Input id="quick-discount" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} /></div></div>
-        <section className="rounded-md border border-dashed p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div><p className="text-sm font-medium">Peças / itens adicionais</p><p className="text-xs text-muted-foreground">Opcional — abra somente quando precisar.</p></div>
-            <Button type="button" size="sm" variant="outline" onClick={() => { setPartsOpen(true); setParts((current) => [...current, { id: `quick-part-${crypto.randomUUID()}`, name: "", quantity: "1", unitPrice: "", unitCost: "" }]); }}>Adicionar peça</Button>
-          </div>
-          {partsOpen && parts.length > 0 && <div className="mt-3 space-y-3">{parts.map((part, index) => <div key={part.id} className={`grid gap-2 border-t pt-3 ${financialAllowed ? "sm:grid-cols-[minmax(0,1fr)_6.5rem_8rem_8rem_auto]" : "sm:grid-cols-[minmax(0,1fr)_6.5rem_8rem_auto]"}`}>
-            <div><Label htmlFor={`quick-part-name-${part.id}`}>Descrição</Label><Input id={`quick-part-name-${part.id}`} value={part.name} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, name: e.target.value } : item))} /></div>
-            <div><Label htmlFor={`quick-part-quantity-${part.id}`}>Quantidade</Label><Input id={`quick-part-quantity-${part.id}`} inputMode="numeric" value={part.quantity} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, quantity: e.target.value } : item))} /></div>
-            <div><Label htmlFor={`quick-part-price-${part.id}`}>Venda unit.</Label><Input id={`quick-part-price-${part.id}`} inputMode="decimal" value={part.unitPrice} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitPrice: e.target.value } : item))} /></div>
-            {financialAllowed && <div><Label htmlFor={`quick-part-cost-${part.id}`}>Custo unit.</Label><Input id={`quick-part-cost-${part.id}`} inputMode="decimal" value={part.unitCost} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitCost: e.target.value } : item))} /></div>}
-            <Button type="button" size="sm" variant="ghost" className="self-end" aria-label={`Remover peça ${index + 1}`} onClick={() => setParts((current) => current.filter((item) => item.id !== part.id))}>Remover</Button>
-          </div>)}</div>}
-        </section>
-        {money(discount) > 0 && <div><Label htmlFor="quick-discount-reason">Motivo do desconto</Label><Input id="quick-discount-reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} /></div>}
-        <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-method">Forma de pagamento</Label><select id="quick-method" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(e) => { const next = e.target.value as PaymentMethod | ""; setMethod(next); if (next !== "Cartão") setCardFee("0"); }}><option value="">Sem recebimento agora</option><option>Dinheiro</option><option>PIX</option><option>Cartão</option></select></div><div><Label htmlFor="quick-received">Valor recebido</Label><Input id="quick-received" inputMode="decimal" value={received} onChange={(e) => { receivedEdited.current = true; setReceived(e.target.value); }} /></div></div>
-        {financialAllowed && <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo do serviço (interno, opcional)</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa do cartão</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}</div>}
-        {financialAllowed && method === "Cartão" && <p className="text-sm text-muted-foreground">Líquido recebido: {currency(numericSafe(received) - numericSafe(cardFee))}</p>}
-        <section className="space-y-3 rounded-lg border bg-muted/30 p-4" aria-labelledby="quick-summary-title">
-          <h3 id="quick-summary-title" className="font-semibold">Resumo do atendimento</h3>
-          <dl className="space-y-2 text-sm">
-            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Serviço</dt><dd className="tabular-nums">{currency(numericSafe(amount))}</dd></div>
-            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Peças</dt><dd className="tabular-nums">{currency(partsSubtotal)}</dd></div>
-            <div className="flex items-center justify-between gap-4 border-t pt-2"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{currency(subtotal)}</dd></div>
-            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Desconto</dt><dd className="tabular-nums">-{currency(numericSafe(discount))}</dd></div>
-            <div className="flex items-center justify-between gap-4 rounded-md bg-background px-3 py-2 text-base font-semibold"><dt>Total final</dt><dd className="tabular-nums">{currency(total)}</dd></div>
-            <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Valor recebido</dt><dd className="tabular-nums">{currency(numericSafe(received))}</dd></div>
-            <div className="flex items-center justify-between gap-4 font-medium"><dt>Saldo</dt><dd className="tabular-nums">{currency(balance)}</dd></div>
-          </dl>
-        </section>
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+      <DialogHeader><DialogTitle>OS Rápida</DialogTitle><DialogDescription>Registre o atendimento, confira o pagamento e finalize.</DialogDescription></DialogHeader>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="space-y-5">
+          <section className="space-y-3">
+            <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant={!newCustomer ? "default" : "outline"} onClick={() => setNewCustomer(false)}>Cliente existente</Button><Button type="button" size="sm" variant={newCustomer ? "default" : "outline"} onClick={() => { setNewCustomer(true); setCustomerId(""); setVehicleId(""); }}>Novo cliente</Button></div>
+            {newCustomer ? <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-name">Nome *</Label><Input id="quick-name" autoFocus value={customerName} onChange={(e) => setCustomerName(e.target.value)} /></div><div><Label htmlFor="quick-phone">Telefone *</Label><Input id="quick-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div><div><Label htmlFor="quick-cpf">CPF (opcional)</Label><Input id="quick-cpf" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value)} /></div><div><Label htmlFor="quick-email">Email (opcional)</Label><Input id="quick-email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} /></div></div> : <div className="space-y-2"><div><Label htmlFor="quick-customer-search">Buscar por nome ou telefone</Label><Input id="quick-customer-search" autoFocus value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Digite para buscar" /></div><div><Label htmlFor="quick-customer">Cliente</Label><select id="quick-customer" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={customerId} onChange={(e) => { setCustomerId(e.target.value); setVehicleId(""); }}><option value="">Selecione</option>{visibleCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · {customer.phone}</option>)}</select></div></div>}
+          </section>
+
+          {!newCustomer && customerId && customerVehicles.length > 0 && <div><Label htmlFor="quick-vehicle">Veículo existente (opcional)</Label><select id="quick-vehicle" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={vehicleId} onChange={(e) => selectVehicle(e.target.value)}><option value="">Informar somente Marca, Modelo e Ano</option>{customerVehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.brand} {vehicle.model} · {vehicle.year} · {vehicle.plate}</option>)}</select></div>}
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem]"><div><Label htmlFor="quick-brand">Marca</Label><Input id="quick-brand" value={brand} onChange={(e) => { setVehicleId(""); setBrand(e.target.value); }} /></div><div><Label htmlFor="quick-model">Modelo</Label><Input id="quick-model" value={model} onChange={(e) => { setVehicleId(""); setModel(e.target.value); }} /></div><div><Label htmlFor="quick-year">Ano</Label><Input id="quick-year" inputMode="numeric" value={year} onChange={(e) => { setVehicleId(""); setYear(e.target.value); }} /></div></div>
+
+          <section className="space-y-3">
+            <div><p className="text-sm font-medium">Tipo de serviço</p><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Button type="button" size="sm" variant={serviceType === "review" ? "default" : "outline"} onClick={() => selectServiceType("review", "Revisão")}>🔧 Revisão</Button>
+              <Button type="button" size="sm" variant={serviceType === "oil" ? "default" : "outline"} onClick={() => selectServiceType("oil", "Troca de óleo")}>🛢 Troca de óleo</Button>
+              <Button type="button" size="sm" variant={serviceType === "rescue" ? "default" : "outline"} onClick={() => selectServiceType("rescue", "Resgate de veículo")}>🚚 Resgate</Button>
+              <Button type="button" size="sm" variant={serviceType === "other" ? "default" : "outline"} onClick={() => selectServiceType("other", "")}>➕ Outros</Button>
+            </div></div>
+            <div><Label htmlFor="quick-service">Serviço realizado</Label><Input id="quick-service" value={service} onChange={(e) => setService(e.target.value)} placeholder="Descreva o serviço" /></div>
+            {serviceType === "rescue" && <div className="grid gap-3 rounded-md border border-dashed p-3 sm:grid-cols-2"><div><Label htmlFor="quick-rescue-pickup">Local de retirada (opcional)</Label><Input id="quick-rescue-pickup" value={rescuePickup} onChange={(e) => setRescuePickup(e.target.value)} /></div><div><Label htmlFor="quick-rescue-destination">Destino (opcional)</Label><Input id="quick-rescue-destination" value={rescueDestination} onChange={(e) => setRescueDestination(e.target.value)} /></div><div className="sm:col-span-2"><Label htmlFor="quick-rescue-note">Observação (opcional)</Label><Input id="quick-rescue-note" value={rescueNote} onChange={(e) => setRescueNote(e.target.value)} /></div></div>}
+          </section>
+
+          <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-amount">Valor do serviço</Label><Input id="quick-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="180,00" /></div><div><Label htmlFor="quick-discount">Desconto (opcional)</Label><Input id="quick-discount" inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} /></div></div>
+          {money(discount) > 0 && <div><Label htmlFor="quick-discount-reason">Motivo do desconto</Label><Input id="quick-discount-reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} /></div>}
+
+          <section className="rounded-md border border-dashed p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-medium">Peças / itens adicionais</p><p className="text-xs text-muted-foreground">Opcional — adicione somente quando precisar.</p></div><Button type="button" size="sm" variant="outline" onClick={() => { setPartsOpen(true); setParts((current) => [...current, { id: `quick-part-${crypto.randomUUID()}`, name: "", quantity: "1", unitPrice: "", unitCost: "" }]); }}>Adicionar peça</Button></div>
+            {partsOpen && parts.length > 0 && <div className="mt-3 space-y-3">{parts.map((part, index) => <div key={part.id} className="grid gap-2 border-t pt-3 sm:grid-cols-[minmax(0,1fr)_6.5rem_9rem_auto]"><div><Label htmlFor={`quick-part-name-${part.id}`}>Descrição</Label><Input id={`quick-part-name-${part.id}`} value={part.name} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, name: e.target.value } : item))} /></div><div><Label htmlFor={`quick-part-quantity-${part.id}`}>Quantidade</Label><Input id={`quick-part-quantity-${part.id}`} inputMode="numeric" value={part.quantity} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, quantity: e.target.value } : item))} /></div><div><Label htmlFor={`quick-part-price-${part.id}`}>Preço cobrado</Label><Input id={`quick-part-price-${part.id}`} inputMode="decimal" value={part.unitPrice} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitPrice: e.target.value } : item))} /></div><Button type="button" size="sm" variant="ghost" className="self-end" aria-label={`Remover peça ${index + 1}`} onClick={() => setParts((current) => current.filter((item) => item.id !== part.id))}>Remover</Button></div>)}</div>}
+          </section>
+
+          <section className="space-y-3"><p className="text-sm font-medium">Pagamento</p><div className="grid grid-cols-2 gap-2"><Button type="button" size="sm" variant={receiveNow ? "default" : "outline"} onClick={() => { setReceiveNow(true); receivedEdited.current = false; }}>Recebido agora</Button><Button type="button" size="sm" variant={!receiveNow ? "default" : "outline"} onClick={() => { setReceiveNow(false); setMethod(""); setReceived("0"); setCardFee("0"); receivedEdited.current = true; }}>Receber depois</Button></div>
+            {receiveNow ? <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-method">Forma de pagamento</Label><select id="quick-method" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={method} onChange={(e) => { const next = e.target.value as PaymentMethod | ""; setMethod(next); if (next !== "Cartão") setCardFee("0"); }}><option value="">Selecione</option><option>Dinheiro</option><option>PIX</option><option>Cartão</option></select></div><div><Label htmlFor="quick-received">Valor recebido</Label><Input id="quick-received" inputMode="decimal" value={received} onChange={(e) => { receivedEdited.current = true; setReceived(e.target.value); }} /></div></div> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Pagamento ficará pendente.</p>}
+          </section>
+
+          {financialAllowed && <details className="rounded-md border px-3 py-2"><summary className="cursor-pointer text-sm font-medium">Dados internos da oficina</summary><div className="mt-3 grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-cost">Custo do serviço</Label><Input id="quick-cost" inputMode="decimal" value={internalCost} onChange={(e) => setInternalCost(e.target.value)} /></div>{receiveNow && method === "Cartão" && <div><Label htmlFor="quick-fee">Taxa da máquina</Label><Input id="quick-fee" inputMode="decimal" value={cardFee} onChange={(e) => setCardFee(e.target.value)} /></div>}{parts.map((part, index) => <div key={`cost-${part.id}`}><Label htmlFor={`quick-part-cost-${part.id}`}>Custo da oficina — peça {index + 1}</Label><Input id={`quick-part-cost-${part.id}`} inputMode="decimal" value={part.unitCost} onChange={(e) => setParts((current) => current.map((item) => item.id === part.id ? { ...item, unitCost: e.target.value } : item))} /></div>)}</div>{receiveNow && method === "Cartão" && <p className="mt-3 text-sm text-muted-foreground">Líquido recebido: {currency(numericSafe(received) - numericSafe(cardFee))}</p>}</details>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <aside className="space-y-3 rounded-lg border bg-muted/30 p-4 lg:sticky lg:top-0" aria-labelledby="quick-summary-title">
+          <div className="flex items-center justify-between gap-3"><h3 id="quick-summary-title" className="font-semibold">Resumo do atendimento</h3><span className={`rounded-full px-2 py-1 text-xs font-medium ${paymentStatus === "Pago" ? "bg-emerald-100 text-emerald-800" : paymentStatus === "Parcial" ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-700"}`}>{paymentStatus}</span></div>
+          <dl className="space-y-2 text-sm"><div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Serviço</dt><dd className="tabular-nums">{currency(numericSafe(amount))}</dd></div><div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Peças</dt><dd className="tabular-nums">{currency(partsSubtotal)}</dd></div><div className="flex items-center justify-between gap-4 border-t pt-2"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{currency(subtotal)}</dd></div><div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Desconto</dt><dd className="tabular-nums">-{currency(numericSafe(discount))}</dd></div><div className="flex items-center justify-between gap-4 rounded-md bg-background px-3 py-2 text-base font-semibold"><dt>Total final</dt><dd className="tabular-nums">{currency(total)}</dd></div><div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">Recebido</dt><dd className="tabular-nums">{currency(numericSafe(received))}</dd></div><div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-base font-semibold"><dt>Saldo</dt><dd className="tabular-nums">{currency(balance)}</dd></div></dl>
+        </aside>
       </div>
       <DialogFooter className="gap-2 sm:justify-between"><Button type="button" variant="ghost" disabled={saving} onClick={continueAsStandard}>Continuar como OS completa</Button><Button type="button" disabled={saving} onClick={() => void finalize()}>{saving ? "Finalizando…" : "Finalizar atendimento"}</Button></DialogFooter>
     </DialogContent>

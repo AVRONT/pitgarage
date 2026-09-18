@@ -52,6 +52,23 @@ test("quick parts reuse budget items and contribute quantity times unit price to
   ]);
 });
 
+test("rescue details are organized inside the existing service description", async () => {
+  const quick = await load("quick-order-model.ts");
+  assert.equal(quick.quickServiceDescription("Resgate de veículo", {
+    pickup: "Rua X", destination: "Oficina Y", note: "Cliente aguardou no local",
+  }), "Resgate de veículo\nRetirada: Rua X\nDestino: Oficina Y\nObservação: Cliente aguardou no local");
+  assert.equal(quick.quickServiceDescription("Resgate de veículo", { pickup: "", destination: "Oficina Y", note: "" }),
+    "Resgate de veículo\nDestino: Oficina Y");
+});
+
+test("quick payment status mirrors total, received amount and open balance", async () => {
+  const quick = await load("quick-order-model.ts");
+  assert.equal(quick.quickPaymentStatus(150, 150), "Pago");
+  assert.equal(quick.quickPaymentStatus(150, 50), "Parcial");
+  assert.equal(quick.quickPaymentStatus(150, 0), "Em aberto");
+  assert.equal(quick.quickPaymentStatus(0, 0), "Em aberto");
+});
+
 test("vehicle label uses official vehicle first and quick snapshot without inventing plate", async () => {
   const quick = await load("quick-order-model.ts");
   const order = { quickVehicleBrand: "Honda", quickVehicleModel: "CG 160", quickVehicleYear: 2023 };

@@ -584,7 +584,7 @@ class LocalOperationalRepository implements OperationalRepository {
     if (existing) return data;
     const customer = draft.newCustomer
       ? { id: crypto.randomUUID(), name: draft.newCustomer.name, phone: draft.newCustomer.phone,
-          email: "", ...(draft.newCustomer.cpf ? { cpf: draft.newCustomer.cpf } : {}), since: String(new Date().getFullYear()) }
+          email: draft.newCustomer.email ?? "", ...(draft.newCustomer.cpf ? { cpf: draft.newCustomer.cpf } : {}), since: String(new Date().getFullYear()) }
       : data.customers.find((item) => item.id === draft.customerId);
     if (!customer) throw new Error("Cliente não encontrado.");
     const vehicle = draft.vehicleId ? data.vehicles.find((item) => item.id === draft.vehicleId && item.customerId === customer.id) : undefined;
