@@ -166,6 +166,18 @@ test("application keeps standard action and wires quick draft into standard flow
   assert.match(source, /createQuickOrder/);
 });
 
+test("sidebar keeps one financial entry active for the legacy reports route", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const navigation = source.slice(source.indexOf("const navGroups"), source.indexOf("const navItems"));
+  const activeRule = source.slice(source.indexOf("const isItemActive"), source.indexOf("return (", source.indexOf("const isItemActive")));
+
+  assert.match(navigation, /label: "Financeiro"/);
+  assert.match(navigation, /label: "Configurações"/);
+  assert.doesNotMatch(navigation, /label: "Relatórios"/);
+  assert.match(activeRule, /id === "financial" && active === "reports"/);
+  assert.match(source, /screen === "reports" && <FinancialScreen/);
+});
+
 test("orders screen presents an operational queue with status, next action and continue CTA", async () => {
   const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
   const ordersScreen = source.slice(source.indexOf("function OrdersScreen"), source.indexOf("function CustomerDetail"));

@@ -10,7 +10,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
-  BarChart3,
   Bike,
   CalendarDays,
   Camera,
@@ -280,7 +279,6 @@ const navGroups = [
   { label: "Administração", items: [
     { id: "financial" as Screen, label: "Financeiro", icon: WalletCards },
     { id: "settings" as Screen, label: "Configurações", icon: Settings2 },
-    { id: "reports" as Screen, label: "Relatórios", icon: BarChart3 },
   ] },
 ];
 const navItems = navGroups.flatMap((group) => group.items);
@@ -1545,6 +1543,7 @@ function CollapsedSidebarRail({
 }) {
   const isItemActive = (id: Screen) =>
     active === id ||
+    (id === "financial" && active === "reports") ||
     (id === "customers" && active === "customer") ||
     (id === "vehicles" && active === "vehicle") ||
     (id === "orders" && active === "order");
