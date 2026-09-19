@@ -35,6 +35,7 @@ test("quick dialog is single-screen, exposes both destinations and protects repe
   const source = await readFile(new URL("../src/features/pilot/quick-order-dialog.tsx", import.meta.url), "utf8");
   assert.match(source, /Finalizar atendimento/);
   assert.match(source, /Continuar como OS completa/);
+  assert.match(source, /<DialogTitle>Nova OS Rápida<\/DialogTitle>/);
   assert.match(source, /creating\.current/);
   assert.match(source, /autoFocus/);
   assert.doesNotMatch(source, /TabsTrigger|stepper|setStep/);
@@ -166,6 +167,26 @@ test("application keeps standard action and wires quick draft into standard flow
   assert.match(source, /createQuickOrder/);
 });
 
+test("OS action labels use the same workshop vocabulary without changing their flows", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const quickView = source.slice(source.indexOf("function PilotQuickView"), source.indexOf("function CustomersScreen"));
+  const customers = source.slice(source.indexOf("function CustomersScreen"), source.indexOf("function VehiclesScreen"));
+  const vehicles = source.slice(source.indexOf("function VehiclesScreen"), source.indexOf("function OrdersScreen"));
+  const orders = source.slice(source.indexOf("function OrdersScreen"), source.indexOf("function CustomerDetail"));
+  const newOrder = source.slice(source.indexOf("function NewOrderDialog"));
+
+  assert.match(quickView, /Ver OS completa/);
+  assert.doesNotMatch(quickView, /Abrir OS completa/);
+  for (const screen of [customers, vehicles]) {
+    assert.match(screen, /Nova OS/);
+    assert.doesNotMatch(screen, /Criar ordem de serviço/);
+  }
+  assert.match(orders, /Nova OS Rápida/);
+  assert.match(orders, />\s*Nova OS\s*</);
+  assert.match(newOrder, /<DialogTitle[^>]*>Nova OS<\/DialogTitle>/);
+  assert.match(newOrder, /isCreating \? "Salvando…" : "Nova OS"/);
+});
+
 test("sidebar keeps one financial entry active for the legacy reports route", async () => {
   const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
   const navigation = source.slice(source.indexOf("const navGroups"), source.indexOf("const navItems"));
@@ -289,7 +310,7 @@ test("operational home prioritizes action-oriented workshop shortcuts", async ()
   });
   const buttons = nodes(tree).filter((node) => node.type === "button");
   const quickButton = buttons.find((node) => text(node).includes("Nova OS Rápida"));
-  const standardButton = buttons.find((node) => text(node).includes("OS Completa"));
+  const standardButton = buttons.find((node) => text(node).trim() === "Nova OS");
   const continueButton = buttons.find((node) => text(node).includes("Continuar OS"));
   const paymentButton = buttons.find((node) => text(node).includes("Pagamentos"));
   const agendaButton = buttons.find((node) => text(node).includes("Agenda"));

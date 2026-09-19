@@ -370,7 +370,7 @@ export function OperationalDashboard({
       <section className="mb-4" aria-labelledby="dashboard-actions-title">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div><h2 id="dashboard-actions-title" className="text-xl font-bold text-slate-950">O que você quer fazer?</h2><p className="mt-1 text-sm text-muted-foreground">Escolha uma ação para começar.</p></div>
-          <Button type="button" variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={onNewOrder}><Plus className="h-4 w-4" /> Abrir OS Completa</Button>
+          <Button type="button" variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={onNewOrder}><Plus className="h-4 w-4" /> Nova OS</Button>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
           <button type="button" onClick={onNewQuickOrder} className="dashboard-interactive flex min-h-28 items-start gap-4 rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:col-span-2 xl:col-span-2"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white"><Sparkles className="h-6 w-6" /></span><span><strong className="block text-base text-emerald-950">Nova OS Rápida</strong><span className="mt-1 block text-sm leading-relaxed text-emerald-800">Registrar um serviço simples</span></span></button>

@@ -2134,7 +2134,7 @@ function PilotQuickView({
                 </SidePanelBody>
                 <SidePanelFooter>
                   <Button className="w-full" onClick={() => onNavigate("order", order.id)}>
-                    Abrir OS completa
+                    Ver OS completa
                   </Button>
                 </SidePanelFooter>
               </>
@@ -2182,7 +2182,7 @@ function CustomersScreen({
         icon={Users}
         action={
           <Button onClick={onNew} className="create-order-action gap-2">
-            <Plus className="h-4 w-4" /> Criar ordem de serviço
+            <Plus className="h-4 w-4" /> Nova OS
           </Button>
         }
       />
@@ -2212,7 +2212,7 @@ function CustomersScreen({
               text={
                 customers.length
                   ? "Tente outro nome, telefone ou placa."
-                  : "Comece por Criar ordem de serviço para cadastrar o primeiro cliente."
+                  : "Comece por Nova OS para cadastrar o primeiro cliente."
               }
             />
           )}
@@ -2336,7 +2336,7 @@ function VehiclesScreen({
         icon={CarFront}
         action={
           <Button onClick={onNew} className="create-order-action gap-2">
-            <Plus className="h-4 w-4" /> Criar ordem de serviço
+            <Plus className="h-4 w-4" /> Nova OS
           </Button>
         }
       />
@@ -2504,7 +2504,7 @@ function OrdersScreen({
         icon={ClipboardList}
         action={
           <div className="flex flex-wrap gap-2"><Button onClick={onNewQuick} className="create-order-action gap-2"><Sparkles className="h-4 w-4" /> Nova OS Rápida</Button><Button onClick={onNew} variant="outline" className="gap-2">
-            <Plus className="h-4 w-4" /> OS Completa
+            <Plus className="h-4 w-4" /> Nova OS
           </Button></div>
         }
       />
@@ -5943,7 +5943,7 @@ function NewOrderDialog({
       <DialogContent className="max-h-[92vh] overflow-y-auto border-slate-200 bg-white shadow-xl sm:max-w-3xl">
         <div>
           <DialogHeader className="pr-8">
-            <DialogTitle className="text-xl tracking-tight">Nova OS Completa</DialogTitle>
+            <DialogTitle className="text-xl tracking-tight">Nova OS</DialogTitle>
             <DialogDescription className="leading-relaxed">
               Cadastre ou selecione cliente e veículo antes de confirmar a entrada.
             </DialogDescription>
@@ -6431,7 +6431,7 @@ function NewOrderDialog({
                 onClick={() => void createAll()}
                 disabled={isCreating}
               >
-                {isCreating ? "Salvando…" : "Criar ordem de serviço"}
+                {isCreating ? "Salvando…" : "Nova OS"}
               </Button>
             )}
           </DialogFooter>

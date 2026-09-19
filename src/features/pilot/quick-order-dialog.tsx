@@ -156,7 +156,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
   };
   return <Dialog open={open} onOpenChange={(value) => value ? onOpenChange(true) : close()}>
     <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
-      <DialogHeader><DialogTitle>OS Rápida</DialogTitle><DialogDescription>Registre o atendimento, confira o pagamento e finalize.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Nova OS Rápida</DialogTitle><DialogDescription>Registre o atendimento, confira o pagamento e finalize.</DialogDescription></DialogHeader>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="space-y-5">
           <section className="space-y-3">
