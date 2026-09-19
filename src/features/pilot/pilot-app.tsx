@@ -527,12 +527,23 @@ function VehicleIcon({ kind, className }: { kind: Vehicle["kind"]; className?: s
   return <Icon className={className} />;
 }
 
-function EmptyState({ title, text }: { title: string; text: string }) {
+function EmptyState({
+  title,
+  text,
+  icon: Icon = FileText,
+  action,
+}: {
+  title: string;
+  text: string;
+  icon?: LucideIcon;
+  action?: ReactNode;
+}) {
   return (
     <div className="pilot-empty-state" role="status">
-      <FileText aria-hidden="true" className="mx-auto h-6 w-6 text-muted-foreground" />
+      <Icon aria-hidden="true" className="mx-auto h-6 w-6 text-muted-foreground" />
       <h3 className="mt-3 font-semibold">{title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{text}</p>
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
   );
 }
@@ -2212,8 +2223,10 @@ function CustomersScreen({
               text={
                 customers.length
                   ? "Tente outro nome, telefone ou placa."
-                  : "Comece por Nova OS para cadastrar o primeiro cliente."
+                  : "Cadastre um cliente para começar a registrar veículos e atendimentos."
               }
+              icon={Users}
+              action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" /> Nova OS</Button>}
             />
           )}
           {visible.map((customer) => {
@@ -2380,8 +2393,10 @@ function VehiclesScreen({
               text={
                 vehicles.length
                   ? "Tente outra placa, modelo ou proprietário."
-                  : "Cadastre o primeiro veículo ao criar uma ordem de serviço."
+                  : "Cadastre um veículo para começar a acompanhar seus atendimentos e histórico."
               }
+              icon={CarFront}
+              action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" /> Nova OS</Button>}
             />
           )}
           {visible.map((vehicle) => {
@@ -2528,12 +2543,14 @@ function OrdersScreen({
         <div>
           {visible.length === 0 && (
             <EmptyState
-              title={orders.length ? "Nenhuma OS neste estado" : "Nenhuma ordem de serviço"}
+              title={orders.length ? "Nenhuma OS neste estado" : "Nenhuma OS encontrada"}
               text={
                 orders.length
                   ? "Escolha outro filtro para consultar as ordens."
-                  : "Crie uma ordem de serviço para registrar o primeiro atendimento."
+                  : "Crie uma OS para começar um novo atendimento."
               }
+              icon={ClipboardList}
+              action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" /> Nova OS</Button>}
             />
           )}
           {visible.map((order) => {

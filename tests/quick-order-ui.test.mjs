@@ -187,6 +187,26 @@ test("OS action labels use the same workshop vocabulary without changing their f
   assert.match(newOrder, /isCreating \? "Salvando…" : "Nova OS"/);
 });
 
+test("directory empty states explain the context and reuse existing actions", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const emptyState = source.slice(source.indexOf("function EmptyState"), source.indexOf("export function PilotApp"));
+  const customers = source.slice(source.indexOf("function CustomersScreen"), source.indexOf("function VehiclesScreen"));
+  const vehicles = source.slice(source.indexOf("function VehiclesScreen"), source.indexOf("function OrdersScreen"));
+  const orders = source.slice(source.indexOf("function OrdersScreen"), source.indexOf("function CustomerDetail"));
+
+  assert.match(emptyState, /icon\?: LucideIcon/);
+  assert.match(emptyState, /action\?: ReactNode/);
+  assert.match(customers, /icon=\{Users\}/);
+  assert.match(customers, /Cadastre um cliente para começar a registrar veículos e atendimentos\./);
+  assert.match(customers, /action=\{<Button[^>]*onClick=\{onNew\}[^>]*>[^]*Nova OS[^]*<\/Button>\}/);
+  assert.match(vehicles, /icon=\{CarFront\}/);
+  assert.match(vehicles, /Cadastre um veículo para começar a acompanhar seus atendimentos e histórico\./);
+  assert.match(vehicles, /action=\{<Button[^>]*onClick=\{onNew\}[^>]*>[^]*Nova OS[^]*<\/Button>\}/);
+  assert.match(orders, /icon=\{ClipboardList\}/);
+  assert.match(orders, /Crie uma OS para começar um novo atendimento\./);
+  assert.match(orders, /action=\{<Button[^>]*onClick=\{onNew\}[^>]*>[^]*Nova OS[^]*<\/Button>\}/);
+});
+
 test("sidebar keeps one financial entry active for the legacy reports route", async () => {
   const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
   const navigation = source.slice(source.indexOf("const navGroups"), source.indexOf("const navItems"));
