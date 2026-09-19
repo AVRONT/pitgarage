@@ -58,6 +58,18 @@ const base = {
   ],
   payment: undefined,
 };
+
+test("delivered OS always recommends consulting history even with incomplete legacy fields", () => {
+  const delivered = workflow.evaluateOrderWorkflow({
+    ...base,
+    diagnosis: "",
+    budget: [],
+  });
+  assert.equal(delivered.nextAction.id, "review-history");
+  assert.equal(delivered.nextAction.label, "Consultar histórico");
+  assert.equal(delivered.nextAction.tab, "overview");
+});
+
 const receipt = {
   id: "r",
   amount: 400,

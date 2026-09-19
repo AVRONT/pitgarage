@@ -2558,6 +2558,8 @@ function OrdersScreen({
             const customer = customers.find((c) => c.id === order.customerId)!;
             const total = order.budget.reduce((sum, item) => sum + item.price, 0);
             const workflow = evaluateOrderWorkflow(order);
+            const orderActionLabel =
+              order.status === "Entregue" ? "Ver OS completa" : "Continuar";
             const needsAttention = Boolean(
               workflow.inconsistency || workflow.blockers.length || workflow.warnings.length,
             );
@@ -2565,7 +2567,7 @@ function OrdersScreen({
               <button
                 key={order.id}
                 onClick={() => onOpen(order.id)}
-                aria-label={`Continuar ${order.id}: ${workflow.nextAction.label}`}
+                aria-label={`${orderActionLabel} ${order.id}: ${workflow.nextAction.label}`}
                 className="pilot-table-row group grid w-full gap-4 border-l-4 border-l-transparent p-4 text-left transition-[background-color,border-color] duration-150 hover:border-l-orange-500 hover:bg-orange-50/40 focus-visible:border-l-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 motion-reduce:transition-none md:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)_auto] md:items-center md:gap-6 md:px-6 md:py-5"
               >
                 <div className="min-w-0">
@@ -2619,7 +2621,7 @@ function OrdersScreen({
                     {money(total)}
                   </span>
                   <span className="inline-flex min-h-10 items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white group-hover:bg-orange-700">
-                    Continuar
+                    {orderActionLabel}
                     <ChevronRight className="h-4 w-4" />
                   </span>
                 </div>

@@ -109,7 +109,9 @@ export function evaluateOrderWorkflow(order: ServiceOrder): WorkflowEvaluation {
     );
 
   let nextAction: WorkflowAction;
-  if (order.status === "Recebido") {
+  if (order.status === "Entregue") {
+    nextAction = { id: "review-history", label: "Consultar histórico", tab: "overview" };
+  } else if (order.status === "Recebido") {
     nextAction = {
       id: "start-diagnosis",
       label: "Iniciar diagnóstico",

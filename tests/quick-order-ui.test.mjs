@@ -226,7 +226,8 @@ test("orders screen presents an operational queue with status, next action and c
   assert.match(ordersScreen, /const workflow = evaluateOrderWorkflow\(order\)/);
   assert.match(ordersScreen, /Próxima ação/);
   assert.match(ordersScreen, /workflow\.nextAction\.label/);
-  assert.match(ordersScreen, />\s*Continuar\s*</);
+  assert.match(ordersScreen, /orderActionLabel\s*=\s*order\.status === "Entregue" \? "Ver OS completa" : "Continuar"/);
+  assert.match(ordersScreen, /\{orderActionLabel\}/);
   assert.match(ordersScreen, /StatusBadge status=\{order\.status\}/);
   assert.doesNotMatch(ordersScreen, /hidden md:block[\s\S]{0,80}<StatusBadge status=\{order\.status\}/);
 });
