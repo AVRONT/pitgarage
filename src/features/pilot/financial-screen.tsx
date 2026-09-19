@@ -505,6 +505,7 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
     [revision, setRevision] = useState(0),
     [saving, setSaving] = useState(false);
   const lock = useRef(false);
+  const loadedAccessContext = useRef<string | null>(null);
   const [kind, setKind] = useState("Todos"),
     [period, setPeriod] = useState("month"),
     [customStart, setCustomStart] = useState(""),
@@ -529,9 +530,14 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
   }, [reducedMotion, kind, period, customStart, customEnd, rows]);
   useEffect(() => {
     let active = true;
+    const accessContext = `${isLocalBypass}:${accessLevel}`;
+    const preservesCurrentData = loadedAccessContext.current === accessContext && rows !== null;
     setLoading(true);
     setError("");
-    setRows(null);
+    if (!preservesCurrentData) {
+      setRows(null);
+      setMembers([]);
+    }
     if (isLocalBypass) {
       setError("O financeiro exige a permissão validada pelo servidor da oficina.");
       setLoading(false);
@@ -541,7 +547,10 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
       if (!(await financialApi.access()))
         throw new Error("Você não tem permissão financeira. Solicite acesso ao proprietário.");
       const report = await financialApi.report();
-      if (active) setRows(report);
+      if (active) {
+        setRows(report);
+        loadedAccessContext.current = accessContext;
+      }
       if (accessLevel === "owner" || accessLevel === "admin") {
         const list = await financialApi.members();
         if (active) setMembers(list);
@@ -550,7 +559,7 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
       .catch((cause) => {
         if (active) {
           setError(cause.message);
-          setRows(null);
+          if (!preservesCurrentData) setRows(null);
         }
       })
       .finally(() => {
@@ -623,11 +632,25 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
           Atualizar
         </Button>
       </div>
-      {loading && <p role="status">Carregando financeiro…</p>}
-      {error && (
-        <p role="alert" className="rounded-md border p-4 text-destructive">
-          {error}
+      {loading && (
+        <p role="status" className="text-sm text-slate-600">
+          {rows === null ? "Carregando financeiro…" : "Atualizando financeiro…"}
         </p>
+      )}
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-4 text-destructive">
+          <div>
+            <p>{error}</p>
+            {rows !== null && (
+              <p className="mt-1 text-xs text-slate-600">
+                Os dados anteriores continuam visíveis.
+              </p>
+            )}
+          </div>
+          <Button variant="outline" size="sm" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
+            Tentar novamente
+          </Button>
+        </div>
       )}
       {rows && (
         <>

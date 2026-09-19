@@ -276,6 +276,11 @@ function nodes(tree) {
   if (Array.isArray(tree)) return tree.flatMap(nodes);
   return [tree, ...nodes(tree.props?.children)];
 }
+function nodeText(value) {
+  if (Array.isArray(value)) return value.map(nodeText).join(" ");
+  if (value && typeof value === "object") return nodeText(value.props?.children);
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
 async function uiHarness(api, owner = false) {
   globalThis.window ??= {
     matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
@@ -550,6 +555,85 @@ test("financial tabs open with a concise summary and separate operational detail
       (node) => node.type === "summary" && node.props.children === "Rentabilidade de peças",
     ),
   );
+});
+
+test("financial refresh keeps current data, filters and tab visible until new data arrives", async () => {
+  let resolveRefresh;
+  let calls = 0;
+  const refreshedRows = [{ ...orderRows[0], orderId: "new", orderNumber: "OS-NEW" }];
+  const harness = await uiHarness({
+    access: async () => true,
+    report: async () => {
+      calls += 1;
+      if (calls === 1) return orderRows;
+      return new Promise((resolve) => {
+        resolveRefresh = resolve;
+      });
+    },
+  });
+
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+  assert.ok(tree.some((node) => node.props?.role === "status" && /Carregando financeiro/.test(nodeText(node))));
+  assert.ok(!tree.some((node) => node.props?.["aria-label"] === "Filtros financeiros"));
+
+  await tick();
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.find((node) => node.type === "Tabs").props.onValueChange("orders");
+  tree.find((node) => node.type === "select").props.onChange({ target: { value: "Carro" } });
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.find((node) => node.type === "button" && nodeText(node).includes("Atualizar")).props.onClick();
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+
+  assert.ok(tree.some((node) => node.props?.role === "status" && /Atualizando financeiro/.test(nodeText(node))));
+  assert.ok(tree.some((node) => node.props?.children === "Resumo por OS"));
+  assert.equal(tree.find((node) => node.type === "select").props.value, "Carro");
+  assert.ok(tree.some((node) => node.props?.children === "OS-1"));
+
+  resolveRefresh(refreshedRows);
+  await tick();
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  assert.ok(tree.some((node) => node.props?.children === "OS-NEW"));
+  assert.ok(!tree.some((node) => node.props?.children === "OS-1"));
+  assert.equal(tree.find((node) => node.type === "select").props.value, "Carro");
+  assert.ok(tree.some((node) => node.props?.children === "Resumo por OS"));
+});
+
+test("financial refresh error preserves current data and offers a retry", async () => {
+  let calls = 0;
+  const harness = await uiHarness({
+    access: async () => true,
+    report: async () => {
+      calls += 1;
+      if (calls === 1) return orderRows;
+      if (calls === 2) throw new Error("Falha temporária ao atualizar");
+      return [{ ...orderRows[1], orderId: "retried", orderNumber: "OS-RETRY" }];
+    },
+  });
+
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.find((node) => node.type === "Tabs").props.onValueChange("orders");
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  tree.find((node) => node.type === "button" && nodeText(node).includes("Atualizar")).props.onClick();
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+
+  assert.ok(tree.some((node) => node.props?.role === "alert" && /Falha temporária/.test(nodeText(node))));
+  assert.ok(tree.some((node) => node.props?.children === "OS-1"));
+  assert.ok(tree.some((node) => node.props?.children === "Resumo por OS"));
+  const retry = tree.find((node) => node.type === "button" && nodeText(node).includes("Tentar novamente"));
+  assert.ok(retry);
+
+  retry.props.onClick();
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  assert.ok(tree.some((node) => node.props?.children === "OS-RETRY"));
+  assert.ok(!tree.some((node) => node.props?.role === "alert"));
 });
 
 test("chart presentation formats currency, dates and tooltips without hiding zeros", async () => {
