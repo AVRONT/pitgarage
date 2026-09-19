@@ -1351,7 +1351,12 @@ export function PilotApp() {
                 onBack={() => navigate("vehicles")}
                 onCustomer={(id) => navigate("customer", id)}
                 onOrder={(id) => navigate("order", id)}
-                onNewOrder={() => setNewOrderOpen(true)}
+                onNewOrder={() => {
+                  setInitialOrderVehicleId(selectedVehicleId);
+                  setInitialOrderCustomerId(undefined);
+                  setInitialQuickDraft(undefined);
+                  setNewOrderOpen(true);
+                }}
                 onDelete={() => {
                   const at = orderTimestamp();
                   persist(async () => {
@@ -2892,66 +2897,46 @@ function VehicleDetail({
                   <Trash2 className="h-4 w-4" /> Excluir veículo
                 </Button>
                 <Button onClick={onNewOrder} className="create-order-action gap-2">
-                  <Plus className="h-4 w-4" /> Criar ordem de serviço
+                  <Plus className="h-4 w-4" /> Nova OS
                 </Button>
               </>
             )}
           </div>
         }
       />
-      <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <Card className="border-0 bg-slate-900 text-white">
-            <CardContent className="p-6">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-orange-500">
-                <VehicleIcon kind={vehicle.kind} className="h-7 w-7" />
-              </div>
-              <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <dt className="text-slate-400">Placa</dt>
-                  <dd className="mt-1 font-mono font-bold">{vehicle.plate}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400">Ano</dt>
-                  <dd className="mt-1 font-bold">{vehicle.year || "Não informado"}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400">Última km conhecida</dt>
-                  <dd className="mt-1 font-bold">{history.mileage}</dd>
-                  <dd className="mt-1 text-xs text-slate-400">{history.mileageSource}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400">Cor</dt>
-                  <dd className="mt-1 font-bold">{vehicle.color || "Não informada"}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400">Última passagem</dt>
-                  <dd className="mt-1 font-bold">{history.lastVisit}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400">Ordens vinculadas</dt>
-                  <dd className="mt-1 font-bold">{history.orders.length}</dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
+      <div className="space-y-8">
+        <section className="border-y bg-muted/20 py-4" aria-label="Resumo do veículo">
+          <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt className="text-xs text-muted-foreground">Placa</dt>
+              <dd className="mt-1 font-mono font-bold">{vehicle.plate}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Quilometragem</dt>
+              <dd className="mt-1 font-bold">{history.mileage}</dd>
+              <dd className="mt-0.5 text-xs text-muted-foreground">{history.mileageSource}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Atendimentos</dt>
+              <dd className="mt-1 font-bold">{history.orders.length}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Última visita</dt>
+              <dd className="mt-1 font-bold">{history.lastVisit}</dd>
+            </div>
+          </dl>
           <button
             onClick={() => onCustomer(customer.id)}
-            className="flex w-full items-center gap-3 rounded-2xl border bg-white p-4 text-left"
+            className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md text-left text-sm font-medium text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-orange-100 font-semibold text-orange-700">
-              {customer.name[0]}
-            </span>
-            <span className="flex-1">
-              <span className="block text-xs text-muted-foreground">Proprietário</span>
-              <strong className="text-sm">{customer.name}</strong>
-            </span>
+            Cliente: {customer.name}
             <ChevronRight className="h-4 w-4" />
           </button>
-        </div>
+        </section>
         <VehicleHistory
           orders={history.orders}
           onOrder={onOrder}
+          onNewOrder={onNewOrder}
           renderStatus={(status) => <StatusBadge status={status} />}
         />
       </div>

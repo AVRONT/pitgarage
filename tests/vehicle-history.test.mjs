@@ -8,6 +8,18 @@ const source = await readFile(
   new URL("../src/features/pilot/vehicle-history.ts", import.meta.url),
   "utf8",
 );
+const timelineSource = await readFile(
+  new URL("../src/features/pilot/vehicle-history-timeline.tsx", import.meta.url),
+  "utf8",
+);
+const appSource = await readFile(
+  new URL("../src/features/pilot/pilot-app.tsx", import.meta.url),
+  "utf8",
+);
+const vehicleDetailRouteSource = appSource.slice(
+  appSource.indexOf('{screen === "vehicle"'),
+  appSource.indexOf('{screen === "order"'),
+);
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 });
@@ -121,4 +133,44 @@ test("legacy arrays and responsible persons tolerate missing fields", () => {
   });
   assert.equal(result.team, "Maria");
   assert.equal(result.evidenceCount, 1);
+});
+
+test("quick orders only appear when they are linked to the vehicle", () => {
+  const linked = { ...order, id: "OS-QUICK-LINKED", flowType: "quick" };
+  const unlinked = { ...order, id: "OS-QUICK-UNLINKED", flowType: "quick", vehicleId: undefined };
+  assert.deepEqual(
+    vehicleHistory(vehicle, [unlinked, linked]).orders.map((item) => item.id),
+    ["OS-QUICK-LINKED"],
+  );
+});
+
+test("technical history keeps complaint, diagnosis, findings and notes as separate sections", () => {
+  for (const label of ["Problema relatado", "Diagnóstico", "Constatações", "Observações"])
+    assert.match(timelineSource, new RegExp(label));
+  assert.match(timelineSource, /order\.complaint/);
+  assert.match(timelineSource, /order\.diagnosis/);
+  assert.match(timelineSource, /order\.findings/);
+  assert.match(timelineSource, /order\.notes/);
+});
+
+test("history keeps execution visible and administrative details in the complete order", () => {
+  assert.match(timelineSource, /Serviços realizados/);
+  assert.match(timelineSource, /Peças utilizadas/);
+  assert.match(timelineSource, /Ver OS completa/);
+  assert.doesNotMatch(timelineSource, /Total aprovado no orçamento/);
+  assert.doesNotMatch(timelineSource, /Responsáveis registrados/);
+  assert.doesNotMatch(timelineSource, /<details/);
+});
+
+test("empty history offers a new order and vehicle detail preserves its context", () => {
+  assert.match(timelineSource, /onNewOrder/);
+  assert.match(timelineSource, /Nova OS/);
+  assert.match(
+    vehicleDetailRouteSource,
+    /onNewOrder=\{\(\) => \{\s*setInitialOrderVehicleId\(selectedVehicleId\);[\s\S]*?setNewOrderOpen\(true\);\s*\}\}/,
+  );
+});
+
+test("every history entry keeps access to the existing complete order flow", () => {
+  assert.match(timelineSource, /onClick=\{\(\) => onOrder\(order\.id\)\}/);
 });
