@@ -75,6 +75,15 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
     const vehicle = vehicles.find((item) => item.id === id);
     if (vehicle) { setBrand(vehicle.brand); setModel(vehicle.model); setYear(String(vehicle.year)); }
   };
+  const rejectDraft = (message: string, fieldId: string): null => {
+    setError(message);
+    const field = document.getElementById(fieldId);
+    const disclosure = field?.closest("details");
+    if (disclosure) disclosure.open = true;
+    field?.scrollIntoView({ block: "center", behavior: "auto" });
+    field?.focus({ preventScroll: true });
+    return null;
+  };
   const draft = (): QuickOrderDraft | null => {
     const cleanPhone = customerPhone.replace(/\D/g, "");
     const numericYear = Number(year), numericAmount = money(amount), numericDiscount = money(discount), numericReceived = money(received);
@@ -84,22 +93,38 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
       ...(financialAllowed && part.unitCost !== "" ? { unitCost: money(part.unitCost) } : {}),
     }));
     if (newCustomer) {
-      if (!customerName.trim() || cleanPhone.length < 10 || cleanPhone.length > 11) return setError("Informe nome e telefone válido do cliente."), null;
-    } else if (!customerId) return setError("Selecione um cliente."), null;
-    if (!brand.trim() || !model.trim() || !Number.isInteger(numericYear) || numericYear < 1900 || numericYear > new Date().getFullYear() + 1)
-      return setError("Informe Marca, Modelo e Ano válidos."), null;
-    if (!service.trim()) return setError("Informe o Serviço realizado."), null;
-    if (!Number.isFinite(numericAmount) || numericAmount <= 0) return setError("Informe o Valor do serviço."), null;
+      if (!customerName.trim()) return rejectDraft("Informe nome e telefone válido do cliente.", "quick-name");
+      if (cleanPhone.length < 10 || cleanPhone.length > 11) return rejectDraft("Informe nome e telefone válido do cliente.", "quick-phone");
+    } else if (!customerId) return rejectDraft("Selecione um cliente.", "quick-customer-search");
+    if (!brand.trim()) return rejectDraft("Informe Marca, Modelo e Ano válidos.", "quick-brand");
+    if (!model.trim()) return rejectDraft("Informe Marca, Modelo e Ano válidos.", "quick-model");
+    if (!Number.isInteger(numericYear) || numericYear < 1900 || numericYear > new Date().getFullYear() + 1)
+      return rejectDraft("Informe Marca, Modelo e Ano válidos.", "quick-year");
+    if (!service.trim()) return rejectDraft("Informe o Serviço realizado.", "quick-service");
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) return rejectDraft("Informe o Valor do serviço.", "quick-amount");
     for (const part of normalizedParts) {
-      if (!part.name || !Number.isInteger(part.quantity) || part.quantity < 1 || !Number.isFinite(part.unitPrice) || part.unitPrice < 0
-        || (part.unitCost !== undefined && (!Number.isFinite(part.unitCost) || part.unitCost < 0)))
-        return setError("Confira nome, quantidade, valor e custo das peças."), null;
+      if (!part.name) return rejectDraft("Confira nome, quantidade, valor e custo das peças.", `quick-part-name-${part.id}`);
+      if (!Number.isInteger(part.quantity) || part.quantity < 1)
+        return rejectDraft("Confira nome, quantidade, valor e custo das peças.", `quick-part-quantity-${part.id}`);
+      if (!Number.isFinite(part.unitPrice) || part.unitPrice < 0)
+        return rejectDraft("Confira nome, quantidade, valor e custo das peças.", `quick-part-price-${part.id}`);
+      if (part.unitCost !== undefined && (!Number.isFinite(part.unitCost) || part.unitCost < 0))
+        return rejectDraft("Confira nome, quantidade, valor e custo das peças.", `quick-part-cost-${part.id}`);
     }
     const numericSubtotal = quickOrderSubtotal(numericAmount, normalizedParts);
-    if (!Number.isFinite(numericDiscount) || numericDiscount < 0 || numericDiscount > numericSubtotal) return setError("Informe um desconto válido."), null;
-    if (numericCost !== undefined && (!Number.isFinite(numericCost) || numericCost < 0)) return setError("Informe um custo interno válido."), null;
+    if (!Number.isFinite(numericDiscount) || numericDiscount < 0 || numericDiscount > numericSubtotal)
+      return rejectDraft("Informe um desconto válido.", "quick-discount");
+    if (numericCost !== undefined && (!Number.isFinite(numericCost) || numericCost < 0))
+      return rejectDraft("Informe um custo interno válido.", "quick-cost");
     const paymentIssue = quickPaymentError(numericReceived, method || undefined, numericSubtotal - numericDiscount, numericFee);
-    if (paymentIssue) return setError(paymentIssue), null;
+    if (paymentIssue) {
+      const paymentField = paymentIssue === "Selecione a forma de pagamento."
+        ? "quick-method"
+        : paymentIssue.includes("taxa") || paymentIssue.includes("Taxa")
+          ? "quick-fee"
+          : "quick-received";
+      return rejectDraft(paymentIssue, paymentField);
+    }
     setError("");
     return {
       requestId: requestId.current,
@@ -136,7 +161,7 @@ export function QuickOrderDialog({ open, onOpenChange, customers, vehicles, fina
         <div className="space-y-5">
           <section className="space-y-3">
             <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant={!newCustomer ? "default" : "outline"} onClick={() => setNewCustomer(false)}>Cliente existente</Button><Button type="button" size="sm" variant={newCustomer ? "default" : "outline"} onClick={() => { setNewCustomer(true); setCustomerId(""); setVehicleId(""); }}>Novo cliente</Button></div>
-            {newCustomer ? <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-name">Nome *</Label><Input id="quick-name" autoFocus value={customerName} onChange={(e) => setCustomerName(e.target.value)} /></div><div><Label htmlFor="quick-phone">Telefone *</Label><Input id="quick-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div><div><Label htmlFor="quick-cpf">CPF (opcional)</Label><Input id="quick-cpf" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value)} /></div><div><Label htmlFor="quick-email">Email (opcional)</Label><Input id="quick-email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} /></div></div> : <div><Label>Buscar cliente</Label><Command shouldFilter={false} className="mt-1 overflow-hidden rounded-lg border bg-background"><CommandInput autoFocus value={customerSearch} onValueChange={(value) => { setCustomerSearch(value); if (customerId) { setCustomerId(""); setVehicleId(""); } }} aria-label="Buscar cliente por nome ou telefone" placeholder="Digite nome ou telefone" /><CommandList className="max-h-56 p-2"><CommandEmpty><div className="px-3 py-5 text-center"><p className="text-sm font-medium">Nenhum cliente encontrado</p><p className="mt-1 text-xs text-muted-foreground">Revise a busca ou escolha Novo cliente.</p></div></CommandEmpty>{visibleCustomers.map((customer) => <CommandItem key={customer.id} value={customer.id} onSelect={() => { setCustomerId(customer.id); setVehicleId(""); setCustomerSearch(customer.name); }} className={`mb-1 flex min-h-12 items-center justify-between rounded-md border px-3 py-2 last:mb-0 ${customerId === customer.id ? "border-primary/30 bg-primary/[0.07]" : "border-transparent"}`}><span className="min-w-0"><strong className="block truncate text-sm">{customer.name}</strong><span className="block truncate text-xs text-muted-foreground">{customer.phone}</span></span>{customerId === customer.id && <span className="text-xs font-semibold text-primary">Selecionado</span>}</CommandItem>)}</CommandList></Command></div>}
+            {newCustomer ? <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quick-name">Nome *</Label><Input id="quick-name" autoFocus value={customerName} onChange={(e) => setCustomerName(e.target.value)} /></div><div><Label htmlFor="quick-phone">Telefone *</Label><Input id="quick-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} /></div><div><Label htmlFor="quick-cpf">CPF (opcional)</Label><Input id="quick-cpf" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value)} /></div><div><Label htmlFor="quick-email">Email (opcional)</Label><Input id="quick-email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} /></div></div> : <div><Label>Buscar cliente</Label><Command shouldFilter={false} className="mt-1 overflow-hidden rounded-lg border bg-background"><CommandInput id="quick-customer-search" autoFocus value={customerSearch} onValueChange={(value) => { setCustomerSearch(value); if (customerId) { setCustomerId(""); setVehicleId(""); } }} aria-label="Buscar cliente por nome ou telefone" placeholder="Digite nome ou telefone" /><CommandList className="max-h-56 p-2"><CommandEmpty><div className="px-3 py-5 text-center"><p className="text-sm font-medium">Nenhum cliente encontrado</p><p className="mt-1 text-xs text-muted-foreground">Revise a busca ou escolha Novo cliente.</p></div></CommandEmpty>{visibleCustomers.map((customer) => <CommandItem key={customer.id} value={customer.id} onSelect={() => { setCustomerId(customer.id); setVehicleId(""); setCustomerSearch(customer.name); }} className={`mb-1 flex min-h-12 items-center justify-between rounded-md border px-3 py-2 last:mb-0 ${customerId === customer.id ? "border-primary/30 bg-primary/[0.07]" : "border-transparent"}`}><span className="min-w-0"><strong className="block truncate text-sm">{customer.name}</strong><span className="block truncate text-xs text-muted-foreground">{customer.phone}</span></span>{customerId === customer.id && <span className="text-xs font-semibold text-primary">Selecionado</span>}</CommandItem>)}</CommandList></Command></div>}
           </section>
 
           {!newCustomer && customerId && customerVehicles.length > 0 && <div><Label htmlFor="quick-vehicle">Veículo existente (opcional)</Label><select id="quick-vehicle" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={vehicleId} onChange={(e) => selectVehicle(e.target.value)}><option value="">Informar somente Marca, Modelo e Ano</option>{customerVehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.brand} {vehicle.model} · {vehicle.year} · {vehicle.plate}</option>)}</select></div>}

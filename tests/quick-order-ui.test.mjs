@@ -42,6 +42,123 @@ test("quick dialog is single-screen, exposes both destinations and protects repe
     assert.match(source, new RegExp(label));
 });
 
+test("quick dialog focuses and scrolls to the first invalid field without closing", async () => {
+  let cursor = 0;
+  const slots = [];
+  const effects = [];
+  const react = {
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial;
+      return [slots[index], (value) => {
+        slots[index] = typeof value === "function" ? value(slots[index]) : value;
+      }];
+    },
+    useRef(initial) {
+      const index = cursor++;
+      return (slots[index] ??= { current: initial });
+    },
+    useEffect(effect, dependencies) {
+      const index = cursor++;
+      const previous = slots[index];
+      if (!previous || dependencies.some((value, position) => value !== previous[position])) {
+        slots[index] = dependencies;
+        effects.push(effect);
+      }
+    },
+  };
+  const model = await load("quick-order-model.ts", { "./pilot-data": {} });
+  const ui = await load("quick-order-dialog.tsx", {
+    react,
+    "react/jsx-runtime": jsx,
+    "@/components/ui/button": { Button: "button" },
+    "@/components/ui/dialog": {
+      Dialog: "Dialog",
+      DialogContent: "DialogContent",
+      DialogDescription: "DialogDescription",
+      DialogFooter: "DialogFooter",
+      DialogHeader: "DialogHeader",
+      DialogTitle: "DialogTitle",
+    },
+    "@/components/ui/input": { Input: "input" },
+    "@/components/ui/label": { Label: "label" },
+    "@/components/ui/command": {
+      Command: "Command",
+      CommandEmpty: "CommandEmpty",
+      CommandInput: "CommandInput",
+      CommandItem: "CommandItem",
+      CommandList: "CommandList",
+    },
+    "./pilot-data": { warrantyDays: 90 },
+    "./quick-order-model": model,
+  });
+  const focused = [];
+  const scrolled = [];
+  const fields = new Map();
+  const field = (id) => ({
+    focus: () => focused.push(id),
+    scrollIntoView: (options) => scrolled.push({ id, options }),
+    closest: () => null,
+  });
+  for (const id of ["quick-customer-search", "quick-brand"]) fields.set(id, field(id));
+  const previousDocument = globalThis.document;
+  globalThis.document = { getElementById: (id) => fields.get(id) ?? null };
+  let finalized = 0;
+  const props = {
+    open: true,
+    onOpenChange() {},
+    customers: [{ id: "customer-1", name: "Maria", phone: "48999999999" }],
+    vehicles: [],
+    financialAllowed: false,
+    onFinalize: async () => { finalized += 1; },
+    onContinueAsStandard() {},
+  };
+  const render = () => {
+    cursor = 0;
+    const tree = nodes(ui.QuickOrderDialog(props));
+    for (const effect of effects.splice(0)) effect();
+    return tree;
+  };
+  const submit = (tree) => tree
+    .find((node) => node.type === "button" && text(node) === "Finalizar atendimento")
+    .props.onClick();
+
+  try {
+    let tree = render();
+    submit(tree);
+    tree = render();
+    assert.deepEqual(focused, ["quick-customer-search"]);
+    assert.equal(scrolled[0].id, "quick-customer-search");
+    assert.equal(scrolled[0].options.block, "center");
+    assert.equal(tree.find((node) => node.type === "Dialog").props.open, true);
+    assert.match(text(tree.find((node) => node.props?.role === "alert")), /Selecione um cliente/);
+
+    tree.find((node) => node.type === "CommandItem").props.onSelect();
+    tree = render();
+    submit(tree);
+    tree = render();
+    assert.deepEqual(focused, ["quick-customer-search", "quick-brand"]);
+    assert.match(text(tree.find((node) => node.props?.role === "alert")), /Marca, Modelo e Ano/);
+    assert.equal(finalized, 0);
+
+    for (const [id, value] of [
+      ["quick-brand", "Honda"],
+      ["quick-model", "CG 160"],
+      ["quick-year", "2025"],
+      ["quick-service", "Troca de óleo"],
+      ["quick-amount", "150"],
+    ]) {
+      tree.find((node) => node.props?.id === id).props.onChange({ target: { value } });
+    }
+    tree = render();
+    submit(tree);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(finalized, 1);
+  } finally {
+    globalThis.document = previousDocument;
+  }
+});
+
 test("application keeps standard action and wires quick draft into standard flow", async () => {
   const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
   assert.match(source, /OS Rápida/);
