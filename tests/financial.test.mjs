@@ -589,6 +589,60 @@ test("financial tabs open with a concise summary and separate operational detail
   );
 });
 
+test("financial OS and parts details keep desktop tables and expose compact mobile views", async () => {
+  const harness = await uiHarness({ access: async () => true, report: async () => orderRows });
+  harness.render(harness.ui.FinancialScreen);
+  await tick();
+  let tree = nodes(harness.render(harness.ui.FinancialScreen));
+
+  tree.find((node) => node.type === "Tabs").props.onValueChange("orders");
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  const orderTable = tree.find(
+    (node) => node.type === "table" && node.props["aria-label"] === "Resumo financeiro das ordens em tabela",
+  );
+  const mobileOrders = tree.find(
+    (node) => node.props?.["aria-label"] === "Resumo financeiro das ordens no celular",
+  );
+  assert.match(orderTable.props.className, /hidden/);
+  assert.match(orderTable.props.className, /lg:table/);
+  assert.match(mobileOrders.props.className, /lg:hidden/);
+  for (const value of [
+    "OS-1",
+    "Carro A",
+    "Cliente A",
+    "Categoria",
+    "Data de conclusão",
+    "Faturamento bruto",
+    "Desconto",
+    "Total final",
+    "Peças",
+    "Serviços",
+    "Custo conhecido",
+    "Resultado bruto",
+  ]) assert.match(nodeText(mobileOrders), new RegExp(value));
+
+  tree.find((node) => node.type === "Tabs").props.onValueChange("performance");
+  tree = nodes(harness.render(harness.ui.FinancialScreen));
+  const partsTable = tree.find(
+    (node) => node.type === "table" && node.props["aria-label"] === "Rentabilidade por peça em tabela",
+  );
+  const mobileParts = tree.find(
+    (node) => node.props?.["aria-label"] === "Rentabilidade por peça no celular",
+  );
+  assert.match(partsTable.props.className, /hidden/);
+  assert.match(partsTable.props.className, /md:table/);
+  assert.match(mobileParts.props.className, /md:hidden/);
+  for (const value of [
+    "OS-2",
+    "Peça 1",
+    "Quantidade",
+    "Custo unitário",
+    "Custo total",
+    "Acréscimo implícito",
+    "Lucro da peça",
+  ]) assert.match(nodeText(mobileParts), new RegExp(value));
+});
+
 test("financial refresh keeps current data, filters and tab visible until new data arrives", async () => {
   let resolveRefresh;
   let calls = 0;

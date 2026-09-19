@@ -1296,11 +1296,14 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                     </p>
                   </div>
                   <div
-                    className="max-h-[32rem] max-w-full overflow-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="hidden max-h-[32rem] max-w-full overflow-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:block"
                     tabIndex={0}
                     aria-label="Resumo financeiro das ordens"
                   >
-                    <table className="w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm [&_td]:border-b [&_td]:border-slate-100 [&_td]:px-3 [&_td]:py-3 [&_td]:tabular-nums">
+                    <table
+                      aria-label="Resumo financeiro das ordens em tabela"
+                      className="hidden w-full min-w-[1000px] border-separate border-spacing-0 text-left text-sm lg:table [&_td]:border-b [&_td]:border-slate-100 [&_td]:px-3 [&_td]:py-3 [&_td]:tabular-nums"
+                    >
                       <thead>
                         <tr className="border-b">
                           {[
@@ -1366,6 +1369,55 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                  <div
+                    aria-label="Resumo financeiro das ordens no celular"
+                    className="divide-y divide-slate-100 lg:hidden"
+                  >
+                    {summary.rows.map((order) => (
+                      <article className="py-4 first:pt-0 last:pb-0" key={order.orderId}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <strong className="text-sm text-slate-950">{order.orderNumber}</strong>
+                            <p className="truncate text-sm text-slate-700">
+                              {order.vehicle ?? "Veículo não informado"}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">
+                              {order.customer ?? "Cliente não informado"}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                            {order.kind ?? "Não informado"}
+                          </span>
+                        </div>
+                        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          {[
+                            ["Categoria", order.kind ?? "Não informado"],
+                            ["Data de conclusão", order.completedAt?.split("-").reverse().join("/")],
+                            ["Faturamento bruto", money(order.grossRevenue)],
+                            ["Desconto", money(order.discountAmount)],
+                            ["Total final", money(order.revenue)],
+                            ["Peças", money(order.partsRevenue)],
+                            ["Serviços", money(order.servicesRevenue)],
+                            ["Custo conhecido", money(order.cost)],
+                            ["Resultado bruto", money(order.result)],
+                          ].map(([label, value]) => (
+                            <div className="min-w-0" key={label}>
+                              <dt className="text-xs text-slate-500">{label}</dt>
+                              <dd className="mt-0.5 font-medium text-slate-900 tabular-nums">
+                                {value || "Não informado"}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                        {order.missingCosts > 0 && (
+                          <p className="mt-3 text-xs text-amber-700">
+                            {order.missingCosts} peça(s) sem custo suficiente
+                            {order.result !== null && " · resultado provisório"}
+                          </p>
+                        )}
+                      </article>
+                    ))}
                   </div>
                   {!summary.rows.length && (
                     <p className="py-4 text-sm text-muted-foreground">Nenhuma OS no período.</p>
@@ -1439,11 +1491,14 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                   detalhamento como identificação.
                 </p>
                 <div
-                  className="mt-3 max-w-full overflow-x-auto"
+                  className="mt-3 hidden max-w-full overflow-x-auto md:block"
                   tabIndex={0}
                   aria-label="Rentabilidade por peça"
                 >
-                  <table className="w-full min-w-[720px] text-left text-sm">
+                  <table
+                    aria-label="Rentabilidade por peça em tabela"
+                    className="hidden w-full min-w-[720px] text-left text-sm md:table"
+                  >
                     <thead>
                       <tr className="border-b">
                         {[
@@ -1502,6 +1557,60 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
                       )}
                     </tbody>
                   </table>
+                </div>
+                <div
+                  aria-label="Rentabilidade por peça no celular"
+                  className="mt-3 divide-y divide-slate-100 md:hidden"
+                >
+                  {summary.rows.flatMap((order) =>
+                    order.items
+                      .filter((item) => item.type === "Peça")
+                      .map((item, index) => {
+                        const validQuantity =
+                          item.quantity !== null &&
+                          Number.isInteger(item.quantity) &&
+                          item.quantity > 0;
+                        const amounts =
+                          item.revenue !== null && validQuantity
+                            ? partAmounts(
+                                { price: item.revenue, quantity: item.quantity! },
+                                item.unitCost,
+                              )
+                            : null;
+                        const markup =
+                          validQuantity && item.revenue !== null
+                            ? implicitMarkup(item.unitCost, item.revenue / item.quantity!)
+                            : null;
+                        return (
+                          <article className="py-4 first:pt-0 last:pb-0" key={order.orderId + "-mobile-" + index}>
+                            <strong className="text-sm text-slate-950">
+                              {order.orderNumber} · {item.name?.trim() || `Peça ${index + 1}`}
+                            </strong>
+                            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                              {[
+                                ["Quantidade", validQuantity ? item.quantity : "Não informado"],
+                                ["Custo unitário", money(item.unitCost)],
+                                ["Custo total", money(amounts?.cost ?? null)],
+                                [
+                                  "Acréscimo implícito",
+                                  markup === null
+                                    ? "Não informado"
+                                    : markup.toLocaleString("pt-BR") + "%",
+                                ],
+                                ["Lucro da peça", money(amounts?.profit ?? null)],
+                              ].map(([label, value]) => (
+                                <div className="min-w-0" key={label}>
+                                  <dt className="text-xs text-slate-500">{label}</dt>
+                                  <dd className="mt-0.5 font-medium text-slate-900 tabular-nums">
+                                    {value}
+                                  </dd>
+                                </div>
+                              ))}
+                            </dl>
+                          </article>
+                        );
+                      }),
+                  )}
                 </div>
                 {!summary.rows.some((order) =>
                   order.items.some((item) => item.type === "Peça"),
