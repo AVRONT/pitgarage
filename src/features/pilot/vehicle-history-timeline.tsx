@@ -4,6 +4,11 @@ import { Check, Circle } from "lucide-react";
 import type { ServiceOrder } from "./pilot-data";
 import { historyDate, historyEntry, historyMileage } from "./vehicle-history";
 
+function historyText(value: string) {
+  const text = value.trim();
+  return text.replace(/\.+/g, "").trim() ? text : "";
+}
+
 export function VehicleHistory({
   orders,
   onOrder,
@@ -16,7 +21,7 @@ export function VehicleHistory({
   renderStatus: (status: ServiceOrder["status"]) => ReactNode;
 }) {
   return (
-    <section aria-labelledby="vehicle-history-title" className="min-w-0">
+    <section aria-labelledby="vehicle-history-title" className="w-full min-w-0">
       <h2 id="vehicle-history-title" className="text-xl font-bold">
         Histórico do veículo
       </h2>
@@ -33,21 +38,25 @@ export function VehicleHistory({
           </Button>
         </div>
       ) : (
-        <ol className="mt-5 ml-2 border-l border-border pl-5">
+        <ol className="mt-6 ml-1 w-full border-l border-border pl-4 sm:ml-2 sm:pl-6">
           {orders.map((order) => {
             const entry = historyEntry(order);
+            const complaint = historyText(order.complaint);
+            const diagnosis = historyText(order.diagnosis);
+            const findings = historyText(order.findings);
+            const notes = historyText(order.notes);
             return (
-              <li key={order.id} className="relative min-w-0 pb-7 last:pb-0">
+              <li key={order.id} className="relative min-w-0 pb-8 last:pb-0 sm:pb-10">
                 <span
                   aria-hidden="true"
-                  className={`absolute -left-[26px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background ${entry.completed ? "bg-emerald-600" : "bg-primary"}`}
+                  className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background sm:-left-[29px] ${entry.completed ? "bg-emerald-600" : "bg-primary"}`}
                 />
-                <article className="min-w-0 border-b border-border/70 pb-7 last:border-b-0 last:pb-0">
-                  <p className="text-sm font-semibold text-foreground">
+                <article className="min-w-0 border-b border-border/70 pb-8 last:border-b-0 last:pb-0 sm:pb-10">
+                  <p className="text-sm font-medium text-muted-foreground">
                     {historyDate(order.openedAt)}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold">{order.id}</h3>
+                    <h3 className="text-base font-bold tracking-tight">{order.id}</h3>
                     {renderStatus(order.status)}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -57,21 +66,21 @@ export function VehicleHistory({
                       : " · Atendimento em andamento"}
                   </p>
 
-                  <div className="mt-4 space-y-4 text-sm">
-                    {order.complaint.trim() && (
+                  <div className="mt-5 space-y-5 text-sm">
+                    {complaint && (
                       <section>
                         <h4 className="text-xs font-semibold text-muted-foreground">
                           Problema relatado
                         </h4>
-                        <p className="mt-1 break-words leading-relaxed">{order.complaint}</p>
+                        <p className="mt-1.5 break-words text-[15px] leading-relaxed">{complaint}</p>
                       </section>
                     )}
 
-                    <section>
-                      <h4 className="text-xs font-semibold text-muted-foreground">
-                        Serviços realizados
-                      </h4>
-                      {entry.services.length ? (
+                    {entry.services.length > 0 && (
+                      <section>
+                        <h4 className="text-xs font-semibold text-muted-foreground">
+                          Serviços realizados
+                        </h4>
                         <ul className="mt-1.5 space-y-1.5">
                           {entry.services.map((item, index) => (
                             <li key={`${item.id}-${index}`} className="flex gap-2 break-words">
@@ -80,18 +89,14 @@ export function VehicleHistory({
                             </li>
                           ))}
                         </ul>
-                      ) : (
-                        <p className="mt-1 text-muted-foreground">
-                          Nenhum serviço com execução registrada.
-                        </p>
-                      )}
-                    </section>
+                      </section>
+                    )}
 
-                    <section>
-                      <h4 className="text-xs font-semibold text-muted-foreground">
-                        Peças utilizadas
-                      </h4>
-                      {entry.parts.length ? (
+                    {entry.parts.length > 0 && (
+                      <section>
+                        <h4 className="text-xs font-semibold text-muted-foreground">
+                          Peças utilizadas
+                        </h4>
                         <ul className="mt-1.5 space-y-1.5">
                           {entry.parts.map((item, index) => (
                             <li key={`${item.id}-${index}`} className="flex gap-2 break-words">
@@ -100,29 +105,25 @@ export function VehicleHistory({
                             </li>
                           ))}
                         </ul>
-                      ) : (
-                        <p className="mt-1 text-muted-foreground">
-                          Nenhuma peça com utilização registrada.
-                        </p>
-                      )}
-                    </section>
+                      </section>
+                    )}
 
-                    {order.diagnosis.trim() && (
+                    {diagnosis && (
                       <section>
                         <h4 className="text-xs font-semibold text-muted-foreground">Diagnóstico</h4>
-                        <p className="mt-1 break-words leading-relaxed">{order.diagnosis}</p>
+                        <p className="mt-1.5 break-words leading-relaxed">{diagnosis}</p>
                       </section>
                     )}
-                    {order.findings.trim() && (
+                    {findings && (
                       <section>
                         <h4 className="text-xs font-semibold text-muted-foreground">Constatações</h4>
-                        <p className="mt-1 break-words leading-relaxed">{order.findings}</p>
+                        <p className="mt-1.5 break-words leading-relaxed">{findings}</p>
                       </section>
                     )}
-                    {order.notes.trim() && (
+                    {notes && (
                       <section>
                         <h4 className="text-xs font-semibold text-muted-foreground">Observações</h4>
-                        <p className="mt-1 break-words leading-relaxed">{order.notes}</p>
+                        <p className="mt-1.5 break-words leading-relaxed">{notes}</p>
                       </section>
                     )}
                   </div>

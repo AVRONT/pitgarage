@@ -174,3 +174,10 @@ test("empty history offers a new order and vehicle detail preserves its context"
 test("every history entry keeps access to the existing complete order flow", () => {
   assert.match(timelineSource, /onClick=\{\(\) => onOrder\(order\.id\)\}/);
 });
+
+test("history hides empty technical sections and punctuation-only placeholders", () => {
+  assert.match(timelineSource, /historyText/);
+  assert.match(timelineSource, /entry\.services\.length > 0 &&/);
+  assert.match(timelineSource, /entry\.parts\.length > 0 &&/);
+  assert.match(timelineSource, /replace\(\/\\\.\+\/g/);
+});
