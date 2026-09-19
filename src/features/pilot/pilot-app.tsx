@@ -2220,7 +2220,10 @@ function CustomersScreen({
           {visible.map((customer) => {
             const related = vehicles.filter((vehicle) => vehicle.customerId === customer.id);
             const current = orders.find(
-              (order) => order.customerId === customer.id && order.status !== "Entregue",
+              (order) =>
+                order.customerId === customer.id &&
+                !isOrderCancelled(order) &&
+                order.status !== "Entregue",
             );
             return (
               <article
@@ -2353,7 +2356,10 @@ function VehiclesScreen({
             {
               vehicles.filter((vehicle) =>
                 orders.some(
-                  (order) => order.vehicleId === vehicle.id && order.status !== "Entregue",
+                  (order) =>
+                    order.vehicleId === vehicle.id &&
+                    !isOrderCancelled(order) &&
+                    order.status !== "Entregue",
                 ),
               ).length
             }
@@ -2382,7 +2388,10 @@ function VehiclesScreen({
           {visible.map((vehicle) => {
             const owner = customers.find((c) => c.id === vehicle.customerId)!;
             const current = orders.find(
-              (order) => order.vehicleId === vehicle.id && order.status !== "Entregue",
+              (order) =>
+                order.vehicleId === vehicle.id &&
+                !isOrderCancelled(order) &&
+                order.status !== "Entregue",
             );
             const workflow = current ? evaluateOrderWorkflow(current) : undefined;
             return (
@@ -2631,9 +2640,13 @@ function CustomerDetail({
   onDelete: () => void;
 }) {
   const { accessLevel, isLocalBypass } = useAuth();
+  const canEditCustomer =
+    accessLevel === "owner" || accessLevel === "admin" || accessLevel === "staff";
   const [deleteOpen, setDeleteOpen] = useState(false);
   const relatedOrders = orders.filter((o) => o.customerId === customer.id);
-  const activeOrders = relatedOrders.filter((order) => order.status !== "Entregue");
+  const activeOrders = relatedOrders.filter(
+    (order) => !isOrderCancelled(order) && order.status !== "Entregue",
+  );
   const debt = customerDebts(orders, customer.id);
   return (
     <>
@@ -2653,13 +2666,15 @@ function CustomerDetail({
               <Button className="create-order-action gap-2" onClick={onNewOrder}>
                 <Plus className="h-4 w-4" /> Nova OS
               </Button>
-              <Button
-                variant="ghost"
-                className="gap-2 text-rose-700"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="h-4 w-4" /> Excluir cliente
-              </Button>
+              {canEditCustomer && (
+                <Button
+                  variant="ghost"
+                  className="gap-2 text-rose-700"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" /> Excluir cliente
+                </Button>
+              )}
             </div>
           )
         }
@@ -2698,7 +2713,10 @@ function CustomerDetail({
             <div className="grid gap-3 lg:grid-cols-2">
               {vehicles.map((vehicle) => {
                 const current = relatedOrders.find(
-                  (order) => order.vehicleId === vehicle.id && order.status !== "Entregue",
+                  (order) =>
+                    order.vehicleId === vehicle.id &&
+                    !isOrderCancelled(order) &&
+                    order.status !== "Entregue",
                 );
                 const workflow = current ? evaluateOrderWorkflow(current) : undefined;
                 return (
@@ -2889,13 +2907,15 @@ function VehicleDetail({
                     Editar veículo
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  className="gap-2 text-rose-700"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4" /> Excluir veículo
-                </Button>
+                {canEditVehicle && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 text-rose-700"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Excluir veículo
+                  </Button>
+                )}
                 <Button onClick={onNewOrder} className="create-order-action gap-2">
                   <Plus className="h-4 w-4" /> Nova OS
                 </Button>

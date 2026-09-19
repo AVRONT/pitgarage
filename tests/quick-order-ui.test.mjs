@@ -112,6 +112,29 @@ test("customers screen supports operational search and preselected customer acti
   assert.match(newOrderDialog, /setCustomerId\(initialCustomer\.id\)/);
 });
 
+test("customer and vehicle operational views never treat cancelled or delivered orders as active", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const customersScreen = source.slice(source.indexOf("function CustomersScreen"), source.indexOf("function VehiclesScreen"));
+  const vehiclesScreen = source.slice(source.indexOf("function VehiclesScreen"), source.indexOf("function OrdersScreen"));
+  const customerDetail = source.slice(source.indexOf("function CustomerDetail"), source.indexOf("function VehicleDetail"));
+  const activeCondition = /!isOrderCancelled\(order\)\s*&&\s*order\.status !== "Entregue"/g;
+
+  assert.equal(customersScreen.match(activeCondition)?.length, 1);
+  assert.equal(vehiclesScreen.match(activeCondition)?.length, 2);
+  assert.equal(customerDetail.match(activeCondition)?.length, 2);
+});
+
+test("customer and vehicle destructive actions reuse their existing visual permissions", async () => {
+  const source = await readFile(new URL("../src/features/pilot/pilot-app.tsx", import.meta.url), "utf8");
+  const customerDetail = source.slice(source.indexOf("function CustomerDetail"), source.indexOf("function VehicleDetail"));
+  const vehicleDetail = source.slice(source.indexOf("function VehicleDetail"), source.indexOf("function OrderTeamAssignment"));
+
+  assert.match(customerDetail, /const canEditCustomer =[\s\S]*?accessLevel === "staff"/);
+  assert.match(customerDetail, /\{canEditCustomer && \([\s\S]*?Excluir cliente/);
+  assert.equal(vehicleDetail.match(/\{canEditVehicle && \(/g)?.length, 3);
+  assert.match(vehicleDetail, /\{canEditVehicle && \(\s*<Button[\s\S]*?Excluir veículo/);
+});
+
 test("operational home prioritizes action-oriented workshop shortcuts", async () => {
   const icons = Object.fromEntries(
     ["AlertTriangle", "CalendarDays", "CarFront", "CheckCircle2", "ChevronRight", "ClipboardList", "Clock3", "Gauge", "PackageCheck", "Plus", "Settings2", "Sparkles", "WalletCards", "Wrench"].map((name) => [name, name]),
