@@ -347,6 +347,11 @@ async function uiHarness(api, owner = false) {
     "@/components/ui/button": { Button: "button" },
     "@/components/ui/card": { Card: "section", CardContent: "div" },
     "@/components/ui/input": { Input: "input" },
+    "@/components/ui/alert": {
+      Alert: "Alert",
+      AlertDescription: "AlertDescription",
+      AlertTitle: "AlertTitle",
+    },
     "@/components/ui/tabs": {
       Tabs: "Tabs",
       TabsList: "TabsList",
@@ -407,6 +412,11 @@ async function extraRevenueHarness(api) {
     "@/features/auth/auth-context": { useAuth: () => ({ accessLevel: "owner" }) },
     "@/components/ui/button": { Button: "button" },
     "@/components/ui/input": { Input: "input" },
+    "@/components/ui/alert": {
+      Alert: "Alert",
+      AlertDescription: "AlertDescription",
+      AlertTitle: "AlertTitle",
+    },
     "./extra-revenue-api": { extraRevenueApi: api },
     "./extra-revenue-model": extraRevenueModel,
     "./pilot-data": {
@@ -435,6 +445,7 @@ test("extra revenue uses a quick type-first form and keeps accounting fields adv
     list: async () => ({ categories, entries: [] }),
     receivables: async () => [],
     add: async (entry) => {
+      if (saved.length) throw new Error("Falha ao salvar receita");
       saved.push(entry);
       return {
         id: entry.id,
@@ -507,6 +518,27 @@ test("extra revenue uses a quick type-first form and keeps accounting fields adv
   assert.equal(saved[0].categoryId, "oil");
   assert.equal(saved[0].description, "Venda de óleo");
   assert.equal(saved[0].revenue, 125.5);
+  tree = harness.render(props);
+  const success = tree.find((node) => node.type === "Alert" && node.props?.role === "status");
+  assert.ok(success);
+  assert.match(nodeText(success), /Receita adicionada/);
+
+  tree.find((node) => node.type === "button" && nodeText(node).includes("Adicionar receita"))
+    .props.onClick();
+  tree = harness.render(props);
+  tree.find((node) => node.props["data-revenue-type"] === "oil").props.onClick();
+  tree = harness.render(props);
+  tree.find((node) => node.props["aria-label"] === "Valor recebido").props.onChange({
+    target: { value: "50" },
+  });
+  tree = harness.render(props);
+  tree.find((node) => node.type === "form" && node.props["aria-label"] === "Nova receita extra")
+    .props.onSubmit({ preventDefault() {} });
+  await tick();
+  tree = harness.render(props);
+  const failure = tree.find((node) => node.type === "Alert" && node.props?.role === "alert");
+  assert.ok(failure);
+  assert.match(nodeText(failure), /Não foi possível confirmar a gravação/);
 });
 
 test("financial tabs open with a concise summary and separate operational details", async () => {

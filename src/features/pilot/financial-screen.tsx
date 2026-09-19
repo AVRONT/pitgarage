@@ -15,12 +15,15 @@ import {
 } from "recharts";
 import {
   ChartNoAxesCombined,
+  CircleAlert,
+  LoaderCircle,
   RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 import { ExtraRevenues } from "./extra-revenues";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -633,24 +636,34 @@ export function FinancialScreen({ heading = "Financeiro", description = "Acompan
         </Button>
       </div>
       {loading && (
-        <p role="status" className="text-sm text-slate-600">
-          {rows === null ? "Carregando financeiro…" : "Atualizando financeiro…"}
-        </p>
+        <Alert role="status" className="text-slate-700">
+          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <AlertTitle>
+            {rows === null ? "Carregando financeiro…" : "Atualizando financeiro…"}
+          </AlertTitle>
+          {rows !== null && (
+            <AlertDescription>Os dados atuais continuam disponíveis.</AlertDescription>
+          )}
+        </Alert>
       )}
       {error && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-4 text-destructive">
-          <div>
-            <p>{error}</p>
-            {rows !== null && (
-              <p className="mt-1 text-xs text-slate-600">
-                Os dados anteriores continuam visíveis.
-              </p>
-            )}
-          </div>
-          <Button variant="outline" size="sm" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
-            Tentar novamente
-          </Button>
-        </div>
+        <Alert role="alert" variant="destructive">
+          <CircleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Não foi possível atualizar</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p>{error}</p>
+              {rows !== null && (
+                <p className="mt-1 text-xs text-slate-600">
+                  Os dados anteriores continuam visíveis.
+                </p>
+              )}
+            </div>
+            <Button variant="outline" size="sm" disabled={loading} onClick={() => setRevision((v) => v + 1)}>
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
       {rows && (
         <>

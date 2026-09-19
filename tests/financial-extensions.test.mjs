@@ -223,6 +223,11 @@ test("financial adjustment uses workshop language while preserving internal corr
     "react/jsx-runtime": jsxRuntime,
     "@/components/ui/button": { Button: "button" },
     "@/components/ui/input": { Input: "input" },
+    "@/components/ui/alert": {
+      Alert: "Alert",
+      AlertDescription: "AlertDescription",
+      AlertTitle: "AlertTitle",
+    },
     "@/components/ui/dialog": {
       Dialog: "Dialog",
       DialogContent: "DialogContent",
@@ -273,7 +278,11 @@ test("financial adjustment uses workshop language while preserving internal corr
   assert.equal(saved[0].correction.type, "discount");
   assert.equal(saved[0].correction.payload.amount, 75);
   assert.equal(saved[0].correction.reason, "Valor combinado com o cliente");
-  assert.equal(render().find((node) => node.type === "Dialog").props.open, false);
+  tree = render();
+  assert.equal(tree.find((node) => node.type === "Dialog").props.open, false);
+  const success = tree.find((node) => node.type === "Alert" && node.props?.role === "status");
+  assert.ok(success);
+  assert.match(nodes(success).map((node) => node.props?.children).join(" "), /Ajuste salvo/);
 
   tree = render();
   tree.find((node) => node.type === "button" && node.props.children === "Ajustar valor").props.onClick();
@@ -338,6 +347,11 @@ test("financial adjustment always releases saving state and reports validation, 
     "react/jsx-runtime": jsxRuntime,
     "@/components/ui/button": { Button: "button" },
     "@/components/ui/input": { Input: "input" },
+    "@/components/ui/alert": {
+      Alert: "Alert",
+      AlertDescription: "AlertDescription",
+      AlertTitle: "AlertTitle",
+    },
     "@/components/ui/dialog": {
       Dialog: "Dialog",
       DialogContent: "DialogContent",
@@ -375,7 +389,7 @@ test("financial adjustment always releases saving state and reports validation, 
   let tree = open();
   submit();
   tree = render();
-  assert.equal(tree.find((node) => node.props?.role === "alert").props.children, "Explique o motivo deste ajuste.");
+  assert.ok(tree.some((node) => node.props?.children === "Explique o motivo deste ajuste."));
   tree.find((node) => node.type === "button" && node.props.children === "Cancelar").props.onClick();
   assert.equal(render().find((node) => node.type === "Dialog").props.open, false);
 
@@ -387,7 +401,7 @@ test("financial adjustment always releases saving state and reports validation, 
   submit();
   await tick();
   tree = render();
-  assert.equal(tree.find((node) => node.props?.role === "alert").props.children, "Não foi possível confirmar o ajuste.");
+  assert.ok(tree.some((node) => node.props?.children === "Não foi possível confirmar o ajuste."));
   assert.ok(tree.some((node) => node.type === "button" && node.props.children === "Salvar ajuste"));
 
   tree.find((node) => node.type === "button" && node.props.children === "Cancelar").props.onClick();
@@ -410,7 +424,12 @@ test("financial adjustment always releases saving state and reports validation, 
     globalThis.clearTimeout = originalClearTimeout;
   }
   tree = render();
-  assert.match(tree.find((node) => node.props?.role === "alert").props.children, /Recarregue a OS/);
+  assert.ok(
+    tree.some(
+      (node) =>
+        typeof node.props?.children === "string" && /Recarregue a OS/.test(node.props.children),
+    ),
+  );
   assert.ok(tree.some((node) => node.type === "button" && node.props.children === "Salvar ajuste"));
 });
 test("legacy paid/pending are not lost or mistaken for cash; reversal preserves receipts and exposes credit", () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { CheckCircle2, CircleAlert, LoaderCircle, Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { extraRevenueApi, type Receivable } from "./extra-revenue-api";
@@ -150,19 +151,30 @@ export function ExtraRevenues({
   const feedback = (
     <>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}{" "}
-          <Button variant="link" onClick={() => setRevision((value) => value + 1)}>
-            Tentar novamente
-          </Button>
-        </p>
+        <Alert role="alert" variant="destructive">
+          <CircleAlert className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Não foi possível concluir</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <p>{error}</p>
+            <Button variant="outline" size="sm" onClick={() => setRevision((value) => value + 1)}>
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
       {notice && (
-        <p role="status" className="text-sm text-emerald-700">
-          {notice}
-        </p>
+        <Alert role="status" className="border-emerald-200 bg-emerald-50 text-emerald-900">
+          <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+          <AlertTitle>Receita adicionada</AlertTitle>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
       )}
-      {!ready && !error && <p role="status">Carregando informações financeiras.</p>}
+      {!ready && !error && (
+        <Alert role="status" className="text-slate-700">
+          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <AlertTitle>Carregando informações financeiras…</AlertTitle>
+        </Alert>
+      )}
     </>
   );
   if (view === "orders" || view === "performance") return null;
@@ -268,20 +280,7 @@ export function ExtraRevenues({
           </Button>
         )}
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}{" "}
-          <Button variant="link" onClick={() => setRevision((v) => v + 1)}>
-            Tentar novamente
-          </Button>
-        </p>
-      )}
-      {notice && (
-        <p role="status" className="text-sm">
-          {notice}
-        </p>
-      )}
-      {!ready && !error && <p role="status">Carregando…</p>}
+      {feedback}
       {ready && (
         <>
           <div className="hidden">

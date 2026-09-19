@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import { CheckCircle2, CircleAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +31,7 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
   const [fee, setFee] = useState("0");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const saveLock = useRef(false);
   const requestId = useRef(crypto.randomUUID());
@@ -92,6 +95,7 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
     setOpen(true);
     setReason("");
     setError("");
+    setNotice("");
     selectType("receipt");
   };
 
@@ -127,6 +131,7 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
       setReason("");
       setAmount("");
       setTarget("");
+      setNotice("Ajuste salvo.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o ajuste.");
     } finally {
@@ -154,6 +159,13 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
       <Button type="button" variant="outline" onClick={openAdjustment}>
         Ajustar valor
       </Button>
+      {notice && (
+        <Alert role="status" className="mt-3 border-emerald-200 bg-emerald-50 text-emerald-900">
+          <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+          <AlertTitle>Ajuste salvo</AlertTitle>
+          <AlertDescription>As informações financeiras foram atualizadas.</AlertDescription>
+        </Alert>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -293,9 +305,11 @@ export function FinancialCorrection({ order, save }: { order: ServiceOrder; save
             )}
 
             {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
+              <Alert role="alert" variant="destructive">
+                <CircleAlert className="h-4 w-4" aria-hidden="true" />
+                <AlertTitle>Não foi possível salvar</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
           </div>
 
