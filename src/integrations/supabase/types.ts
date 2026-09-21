@@ -1059,6 +1059,28 @@ export type Database = {
         }
         Returns: Json
       }
+      create_customer: {
+        Args: { customer_data: Json }
+        Returns: {
+          auth_user_id: string | null
+          cpf: string | null
+          created_at: string
+          deleted_at: string | null
+          email: string
+          email_normalized: string | null
+          id: string
+          name: string
+          phone: string
+          since: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_quick_service_order:
         | {
             Args: {
@@ -1244,6 +1266,29 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "service_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_vehicle: {
+        Args: { vehicle_data: Json }
+        Returns: {
+          brand: string
+          color: string
+          created_at: string
+          customer_id: string
+          deleted_at: string | null
+          id: string
+          kind: string
+          mileage: number
+          model: string
+          plate: string
+          updated_at: string
+          year: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vehicles"
           isOneToOne: true
           isSetofReturn: false
         }
