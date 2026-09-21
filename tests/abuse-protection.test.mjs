@@ -41,7 +41,7 @@ const post = (body) =>
     headers: { authorization: "Bearer test", "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-function inviteService({ role = "owner", allowed = true, error = null, signed = true } = {}) {
+function inviteService({ role = "owner", active = true, allowed = true, error = null, signed = true } = {}) {
   const calls = [];
   return {
     calls,
@@ -63,7 +63,7 @@ function inviteService({ role = "owner", allowed = true, error = null, signed = 
       if (name === "user_profiles")
         return {
           select: () => ({
-            eq: () => ({ single: async () => ({ data: { is_active: true, access_level: role } }) }),
+            eq: () => ({ single: async () => ({ data: { is_active: active, access_level: role } }) }),
           }),
         };
       return {
@@ -74,12 +74,13 @@ function inviteService({ role = "owner", allowed = true, error = null, signed = 
     },
   };
 }
-test("invite rejects unauthenticated, non-owner and invalid method", async () => {
+test("invite rejects unauthenticated, non-administrator, inactive profiles and invalid method", async () => {
   for (const options of [
     { signed: false },
-    { role: "admin" },
     { role: "staff" },
     { role: "customer" },
+    { role: "owner", active: false },
+    { role: "admin", active: false },
   ]) {
     const service = inviteService(options),
       run = await handler("invite-user", service);
@@ -105,8 +106,9 @@ test("invite quota blocks before exemption or Auth, database failure fails close
     assert.ok(!service.calls.includes("invite"));
   }
 });
-test("invite reserves verified actor, ignoring spoofed body identity", async () => {
-  const service = inviteService(),
+// The administrator model was extended by migration 20260914011729.
+for (const role of ["owner", "admin"]) test(`invite allows active ${role} and reserves verified actor, ignoring spoofed body identity`, async () => {
+  const service = inviteService({ role }),
     run = await handler("invite-user", service);
   assert.equal(
     (await run(post({ email: "person@example.com", owner_id: "attacker", access_level: "owner" })))
@@ -117,6 +119,7 @@ test("invite reserves verified actor, ignoring spoofed body identity", async () 
   assert.equal(call.name, "reserve_invite_budget");
   assert.equal(call.args.owner_id, "verified-owner");
   assert.ok(service.calls.indexOf(call) < service.calls.indexOf("invite"));
+  assert.equal(service.calls.filter((entry) => entry === "invite").length, 1);
 });
 test("registration reservation denial/error cannot reach Auth", async () => {
   for (const [data, error, status] of [
