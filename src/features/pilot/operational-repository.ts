@@ -22,6 +22,8 @@ export interface OperationalRepository {
   savePartFinancial(order: ServiceOrder, input: FinancialMutation): Promise<ServiceOrder>;
   reloadOrder(order: ServiceOrder): Promise<ServiceOrder>;
   load(): Promise<OperationalData>;
+  createCustomer(customer: Customer): Promise<Customer>;
+  createVehicle(vehicle: Vehicle): Promise<Vehicle>;
   createOrder(bundle: NewOrderBundle): Promise<OperationalData>;
   createQuickOrder(draft: QuickOrderDraft, workshopSnapshot?: ServiceOrder["workshopSnapshot"]): Promise<OperationalData>;
   saveOrder(order: ServiceOrder): Promise<void>;
@@ -177,6 +179,20 @@ export class OrderVersionConflict extends Error {
 
 class CloudOperationalRepository implements OperationalRepository {
   private orderVersions = new Map<string, string>();
+
+  async createCustomer(customer: Customer) {
+    const { data, error } = await supabase.rpc("create_customer" as never, { customer_data: asJson(customer) } as never);
+    if (error?.code === "23505") throw new Error("Já existe um cliente cadastrado com este CPF, telefone ou e-mail. Recarregue para selecionar o cadastro existente.");
+    if (error || !data) throw new Error(error?.message ?? "Não foi possível salvar o cliente.");
+    return mapCustomer(data as unknown as Parameters<typeof mapCustomer>[0]);
+  }
+
+  async createVehicle(vehicle: Vehicle) {
+    const { data, error } = await supabase.rpc("create_vehicle" as never, { vehicle_data: asJson(vehicle) } as never);
+    if (error?.code === "23505") throw new Error("Já existe um veículo cadastrado com esta placa. Recarregue para selecionar o cadastro existente.");
+    if (error || !data) throw new Error(error?.message ?? "Não foi possível salvar o veículo.");
+    return mapVehicle(data as unknown as Parameters<typeof mapVehicle>[0]);
+  }
 
   async savePartFinancial(order: ServiceOrder, input: FinancialMutation) {
     if (!order.databaseId) throw new Error("OS sem identificador persistente.");
@@ -471,6 +487,33 @@ class CloudOperationalRepository implements OperationalRepository {
 }
 
 class LocalOperationalRepository implements OperationalRepository {
+  async createCustomer(customer: Customer) {
+    const data = this.read();
+    const existing = data.customers.find((item) => item.id === customer.id);
+    if (existing) {
+      if (JSON.stringify(existing) !== JSON.stringify(customer)) throw new Error("Identificador já utilizado por outro cadastro.");
+      return existing;
+    }
+    if (data.customers.some((item) => item.phone === customer.phone || (customer.cpf && item.cpf === customer.cpf) || (customer.email && item.email === customer.email)))
+      throw new Error("Já existe um cliente cadastrado com este CPF, telefone ou e-mail.");
+    this.write({ ...data, customers: [...data.customers, customer] });
+    return customer;
+  }
+
+  async createVehicle(vehicle: Vehicle) {
+    const data = this.read();
+    if (!data.customers.some((item) => item.id === vehicle.customerId && !item.deletedAt))
+      throw new Error("Selecione um cliente ativo e salvo.");
+    const existing = data.vehicles.find((item) => item.id === vehicle.id);
+    if (existing) {
+      if (JSON.stringify(existing) !== JSON.stringify(vehicle)) throw new Error("Identificador já utilizado por outro cadastro.");
+      return existing;
+    }
+    if (data.vehicles.some((item) => item.plate === vehicle.plate)) throw new Error("Já existe um veículo cadastrado com esta placa.");
+    this.write({ ...data, vehicles: [...data.vehicles, vehicle] });
+    return vehicle;
+  }
+
   async savePartFinancial(order: ServiceOrder, input: FinancialMutation): Promise<ServiceOrder> {
     if ("correction" in input) throw new Error("Correções financeiras exigem uma sessão real da oficina.");
     if ("discount" in input) throw new Error("Descontos exigem uma sessão real da oficina.");

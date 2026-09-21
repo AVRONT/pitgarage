@@ -1421,11 +1421,12 @@ export function PilotApp() {
           setNewCustomerOpen(false);
           navigate("customer", id);
         }}
-        onCreate={(customer) => {
-          setCustomers((current) => [...current, customer]);
+        onCreate={async (customer) => {
+          const saved = await repository.createCustomer(customer);
+          setCustomers((current) => [...current.filter((item) => item.id !== saved.id), saved]);
           setNewCustomerOpen(false);
-          setNotice("Cliente criado para demonstração");
-          navigate("customer", customer.id);
+          setNotice("Cliente cadastrado");
+          navigate("customer", saved.id);
         }}
       />
       <NewVehicleDialog
@@ -1441,12 +1442,13 @@ export function PilotApp() {
           setNewVehicleOpen(false);
           navigate("vehicle", id);
         }}
-        onCreate={(vehicle) => {
-          setVehicles((current) => [...current, vehicle]);
+        onCreate={async (vehicle) => {
+          const saved = await repository.createVehicle(vehicle);
+          setVehicles((current) => [...current.filter((item) => item.id !== saved.id), saved]);
           setNewVehicleOpen(false);
           setInitialVehicleCustomerId(undefined);
-          setNotice("Veículo criado para demonstração");
-          navigate("vehicle", vehicle.id);
+          setNotice("Veículo cadastrado");
+          navigate("vehicle", saved.id);
         }}
       />
       <NewOrderDialog
@@ -5135,15 +5137,19 @@ function NewCustomerDialog({
   onOpenChange: (value: boolean) => void;
   customers: Customer[];
   onExisting: (id: string) => void;
-  onCreate: (customer: Customer) => void;
+  onCreate: (customer: Customer) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [error, setError] = useState<{ field: string; message: string; existingId?: string }>();
-  const submit = (event: FormEvent) => {
+  const saving = useRef(false);
+  const requestId = useRef<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving.current) return;
     const cleanName = normalizeName(name);
     const cleanPhone = normalizePhone(phone);
     const cleanEmail = normalizeEmail(email);
@@ -5169,28 +5175,39 @@ function NewCustomerDialog({
         existingId: duplicate.id,
       });
     }
-    onCreate({
-      id: `c-${Date.now()}`,
-      name: cleanName,
-      phone: cleanPhone,
-      email: cleanEmail,
-      ...(cleanCpf ? { cpf: cleanCpf } : {}),
-      since: String(new Date().getFullYear()),
-    });
-    setName("");
-    setPhone("");
-    setEmail("");
-    setCpf("");
-    setError(undefined);
+    saving.current = true;
+    setIsSaving(true);
+    requestId.current ??= crypto.randomUUID();
+    try {
+      await onCreate({
+        id: requestId.current,
+        name: cleanName,
+        phone: cleanPhone,
+        email: cleanEmail,
+        ...(cleanCpf ? { cpf: cleanCpf } : {}),
+        since: String(new Date().getFullYear()),
+      });
+      setName("");
+      setPhone("");
+      setEmail("");
+      setCpf("");
+      setError(undefined);
+      requestId.current = null;
+    } catch (cause) {
+      setError({ field: "save", message: cause instanceof Error ? cause.message : "Não foi possível salvar o cliente. Tente novamente." });
+    } finally {
+      saving.current = false;
+      setIsSaving(false);
+    }
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(value) => { if (!saving.current) onOpenChange(value); }}>
       <DialogContent>
         <form onSubmit={submit} noValidate>
           <DialogHeader>
             <DialogTitle>Novo cliente</DialogTitle>
             <DialogDescription>
-              Cadastro simplificado para demonstrar o fluxo do piloto.
+              Cadastre o cliente para vincular veículos e OS.
             </DialogDescription>
           </DialogHeader>
           <div className="my-5 space-y-4">
@@ -5247,11 +5264,11 @@ function NewCustomerDialog({
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
-              Criar cliente
+            <Button type="submit" disabled={isSaving} className="bg-orange-500 hover:bg-orange-600">
+              {isSaving ? "Salvando..." : "Criar cliente"}
             </Button>
           </DialogFooter>
         </form>
@@ -5275,7 +5292,7 @@ function NewVehicleDialog({
   vehicles: Vehicle[];
   initialCustomerId?: string | undefined;
   onExisting: (id: string) => void;
-  onCreate: (vehicle: Vehicle) => void;
+  onCreate: (vehicle: Vehicle) => Promise<void>;
 }) {
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
   const [kind, setKind] = useState<Vehicle["kind"]>("Carro");
@@ -5286,13 +5303,20 @@ function NewVehicleDialog({
   const [mileage, setMileage] = useState("");
   const [color, setColor] = useState("");
   const [error, setError] = useState<{ message: string; existingId?: string }>();
+  const saving = useRef(false);
+  const requestId = useRef<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   useEffect(() => {
-    if (!open || !initialCustomerId) return;
-    setCustomerId(initialCustomerId);
+    if (!open) return;
+    setCustomerId((current) => initialCustomerId ?? (
+      customers.some((customer) => customer.id === current && !customer.deletedAt)
+        ? current : customers.find((customer) => !customer.deletedAt)?.id ?? ""
+    ));
     setError(undefined);
-  }, [initialCustomerId, open]);
-  const submit = (event: FormEvent) => {
+  }, [initialCustomerId, open, customers]);
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving.current) return;
     const cleanPlate = normalizePlate(plate);
     const existing = vehicles.find((item) => normalizePlate(item.plate) === cleanPlate);
     if (!customerId) return setError({ message: "Selecione o proprietário do veículo." });
@@ -5313,27 +5337,38 @@ function NewVehicleDialog({
       return setError({ message: "Informe um ano válido para o veículo." });
     if (!Number.isFinite(numericMileage) || numericMileage < 0 || numericMileage > 2_000_000)
       return setError({ message: "Informe uma quilometragem válida entre 0 e 2.000.000 km." });
-    onCreate({
-      id: `v-${Date.now()}`,
-      customerId,
-      kind,
-      brand: normalizeName(brand),
-      model: normalizeName(model),
-      year: numericYear,
-      plate: cleanPlate,
-      mileage: numericMileage,
-      color: normalizeName(color) || "Não informada",
-    });
-    setBrand("");
-    setModel("");
-    setPlate("");
-    setYear("");
-    setMileage("");
-    setColor("");
-    setError(undefined);
+    saving.current = true;
+    setIsSaving(true);
+    requestId.current ??= crypto.randomUUID();
+    try {
+      await onCreate({
+        id: requestId.current,
+        customerId,
+        kind,
+        brand: normalizeName(brand),
+        model: normalizeName(model),
+        year: numericYear,
+        plate: cleanPlate,
+        mileage: numericMileage,
+        color: normalizeName(color) || "Não informada",
+      });
+      setBrand("");
+      setModel("");
+      setPlate("");
+      setYear("");
+      setMileage("");
+      setColor("");
+      setError(undefined);
+      requestId.current = null;
+    } catch (cause) {
+      setError({ message: cause instanceof Error ? cause.message : "Não foi possível salvar o veículo. Tente novamente." });
+    } finally {
+      saving.current = false;
+      setIsSaving(false);
+    }
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(value) => { if (!saving.current) onOpenChange(value); }}>
       <DialogContent>
         <form onSubmit={submit} noValidate>
           <DialogHeader>
@@ -5425,11 +5460,11 @@ function NewVehicleDialog({
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
-              Criar veículo
+            <Button type="submit" disabled={isSaving} className="bg-orange-500 hover:bg-orange-600">
+              {isSaving ? "Salvando..." : "Criar veículo"}
             </Button>
           </DialogFooter>
         </form>

@@ -278,7 +278,7 @@ test("customers screen supports operational search and preselected customer acti
   assert.match(customerDetail, /Histórico de OS/);
   assert.match(customerDetail, /onNewOrderForVehicle\(vehicle\.id\)/);
   assert.match(newVehicleDialog, /initialCustomerId\?: string/);
-  assert.match(newVehicleDialog, /setCustomerId\(initialCustomerId\)/);
+  // Preselection is exercised by directory-persistence.test.mjs through the submitted vehicle.
   assert.match(newOrderDialog, /initialCustomerId\?: string/);
   assert.match(newOrderDialog, /setCustomerId\(initialCustomer\.id\)/);
 });
