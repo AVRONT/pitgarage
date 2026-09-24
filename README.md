@@ -4,14 +4,16 @@ Sistema de gestão para uma oficina real de carros e motos. O projeto busca cent
 
 ## Estado atual
 
-O projeto está na fase de **Piloto v0.1.9**. A aplicação local com dados fictícios reúne Nova OS guiada, workflow com confirmações, exclusão lógica e visão do orçamento como cliente. Esta versão refina busca, duplicidades e clareza operacional. O piloto não representa aprovação do MVP, da arquitetura ou das decisões técnicas definitivas.
+O projeto segue na fase de **piloto**. O frontend cloud, a autenticação e a base operacional de clientes, veículos e ordens de serviço estão publicados, assim como Agenda, notificações e Chat, conforme o estado informado pelo responsável em 03/09/2026. O piloto ainda não representa aprovação do escopo definitivo do MVP.
 
-Consulte o índice em [`docs/README.md`](docs/README.md).
+O repositório também contém evoluções **preparadas apenas localmente**, incluindo OS rápida, desconto comercial, recebimentos e melhorias financeiras. Código e migrations presentes no repositório não indicam, por si só, que esses recursos foram publicados. Há ainda configurações e validações pendentes no ambiente cloud.
+
+Consulte o [índice da documentação](docs/README.md) e o [contexto atual](docs/AI_CONTEXT.md) para distinguir recursos publicados, preparação local e decisões pendentes.
 
 ## Próximos passos
 
-1. Demonstrar o Piloto v0.1.9 aos responsáveis pela oficina.
-2. Registrar feedback sobre fluxo, informações e facilidade de uso.
-3. Atualizar requisitos e escopo com base apenas no que for validado.
+1. Validar com a oficina os fluxos, informações e regras ainda em aberto.
+2. Conferir as pendências de configuração e validação cloud antes de publicar evoluções locais.
+3. Atualizar requisitos e escopo com base no que for validado.
 
 > O repositório já possui um scaffold gerado pelo Lovable. Sua presença não representa uma decisão técnica aprovada para o produto.
