@@ -318,3 +318,11 @@ ativada e houver acesso à internet ou ao repositório indicado, verifique somen
 upstream dessa skill e confira atualizações relevantes. Aproveite melhorias quando
 apropriado sem substituir automaticamente adaptações locais. Se o upstream estiver
 indisponível, continue o trabalho. Não pesquise o upstream das skills não ativadas.
+
+## Skill adicional: caveman
+
+A skill `caveman` está em `skills/caveman/SKILL.md`. Use-a quando o usuário pedir
+explicitamente o modo caveman ou uma de suas variantes. Ela ajusta apenas o estilo
+das respostas; não altera as regras de execução deste projeto nem a redação dos
+arquivos produzidos. A licença e a referência original acompanham a skill em
+`skills/caveman/`.
